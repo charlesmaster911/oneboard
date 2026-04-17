@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OneBoard | 쥬얼아이스 마케팅 대시보드</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+
+    <!-- ── Header ── -->
+    <header class="header">
+      <div class="header-left">
+        <div class="logo">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <rect width="10" height="10" rx="2" fill="#3B82F6"/>
+            <rect x="12" width="10" height="10" rx="2" fill="#10B981"/>
+            <rect y="12" width="10" height="10" rx="2" fill="#F59E0B"/>
+            <rect x="12" y="12" width="10" height="10" rx="2" fill="#8B5CF6"/>
+          </svg>
+          <span class="logo-text">OneBoard</span>
+        </div>
+        <div class="workspace-badge">쥬얼아이스 🍦</div>
+      </div>
+      <div class="header-right">
+        <div class="date-range-btns">
+          <button class="range-btn" data-range="7">7일</button>
+          <button class="range-btn active" data-range="30">30일</button>
+          <button class="range-btn" data-range="90">90일</button>
+          <button class="range-btn" data-range="0">전체</button>
+        </div>
+        <div class="last-updated" id="lastUpdated">로딩 중...</div>
+      </div>
+    </header>
+
+    <!-- ── AI 인사이트 배너 ── -->
+    <div class="insights-bar" id="insightsBar" style="display:none">
+      <div class="insights-bar-inner" id="insightsList"></div>
+      <button class="insights-refresh" id="insightsRefresh" title="AI 분석 새로고침">↻ AI 분석</button>
+    </div>
+
+    <!-- ── Main ── -->
+    <main class="main">
+
+      <!-- 연간 목표 달성 -->
+      <section class="goal-section">
+        <div class="goal-card">
+          <div class="goal-header">
+            <span class="goal-label">2026 연간 목표</span>
+            <span class="goal-target" id="goalTarget">₩20억</span>
+          </div>
+          <div class="goal-bar-wrap">
+            <div class="goal-bar-track">
+              <div class="goal-bar-fill" id="goalBarFill" style="width:0%"></div>
+            </div>
+            <span class="goal-pct" id="goalPct">0%</span>
+          </div>
+          <div class="goal-meta">
+            <span>달성 <strong id="goalYtd">—</strong></span>
+            <span>잔여 <strong id="goalRemain">—</strong></span>
+            <span>파이프라인 <strong id="goalPipeline">—</strong></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- KPI Cards -->
+      <section class="kpi-section">
+        <div class="kpi-card kpi-sales">
+          <div class="kpi-icon">💰</div>
+          <div class="kpi-label">총 매출</div>
+          <div class="kpi-value" id="val-sales">—</div>
+          <div class="kpi-change neutral" id="chg-sales">전 기간 비교 중</div>
+          <div class="kpi-sub">기간 합계</div>
+        </div>
+        <div class="kpi-card kpi-traffic">
+          <div class="kpi-icon">👥</div>
+          <div class="kpi-label">총 유입</div>
+          <div class="kpi-value" id="val-traffic">—</div>
+          <div class="kpi-change neutral" id="chg-traffic">전 기간 비교 중</div>
+          <div class="kpi-sub">방문자 합계</div>
+        </div>
+        <div class="kpi-card kpi-adspend">
+          <div class="kpi-icon">📢</div>
+          <div class="kpi-label">총 광고비</div>
+          <div class="kpi-value" id="val-adspend">—</div>
+          <div class="kpi-change neutral" id="chg-adspend">전 기간 비교 중</div>
+          <div class="kpi-sub">기간 합계</div>
+        </div>
+        <div class="kpi-card kpi-roas">
+          <div class="kpi-icon">📈</div>
+          <div class="kpi-label">평균 ROAS</div>
+          <div class="kpi-value" id="val-roas">—</div>
+          <div class="kpi-change neutral" id="chg-roas">전 기간 비교 중</div>
+          <div class="kpi-sub">총매출 ÷ 광고비</div>
+        </div>
+      </section>
+
+      <!-- Channel Tabs -->
+      <div class="channel-tabs">
+        <button class="tab-btn active" data-channel="통합">📊 통합</button>
+        <button class="tab-btn" data-channel="자사몰">🏪 자사몰</button>
+        <button class="tab-btn" data-channel="META">📘 META</button>
+        <button class="tab-btn" data-channel="쿠팡">🛍️ 쿠팡</button>
+        <button class="tab-btn" data-channel="네이버">🟢 네이버</button>
+        <button class="tab-btn" data-channel="유튜브쇼핑">▶ 유튜브</button>
+        <button class="tab-btn" data-channel="카카오모먼트">💛 카카오</button>
+        <button class="tab-btn" data-channel="아블러">🧊 아블러</button>
+      </div>
+      <div class="channel-notice" id="channelNotice" style="display:none">
+        <span>⚠️ 채널별 데이터는 추후 Google Sheets 탭 연동 예정입니다.</span>
+      </div>
+
+      <!-- Main Sales Chart -->
+      <section class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">매출 추이</div>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-dot blue"></span>총 매출</span>
+            <span class="legend-item"><span class="legend-dot green"></span>전환 매출</span>
+          </div>
+        </div>
+        <div class="chart-body" style="height:280px">
+          <canvas id="salesChart"></canvas>
+        </div>
+      </section>
+
+      <!-- Secondary Charts -->
+      <div class="charts-grid">
+        <section class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">ROAS 추이</div>
+            <div class="chart-sub">총 매출 ÷ 광고비 × 100</div>
+          </div>
+          <div class="chart-body" style="height:200px">
+            <canvas id="roasChart"></canvas>
+          </div>
+        </section>
+
+        <section class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">광고비율 추이</div>
+            <div class="chart-sub">광고비 ÷ 총매출</div>
+          </div>
+          <div class="chart-body" style="height:200px">
+            <canvas id="adRatioChart"></canvas>
+          </div>
+        </section>
+
+        <section class="chart-card channel-chart-card">
+          <div class="chart-header">
+            <div class="chart-title">채널별 매출 비중</div>
+            <div class="channel-badge">목업</div>
+          </div>
+          <div class="chart-body channel-donut-body" style="height:200px">
+            <canvas id="channelChart"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <!-- 재고 + 프로젝트 -->
+      <div class="ops-grid">
+
+        <!-- 재고 위험 현황 -->
+        <section class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">재고 위험 현황</div>
+            <span class="ops-badge" id="stockAlertCount">로딩 중</span>
+          </div>
+          <div class="stock-list" id="stockList">
+            <div class="ops-empty">데이터 로딩 중...</div>
+          </div>
+        </section>
+
+        <!-- 프로젝트 우선순위 -->
+        <section class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">프로젝트 우선순위</div>
+            <span class="ops-badge badge-blue" id="projectCount">로딩 중</span>
+          </div>
+          <div class="project-list" id="projectList">
+            <div class="ops-empty">데이터 로딩 중...</div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Data Table -->
+      <section class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">일별 상세 데이터</div>
+          <button class="export-btn" id="exportBtn">↓ CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>날짜</th>
+                <th>총 매출</th>
+                <th>총 유입</th>
+                <th>전환 매출</th>
+                <th>총 광고비</th>
+                <th>총 ROAS</th>
+                <th>광고비율</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr><td colspan="7" class="loading-row">데이터 로딩 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span>OneBoard — 쥬얼아이스 마케팅 대시보드</span>
+      <span id="dataSource">Google Sheets 연동 중...</span>
+    </footer>
+
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
