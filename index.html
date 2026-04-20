@@ -3,50 +3,74 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OneBoard | 쥬얼아이스 마케팅 대시보드</title>
+  <title>OneBoard | 쥬얼아이스</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app">
+<div class="app">
 
-    <!-- ── Header ── -->
-    <header class="header">
-      <div class="header-left">
-        <div class="logo">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-            <rect width="10" height="10" rx="2" fill="#3B82F6"/>
-            <rect x="12" width="10" height="10" rx="2" fill="#10B981"/>
-            <rect y="12" width="10" height="10" rx="2" fill="#F59E0B"/>
-            <rect x="12" y="12" width="10" height="10" rx="2" fill="#8B5CF6"/>
-          </svg>
-          <span class="logo-text">OneBoard</span>
-        </div>
-        <div class="workspace-badge">쥬얼아이스 🍦</div>
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <rect width="10" height="10" rx="2" fill="#3B82F6"/>
+          <rect x="12" width="10" height="10" rx="2" fill="#10B981"/>
+          <rect y="12" width="10" height="10" rx="2" fill="#F59E0B"/>
+          <rect x="12" y="12" width="10" height="10" rx="2" fill="#8B5CF6"/>
+        </svg>
+        <span class="logo-text">OneBoard</span>
       </div>
-      <div class="header-right">
-        <div class="date-range-btns">
-          <button class="range-btn" data-range="7">7일</button>
-          <button class="range-btn active" data-range="30">30일</button>
-          <button class="range-btn" data-range="90">90일</button>
-          <button class="range-btn" data-range="0">전체</button>
-        </div>
-        <div class="last-updated" id="lastUpdated">로딩 중...</div>
-      </div>
-    </header>
-
-    <!-- ── AI 인사이트 배너 ── -->
-    <div class="insights-bar" id="insightsBar" style="display:none">
-      <div class="insights-bar-inner" id="insightsList"></div>
-      <button class="insights-refresh" id="insightsRefresh" title="AI 분석 새로고침">↻ AI 분석</button>
+      <div class="workspace-badge">쥬얼아이스 🍦</div>
     </div>
+    <div class="header-right">
+      <div class="date-range-btns" id="dateRangeBtns">
+        <button class="range-btn" data-range="7">7일</button>
+        <button class="range-btn active" data-range="30">30일</button>
+        <button class="range-btn" data-range="90">90일</button>
+        <button class="range-btn" data-range="0">전체</button>
+      </div>
+      <div class="last-updated" id="lastUpdated">로딩 중...</div>
+      <div class="notif-wrap" id="notifWrap">
+        <button class="notif-bell" id="notifBell" title="알림">
+          🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span>
+        </button>
+        <div class="notif-dropdown" id="notifDropdown" style="display:none">
+          <div class="notif-header">
+            <span>알림</span>
+            <button class="notif-read-all" id="notifReadAll">모두 읽음</button>
+          </div>
+          <div class="notif-list" id="notifList"><div class="notif-empty">알림 없음</div></div>
+        </div>
+      </div>
+    </div>
+  </header>
 
-    <!-- ── Main ── -->
-    <main class="main">
+  <!-- ── Section Nav ── -->
+  <nav class="section-nav">
+    <button class="section-btn active" data-section="sales">📊 매출</button>
+    <button class="section-btn" data-section="team">👥 팀 업무</button>
+    <button class="section-btn" data-section="minutes">📋 회의록</button>
+    <button class="section-btn" data-section="kpi">🏆 팀 KPI</button>
+  </nav>
 
-      <!-- 연간 목표 달성 -->
+  <!-- ── AI 인사이트 배너 ── -->
+  <div class="insights-bar" id="insightsBar" style="display:none">
+    <div class="insights-bar-inner" id="insightsList"></div>
+    <button class="insights-refresh" id="insightsRefresh" title="AI 분석 새로고침">↻ AI 분석</button>
+  </div>
+
+  <main class="main">
+
+    <!-- ═══════════════════════════════════════
+         섹션 1: 매출
+    ═══════════════════════════════════════ -->
+    <div id="section-sales" class="section-content">
+
+      <!-- 연간 목표 -->
       <section class="goal-section">
         <div class="goal-card">
           <div class="goal-header">
@@ -139,7 +163,6 @@
             <canvas id="roasChart"></canvas>
           </div>
         </section>
-
         <section class="chart-card">
           <div class="chart-header">
             <div class="chart-title">광고비율 추이</div>
@@ -149,7 +172,6 @@
             <canvas id="adRatioChart"></canvas>
           </div>
         </section>
-
         <section class="chart-card channel-chart-card">
           <div class="chart-header">
             <div class="chart-title">채널별 매출 비중</div>
@@ -161,38 +183,14 @@
         </section>
       </div>
 
-      <!-- 재고 + 프로젝트 -->
-      <div class="ops-grid">
-
-        <!-- 재고 위험 현황 -->
-        <section class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">재고 위험 현황</div>
-            <span class="ops-badge" id="stockAlertCount">로딩 중</span>
-          </div>
-          <div class="stock-list" id="stockList">
-            <div class="ops-empty">데이터 로딩 중...</div>
-          </div>
-        </section>
-
-        <!-- 프로젝트 우선순위 -->
-        <section class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">프로젝트 우선순위</div>
-            <span class="ops-badge badge-blue" id="projectCount">로딩 중</span>
-          </div>
-          <div class="project-list" id="projectList">
-            <div class="ops-empty">데이터 로딩 중...</div>
-          </div>
-        </section>
-
-      </div>
-
       <!-- Data Table -->
       <section class="chart-card">
         <div class="chart-header">
-          <div class="chart-title">일별 상세 데이터</div>
-          <button class="export-btn" id="exportBtn">↓ CSV</button>
+          <div class="chart-title">일별 데이터</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="data-source-badge" id="dataSource">로딩 중...</span>
+            <button class="export-btn" id="exportBtn">CSV 내보내기</button>
+          </div>
         </div>
         <div class="table-wrap">
           <table class="data-table">
@@ -203,7 +201,7 @@
                 <th>총 유입</th>
                 <th>전환 매출</th>
                 <th>총 광고비</th>
-                <th>총 ROAS</th>
+                <th>ROAS</th>
                 <th>광고비율</th>
               </tr>
             </thead>
@@ -214,15 +212,292 @@
         </div>
       </section>
 
-    </main>
+    </div><!-- /section-sales -->
 
-    <!-- Footer -->
-    <footer class="footer">
-      <span>OneBoard — 쥬얼아이스 마케팅 대시보드</span>
-      <span id="dataSource">Google Sheets 연동 중...</span>
-    </footer>
+    <!-- ═══════════════════════════════════════
+         섹션 2: 팀 업무 캘린더
+    ═══════════════════════════════════════ -->
+    <div id="section-team" class="section-content" style="display:none">
 
-  </div>
-  <script src="app.js"></script>
+      <!-- 팀원 탭 -->
+      <div class="member-tabs" id="memberTabs">
+        <button class="member-tab-btn active" data-member="통합">🔗 통합</button>
+        <button class="member-tab-btn" data-member="박지현">박지현 팀장</button>
+        <button class="member-tab-btn" data-member="권나경">권나경 과장</button>
+        <button class="member-tab-btn" data-member="권수지">권수지 대리</button>
+        <button class="member-tab-btn" data-member="컨텐츠팀">컨텐츠팀</button>
+      </div>
+
+      <!-- 통합 뷰 (기본) -->
+      <div id="integratedView">
+        <div class="integrated-sections">
+
+          <!-- 이번 주 주요 현황 -->
+          <div class="integrated-block">
+            <div class="integrated-block-title">🚨 이번 주 높음 우선순위 · 미완료</div>
+            <div id="intBlockers" class="integrated-list"></div>
+          </div>
+
+          <!-- 팀원별 진행 현황 -->
+          <div class="integrated-block">
+            <div class="integrated-block-title">📋 팀원별 현재 업무 현황</div>
+            <div id="intMemberStatus" class="integrated-member-grid"></div>
+          </div>
+
+          <!-- 서로 알아야 할 사항 -->
+          <div class="integrated-block">
+            <div class="integrated-block-title">🤝 협업 필요 · 알림 사항</div>
+            <div id="intAlerts" class="integrated-list"></div>
+          </div>
+
+        </div>
+        <button class="refresh-btn" id="refreshTeamBtn" style="margin:12px 0">↻ 새로고침</button>
+      </div>
+
+      <!-- 개인 탭 뷰 (숨김) -->
+      <div id="memberCalView" style="display:none">
+
+        <!-- 캘린더 헤더 -->
+        <div class="cal-header">
+          <div class="cal-nav">
+            <button class="cal-nav-btn" id="calPrev">‹</button>
+            <div class="cal-week-label" id="calWeekLabel">—</div>
+            <button class="cal-nav-btn" id="calNext">›</button>
+            <button class="cal-today-btn" id="calToday">오늘</button>
+          </div>
+          <div class="cal-view-btns">
+            <button class="range-btn active" data-calview="week">월간</button>
+            <button class="range-btn" data-calview="day">일간</button>
+          </div>
+          <button class="cal-add-member-btn" id="calAddMemberBtn">+ 업무 추가</button>
+        </div>
+
+        <!-- 주간/월간 캘린더 -->
+        <div id="calWeekView" class="cal-week-wrap">
+          <div class="cal-grid" id="calGrid">
+            <!-- JS로 렌더링 -->
+          </div>
+        </div>
+
+        <!-- 일간 뷰 -->
+        <div id="calDayView" class="cal-day-wrap" style="display:none">
+          <div class="cal-day-date" id="calDayDate">—</div>
+          <div class="cal-day-list" id="calDayList"></div>
+        </div>
+
+      </div><!-- /memberCalView -->
+
+      <!-- Sheets 과거 데이터 import 버튼 -->
+      <div class="import-bar" id="importBar">
+        <span class="import-bar-text">📥 Google Sheets 과거 업무 데이터 가져오기</span>
+        <button class="btn-secondary" id="importSheetBtn" style="font-size:12px;padding:6px 14px">불러오기</button>
+      </div>
+
+      <!-- 업무 추가 모달 -->
+      <div class="modal-overlay" id="taskModal" style="display:none">
+        <div class="modal">
+          <div class="modal-header">
+            <div class="modal-title">업무 추가</div>
+            <button class="modal-close" id="closeTaskModal">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">날짜</label>
+              <input type="date" class="form-input" id="taskDate">
+            </div>
+            <div class="form-group">
+              <label class="form-label">담당자</label>
+              <select class="form-input" id="taskAssignee">
+                <option value="박지현">박지현 (팀장)</option>
+                <option value="권나경">권나경 (과장)</option>
+                <option value="권수지">권수지 (대리)</option>
+                <option value="컨텐츠팀">컨텐츠팀</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">업무 내용</label>
+              <input type="text" class="form-input" id="taskContent" placeholder="예) META 광고 소재 검토">
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:1">
+                <label class="form-label">상태</label>
+                <select class="form-input" id="taskStatus">
+                  <option value="예정">예정</option>
+                  <option value="진행">진행</option>
+                  <option value="완료">완료</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1">
+                <label class="form-label">우선순위</label>
+                <select class="form-input" id="taskPriority">
+                  <option value="높음">높음</option>
+                  <option value="보통" selected>보통</option>
+                  <option value="낮음">낮음</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">메모 (선택)</label>
+              <input type="text" class="form-input" id="taskMemo" placeholder="추가 메모">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" id="cancelTask">취소</button>
+            <button class="btn-primary" id="saveTask">저장</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /section-team -->
+
+    <!-- ═══════════════════════════════════════
+         섹션 3: 회의록
+    ═══════════════════════════════════════ -->
+    <div id="section-minutes" class="section-content" style="display:none">
+
+      <div class="minutes-layout">
+        <!-- 회의록 목록 -->
+        <aside class="minutes-sidebar">
+          <div class="minutes-sidebar-header">
+            <div class="chart-title">회의록 목록</div>
+            <button class="add-btn" id="addMinutesBtn">+ 새 회의록</button>
+          </div>
+          <div class="minutes-list" id="minutesList">
+            <div class="empty-state">로딩 중...</div>
+          </div>
+        </aside>
+
+        <!-- 회의록 뷰어 -->
+        <article class="minutes-viewer" id="minutesViewer">
+          <div class="minutes-placeholder">
+            <div class="minutes-placeholder-icon">📋</div>
+            <div>왼쪽 목록에서 회의록을 선택하세요</div>
+          </div>
+        </article>
+      </div>
+
+      <!-- 새 회의록 폼 -->
+      <div class="modal-overlay" id="minutesModal" style="display:none">
+        <div class="modal">
+          <div class="modal-header">
+            <div class="modal-title">새 회의록 작성</div>
+            <button class="modal-close" id="closeMinutesModal">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">회의 제목</label>
+              <input type="text" class="form-input" id="minutesTitle" placeholder="예) 주간 팀 미팅">
+            </div>
+            <div class="form-group">
+              <label class="form-label">찰스 지시사항 (줄바꿈으로 구분)</label>
+              <textarea class="form-textarea" id="minutesDirectives" rows="4" placeholder="1. 이번 주 META 광고 예산 20% 증가&#10;2. 쿠팡 상품 리뷰 대응 완료&#10;3. 콘텐츠 캘린더 다음 달 분 작성"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">주요 논의 내용</label>
+              <textarea class="form-textarea" id="minutesContent" rows="4" placeholder="회의에서 논의된 주요 내용을 입력하세요"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" id="cancelMinutes">취소</button>
+            <button class="btn-primary" id="saveMinutes">저장</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /section-minutes -->
+
+    <!-- ═══════════════════════════════════════
+         섹션 4: 팀 KPI
+    ═══════════════════════════════════════ -->
+    <div id="section-kpi" class="section-content" style="display:none">
+
+      <!-- KPI 기간 선택 -->
+      <div class="kpi-period-bar">
+        <div class="chart-title">팀 KPI 현황</div>
+        <div class="kpi-period-btns">
+          <button class="range-btn active" data-period="week">이번 주</button>
+          <button class="range-btn" data-period="month">이번 달</button>
+        </div>
+      </div>
+
+      <!-- 팀 전체 요약 -->
+      <section class="kpi-section">
+        <div class="kpi-card kpi-sales">
+          <div class="kpi-icon">✅</div>
+          <div class="kpi-label">팀 완료율</div>
+          <div class="kpi-value" id="kpi-completion">—</div>
+          <div class="kpi-change neutral" id="kpi-completion-chg">전 기간 대비</div>
+          <div class="kpi-sub">전체 팀 평균</div>
+        </div>
+        <div class="kpi-card kpi-traffic">
+          <div class="kpi-icon">⏱️</div>
+          <div class="kpi-label">기한 준수율</div>
+          <div class="kpi-value" id="kpi-deadline">—</div>
+          <div class="kpi-change neutral" id="kpi-deadline-chg">전 기간 대비</div>
+          <div class="kpi-sub">전체 팀 평균</div>
+        </div>
+        <div class="kpi-card kpi-adspend">
+          <div class="kpi-icon">🚧</div>
+          <div class="kpi-label">블로커 건수</div>
+          <div class="kpi-value" id="kpi-blockers">—</div>
+          <div class="kpi-change neutral" id="kpi-blockers-chg">이번 주</div>
+          <div class="kpi-sub">미해결 이슈</div>
+        </div>
+        <div class="kpi-card kpi-roas">
+          <div class="kpi-icon">📝</div>
+          <div class="kpi-label">로그 제출률</div>
+          <div class="kpi-value" id="kpi-logs">—</div>
+          <div class="kpi-change neutral" id="kpi-logs-chg">이번 주</div>
+          <div class="kpi-sub">일일 로그 기준</div>
+        </div>
+      </section>
+
+      <!-- 팀원별 KPI 테이블 -->
+      <section class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">팀원별 KPI</div>
+          <div class="chart-sub">회의록 지시사항 기준 평가</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="text-align:left">팀원</th>
+                <th>완료율</th>
+                <th>기한준수</th>
+                <th>블로커</th>
+                <th>로그제출</th>
+                <th>종합점수</th>
+                <th style="text-align:left">이번 주 핵심 업무</th>
+              </tr>
+            </thead>
+            <tbody id="memberKpiTable">
+              <tr><td colspan="7" class="loading-row">데이터 로딩 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 회의록 지시사항 이행 현황 -->
+      <section class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">📌 회의록 지시사항 이행 현황</div>
+        </div>
+        <div class="directives-list" id="directivesList">
+          <div class="empty-state">로딩 중...</div>
+        </div>
+      </section>
+
+    </div><!-- /section-kpi -->
+
+  </main>
+
+  <footer class="footer">
+    <span>OneBoard — 쥬얼아이스 통합 운영 보드</span>
+    <span id="footerDataSource">CHEONGYE v2.0</span>
+  </footer>
+
+</div>
+<script src="app.js"></script>
 </body>
 </html>
