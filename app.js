@@ -778,23 +778,38 @@ const SHEET_TASKS_PRESET = [
   { date:'2026-04-28', who:'권수지',    task:'쥬얼아이스 리뷰 2차 정리',       status:'예정', priority:'보통' },
 ];
 
-// ── 회의록 프리셋 (Google Sheets gid=1125757148 기반) ─────────
+// ── 회의록 프리셋 (시트 13yy1MtUh... gid=1125757148 29건 전수 반영) ─────────
 const MINUTES_PRESET = [
-  { id:'preset-m-2026-04-16', date:'2026-04-16', title:'GS홈쇼핑 MD 미팅 요약', directives:'GS홈쇼핑 입점 관련 MD 면담 진행\n온라인 정상가 오픈 상태, 방송·공동구매·프로모션 공동 추진 방향 논의', content:'2026-04-16 GS홈쇼핑 MD 미팅. 참석: 박지현' },
-  { id:'preset-m-2026-04-15', date:'2026-04-15', title:'협력사 현장 방문 요약', directives:'협력사 현장 방문 및 미팅 진행\n물류·재고 현장 파악', content:'2026-04-15 협력사 현장 방문. 참석: 장정훈, 박지현, 권수지' },
-  { id:'preset-m-2026-04-14', date:'2026-04-14', title:'정동우 대표님 미팅 (아블러/해외)', directives:'아블러 텀블러 메인 제품 집중 전략 확정\n40mm 큐브 몰드 6월 출시 예정\n해외 크라우드펀딩 인디고고 단독 또는 킥스타터+인디고고 투트랙 검토\n7월 초~중순 해외 크라우드펀딩 캠페인 오픈 목표\n첼로스퀘어(삼성) 물류 활용 검토', content:'1. 아블러 텀블러 메인 제품 집중, 40mm 큐브 몰드 개발 중 → 6월 출시 예정\n2. 팀장(온라인 15~20년 경력) 신규 합류, 마케팅 디렉터(캐나다·미국 출신) 기획 전담\n3. Shopify+DHL 운영 → 배송비 15~20% 초과로 일시 중단\n4. 인디고고: 초기 3,000불 선납, 플랫폼 수수료 5%, 메인배너·뉴스레터 무료 제공\n5. 킥스타터: 기존 후원자 DB 재활용 가능' },
-  { id:'preset-m-2026-04-13', date:'2026-04-13', title:'주간회의 (전체)', directives:'광고 대행업체 활용 등 새로운 광고 방향성 이번 주 내 모색\n기존 채널 프로모션 + 오프라인 B2B 입점 동시 추진\n브랜드 커넥트 공동구매 (고정비 20만+수수료 20%) 다음 주 초 진행\n구독자 60만명 유튜버 협업 검토', content:'1. 마케팅·영업: 신규 업체 소통 및 프로모션 계획 수립 중\n2. 콘텐츠 마케팅 일시 중단 → 지표 점검 중\n3. 광고 대행업체 활용 새 방향성 모색 예정\n4. 채널 프로모션 + B2B 오프라인 입점 동시 추진\n5. 브랜드 커넥트 공동구매 다음 주 초 진행 확정' },
-  { id:'preset-m-2026-04-10', date:'2026-04-10', title:'재고·물류 점검 회의', directives:'실재고 파악 후 사방넷 기준 재고 알림 시스템 구축\n글라스잔 단품→세트 판매로 전환 (수익성 우선)\n듀오 컬러박스 5,000개 우선 발주 후 추가 발주\n추석·B2B 제안 일정 기준 재고 생산 계획 수립', content:'1. 재고·물류: 실재고 있으나 시스템 미반영으로 발주 오류 발생. 물류사 방문해 원인 파악 예정\n2. 상품·발주: 글라스잔 세트 판매 전환, 듀오 컬러박스 5천개 선발주\n3. 추석·B2B 제안 일정 기준으로 재고 캘린더 통합 관리 필요' },
-  { id:'preset-m-2026-04-07', date:'2026-04-07', title:'CJ 홈쇼핑 미팅 (주간)', directives:'CJ 공동구매 수수료 30% 조건 검토 (광고비 부담 없음)\nCJ 측 방송·공동구매·SNS 공동 추진 방향 논의\n공동구매 셀러들도 CJ 타이틀로 입점하는 구조 활용 가능', content:'1. CJ: 온라인 정상가 오픈 상태, 추가 프로모션 방향 논의\n2. 총괄 MD 직접 방송·공동구매·프로모션 공동 추진 가능\n3. CJ 공동구매 수수료 30% 조건, 광고비 없이 확장성 있는 조건' },
-  { id:'preset-m-2026-04-06', date:'2026-04-06', title:'주간업무회의 (전사)', directives:'이번 주 핵심: 실재고 최종 점검 + 세무회계 시스템 세팅 + 가격/행사/구성안 확정\n와디즈 실오픈 4/22~23 전후 예정\n메타 광고 재점검 필요 (유입 감소로 매출 하락)\n사방넷 이번 주까지 상품 연동 완료\n어쿠스틱 드링크 협업: 세트 박스 없이 분리 판매', content:'1. 실재고 최종 점검, 세무회계 세팅, 가격/구성안 확정이 이번 주 핵심\n2. 와디즈 알림받기 오픈 중, 실오픈 4/22~23\n3. 네이버 광고 효율 양호, 메타 재점검 필요\n4. 사방넷 이번 주까지 상품 연동 목표\n5. 어쿠스틱 드링크 컵·얼음 분리 판매 확정' },
-  { id:'preset-m-2026-03-30', date:'2026-03-30', title:'주간업무회의 (전사)', directives:'사방넷 완료된 신규몰 우선 연동·상품 전송\n신규 광고대행사 이관 및 사전 컨펌 프로세스 도입\n이번 주 금요일 통합 매출 양식 배포\n4월 8일 물류사 미팅 → 정기 재고 실사 강화 요청', content:'1. 사방넷 세팅 완료 신규몰 우선 연동\n2. 오늘 오후 신규 대행사로 광고 이관\n3. 물류·재고: 4월 8일 물류사 미팅 예정\n4. 아블러 매트 컬러 방향 확정 예정' },
-  { id:'preset-m-2026-03-23', date:'2026-03-23', title:'주간업무회의 (전사)', directives:'채널 입점 완료 순서대로 프로모션 시작\n사방넷 연동 및 운영 양식 정립 (수요일 신규인력 합류)\n재고 부족 상품 2,400개 조리 후 입고\n썸네일·상세페이지 최종본 정리 필요', content:'1. 채널 입점 확대 신청 진행, 완료 채널부터 순차 프로모션\n2. 사방넷 연동·운영 양식 정립, 수요일 신규 인력 합류\n3. 재고 부족 상품 2,400개 입고 예정' },
-  { id:'preset-m-2026-03-20', date:'2026-03-20', title:'주간업무회의 (전사직원)', directives:'신규 입점 오늘까지 신청 마무리, 현황 별도 시트 공유\n내부 데이터 양식 금주 최종 정리\n메타 광고 정상 운영 지연 → 계속 점검 필요\n듀오메이커 3월 24일 입고 후 25~26일 판매 준비\n어쿠스틱 드링크 프로모션 심플하게 구성 방향 검토', content:'1. 신규 입점 오늘까지 신청 마무리\n2. 메타 광고 정상 운영 지연, 계속 점검\n3. 듀오메이커 24일 입고, 25~26일 판매 준비\n4. 광고·콘텐츠 보고서 및 협업 제안서 다음 주 공유' },
-  { id:'preset-m-2026-03-13', date:'2026-03-13', title:'와디즈 미팅', directives:'와디즈 행사 목표 매출: 3,000만~5,000만원\n아블러 메인, 듀오 서브 구성 유력\n오픈 후 3일 알림신청 푸시 집중, 이후 신규유입 병행\n보상판매 할인 프로모션 추가 검토', content:'1. 와디즈 행사 목표: 3,000만~5,000만원\n2. 아블러 메인, 듀오 옵션형 서브 구성\n3. 오픈 후 3일: 알림신청 푸시 집중 / 4~14일차: 신규유입 확대\n4. 보상판매 할인 프로모션 추가 검토' },
-  { id:'preset-m-2026-03-09', date:'2026-03-09', title:'주간업무회의 (전사직원)', directives:'아블러 조립·재고 반영 진행 중\n듀오메이커 외통 인쇄·납품 진행 중\n신규 컬러 MOQ 1,500개까지 협의 완료\n사방넷 이번 주 세팅 완료 목표\n와디즈 수수료 조건 회신 대기 중\n신규 컬러 SNS 투표 운영', content:'1. 아블러 조립·재고 반영 진행\n2. 사방넷 이번 주 세팅 완료 목표\n3. 와디즈 수수료 조건 회신 대기\n4. 신규 컬러 SNS 투표 운영' },
-  { id:'preset-m-2026-03-05', date:'2026-03-05', title:'주간업무회의 (전사직원)', directives:'아블러 신규 컬러 1~2종 추가 검토 (실버 제외)\n와디즈: 아블러 메인 + 듀오 옵션형 서브 구성 방향\n3월 인플루언서 진행·메타 광고 세팅 실행', content:'1. 아블러 신규 컬러 1~2종 추가 검토 (실버 재고로 실버 제외)\n2. 와디즈: 아블러 메인, 듀오 옵션형 서브 구성 방향\n3. 전체 발주 5,000개 기준, 신규 컬러 추가 시 6,000개' },
-  { id:'preset-m-2026-03-03', date:'2026-03-03', title:'주간업무회의 (전사직원)', directives:'메타 광고 25만~30만원 증액 테스트 (리타겟팅 중심)\n신규 얼음 몰드 40mm 기준으로 설계 확정 (실물 테스트 우선)\n재고 부족 SKU 이번 주 내 전체 파악', content:'1. 메타 광고 25~30만원 증액, 리타겟팅 중심 운영\n2. 얼음 몰드 40mm 설계 확정 (AI 데이터보다 실물 테스트 우선)\n3. 재고 부족 SKU 전체 파악' },
-  { id:'preset-m-2026-02-27', date:'2026-02-27', title:'주간업무회의 (전사직원)', directives:'미스터 위스키 썸네일 최종 선택 (찰스 대표님)\n브릭스 진행 여부 검토 (찰스 대표님)\n박지현 팀장: 다음 주 대표 보고자료 준비\n권나경 과장: 아블러 제로 공동구매/벤더사 후보 확인\n광고 소재 여분 확보 운영', content:'1. 찰스 대표님 확인: 미스터 위스키 썸네일 선택, 브릭스 진행 여부\n2. 박지현 팀장: 다음 주 보고자료 준비\n3. 권나경 과장: 미스터위스키 가편집본 수정 요청, 아블러 제로 공동구매 후보 확인\n4. 광고 소재 여분 확보 운영' },
+  { id:'preset-m-2026-04-23', date:'2026-04-23', title:'AMPM글로벌 광고대행사 미팅', attendees:'박지현', directives:'광고 계정 권한 전달 후 현재 데이터 정밀 분석 요청\n예산안·매체 운영안 포함 1차 제안안 4/24 금요일까지 수령\n내부 광고 소재·콘텐츠 자산 정리 후 순차 전달\nCTR 하락·장바구니 이탈·구매 전환 저하 대응 필요', content:'1. 현재 광고 진단: CTR 하락·장바구니 이탈·구매 전환 저하\n2. 제안받은 광고 운영 방향 — 3단계 퍼널(신규 유입→리타겟팅→재구매/확장)\n3. 소재/메시지 전략: 퍼널별 맞춤 메시지, 실사용 콘텐츠·인플루언서·레시피 활용\n4. 자사 상황: 보고 체계 필요, 주요 SKU — 듀오메이커·아블러·아블러 제로\n5. 상품 확장: 듀오메이커 커피/우유/막걸리/팥빙수 활용, 아블러 제로 40-50대 여성 반응 좋음\n6. 추가: 유튜브 쇼핑·인플루언서·공동구매·라이브커머스 연계, 경쟁사 분석 요청' },
+  { id:'preset-m-2026-04-20', date:'2026-04-20', title:'주간회의', attendees:'장정훈 박지현 권나경 권수지', directives:'업무의 입체화 — 회의록을 타 부서 업무와 크로싱 점검\n단순 업무 자동화 — 팀장급은 핵심 업무 집중, 단순 업무는 하급자/AI 위임\n데이터 중심 보고 — 매출 변동 큰 채널 원인 분석(재고/광고효율)\n와디즈 4/23 목요일 오픈\n메타 광고 대행사 2곳 대면 미팅 후 결정', content:'1. 마케팅: 와디즈 4/23 오픈, 블라썸 공동구매 시작, CJ 온스타일 팔로업, 자사몰 스토리텔링 랜딩 기획\n2. 생산·물류: 아블러 컬러 이슈로 5월 초 완료, 재고 오늘 3시까지 파악\n3. 인사·행정: 콘텐츠 마케터 면접 2시, SK 스토어 지원 사업 스케줄 확인\n4. 대표 지시: 업무 입체화·단순업무 자동화·데이터 중심 보고' },
+  { id:'preset-m-2026-04-17', date:'2026-04-17', title:'주간회의', attendees:'장정훈 박지현 권나경 권수지', directives:'mop Structure — 점(Library)→선(Frame)→입체(Structure) 업무 방식\n와디즈 4/23 오픈, 집게 2,000개 추가 발주 검토\n쇼핑백+더스트백 패키지 리뉴얼 추진\nSNS 콘텐츠 대표 캐릭터 활용 실험\n4/20 월: 아블러 샘플 도착 + 음료 얼음 테스트 품평회', content:'1. 마케팅: 광고 350만원 집행, 체험단 10명, 와디즈 4/23 오픈\n2. 제품·물류: 패키지 쇼핑백+더스트백 리뉴얼, 아블러 신규 컬러 샘플 DHL 월요일 도착\n3. R&D: 아블러+듀오메이커 우유/콜라/주스/막걸리 품평회 월요일\n4. 시스템: AI 통합 리포트 툴 비교 분석 중\n5. 대표 지시: 소통의 맥락(mop) 파악, 점·선·구조(Circulation)' },
+  { id:'preset-m-2026-04-16', date:'2026-04-16', title:'GS홈쇼핑 MD 미팅', attendees:'박지현', directives:'GS홈쇼핑 MD 미팅 (상세: Notion)', content:'https://chatter-mountain-80e.notion.site/GS-MD-3440301561db800985b7e4651c4c29e5?source=copy_link' },
+  { id:'preset-m-2026-04-15', date:'2026-04-15', title:'협력사 현장 방문', attendees:'장정훈 박지현 권수지', directives:'협력사 현장 방문 (상세: Notion)', content:'https://chatter-mountain-80e.notion.site/26-04-15-3430301561db80c49a93f26f8cbac972' },
+  { id:'preset-m-2026-04-14', date:'2026-04-14', title:'정동우 대표님 미팅 (해외 크라우드펀딩)', attendees:'장정훈 박지현', directives:'ABLR/쥬얼아이스 메인: 아블러 텀블러(3-in-1)\n40mm 큐브 몰드 6월 출시 — 컵+몰드 세트 구성 판매\n인디고고 단독 or 킥스타터→인디고고 투트랙 검토\n7월 초~중순 해외 크라우드펀딩 캠페인 오픈 목표\n펀딩 목표 30~50만불 기준 비용 구조표 수령\n첼로스퀘어(삼성) 물류 활용 검토\nMeta 광고 계정 보안 강화 (구글 OTP+별도 인증앱)', content:'1. 현황: 아블러 텀블러 메인, 40mm 큐브 몰드 6월 출시, 팀장 신규 합류\n2. 해외 펀딩: 인디고고(Backerkit 인수, 3,000불 선납, 수수료 5%, 배너 무료), 킥스타터(벤티스 후불 검토)\n3. 타임라인: 6월 큐브 몰드 완료 → 7월 초~중순 캠페인 오픈\n4. 기타: 첼로스퀘어 물류, 일본 마쿠아케 재진출 검토, 대만 짝짝이 유통\n5. 액션: 시제품 샘플 확보, 촬영 일정 확정, 투트랙 여부 결정, 정동훈 대표 비용 구조표 송부' },
+  { id:'preset-m-2026-04-13', date:'2026-04-13', title:'주간회의', attendees:'장정훈 박지현 권나경 권수지', directives:'광고 대행업체 활용 새 방향성 모색\n브랜드 커넥트 공동구매(고정비 20만+수수료 20%) 다음 주 초 2곳 진행\n구독자 60만 유튜버 콘텐츠 제작비 별도 요청 → 내부 보고 후 결정\n블로그 대대적 개편 작업 내일 오전까지\n잔디로 4월 가격표/프로세스/투자 검토 링크 공유\n글라스 잔 어쿠스틱 1,000+채널 500~1,000세트 대표님 최종', content:'1. 마케팅·영업: 광고 방향성 모색, 블로그 개편, 60만 유튜버 검토\n2. 재고·발주: 가격표/프로세스 문서 업로드 완료, 글라스 잔 채널용 추가 발주, 아블러 신규 컬러 DHL 입고\n3. 패키징: 스틱/아이스볼 분리, 어쿠스틱 외통 폰트 진하게, 개별 박스 + 쇼핑백 묶음\n4. 기타: 노트북 LM으로 영상 요약, 클로드 코드 1~2시간 매뉴얼 숙지 강조' },
+  { id:'preset-m-2026-04-10', date:'2026-04-10', title:'주간회의', attendees:'장정훈 박지현 권나경 권수지', directives:'실재고 파악 후 사방넷 기준 재고 알림 시스템 구축\n글라스잔 단품→세트 판매 전환 (수익성)\n듀오 컬러박스 5,000개 선발주 후 추가\n추석·B2B 제안 일정 앞당기기 — 4월부터 자료 준비\n쥬얼아이스 브랜드 컨셉 "음료의 마지막 보석"', content:'1. 재고·물류: 시스템 미반영 발주 오류, 물류사 방문 원인 파악, 사방넷 기준 재고 알림 구축\n2. 상품·발주: 글라스잔 세트 판매, 듀오 컬러박스 5,000개 선발주, 실링 스티커 필요 시점 발주\n3. 추석/B2B: 4월부터 제안 자료·이미지·구성안 준비\n4. 브랜드·패키지: "음료의 마지막 보석", 프리미엄·보석 이미지 중심\n5. 마케팅: 브랜드 인지 vs 제품 판매 광고 분리, 브랜드 커넥트·공동구매·스마트스토어 집중' },
+  { id:'preset-m-2026-04-07', date:'2026-04-07', title:'주간회의록 (CJ 주방가전 총괄)', attendees:'박지현, 안정균(CJ 주방가전 총괄)', directives:'CJ 공동구매 수수료 30% (광고비 부담 없음)\n총괄 MD 직접 방송·공동구매·프로모션 공동 추진\n판매 방식 — 방송형(모바일 라이브) 쪽으로 구체화\n시험성적서·특허증 서류 미리 정리 필요', content:'1. 온라인 정상가 오픈, 추가 프로모션 진행\n2. 총괄 MD 방송·공동구매·프로모션 공동 추진\n3. CJ 공동구매 30% 조건, 광고비 없이 확장성\n4. 공동구매 셀러들도 CJ 타이틀로 입점 — 신뢰도·규모감 유리\n5. 자사몰 매출: 인플루언서/유튜브 쇼핑 유입, 인스타 반응 확인\n6. 판매 방식: 방송형(모바일 라이브) 적합 — 사용감·활용 장면 직접 노출 필요\n7. CJ 채널과 외부 진행 건 연결 가능성' },
+  { id:'preset-m-2026-04-06', date:'2026-04-06', title:'주간업무회의 (전사)', attendees:'장정훈 박지현 권나경 권수지 조송희', directives:'이번 주 핵심 — 실재고 최종 점검 + 세무회계 세팅 + 가격/행사/구성안 확정\n와디즈 실오픈 4/22~23 예정\n메타 광고 재점검 필요 (유입 감소)\n사방넷 이번 주까지 상품 연동 완료\n어쿠스틱 협업 — 컵·얼음 분리 판매\n조 대리 오늘부로 업무 마무리', content:'1. 실재고 최종 점검·세무회계 세팅·가격/행사/구성안 확정\n2. 와디즈 알림받기 오픈, 실오픈 4/22~23\n3. 광고: 네이버 양호, 메타 유입 감소로 재점검\n4. 사방넷: 이번 주 상품 연동 완료, 신규 코드 중심 재운영\n5. 어쿠스틱: 세트 박스 없이 컵/얼음 분리 판매, 하얀 박스+띠지+실링 스티커\n6. 티코스터 제외, 글라스잔/실링스티커 부자재 함께 발주\n7. 공동구매 매출 30만원 미만, 다른 채널 제안 병행\n8. 조 대리 오늘부로 업무 마무리, 팀은 주간계획·성과관리·KPI 중심' },
+  { id:'preset-m-2026-03-30', date:'2026-03-30', title:'주간회의', attendees:'박지현 권나경 권수지', directives:'사방넷 완료된 신규몰 우선 연동·상품 전송\n신규 광고대행사 이관 및 사전 컨펌 프로세스 도입\n이번 주 금요일 통합 매출 양식 배포\n4월 8일 물류사 미팅 — 재고 실사 강화 요청\n아블러 매트 컬러 샘플 공장 재요청\nB2B 각인·브랜드 스토리 중심 자사몰 리뉴얼 기획', content:'1. 쇼핑몰 상품 등록: 사방넷 세팅 신규몰 우선 연동, 리멤버 수기 등록\n2. 광고 대행사 이관 오늘 오후, 사전 컨펌 프로세스 도입\n3. 물류·재고: 4/8 물류사 미팅, 정기 재고 실사 강화\n4. 제품: 아블러 매트 신규 컬러 샘플 3종 재요청, 어쿠스틱 글라스·아이스볼 보관통 입고\n5. 마케팅: 아블러 제로 블로그 공구, B2B 각인·브랜드 스토리 자사몰 리뉴얼 기획(외주 검토)' },
+  { id:'preset-m-2026-03-23', date:'2026-03-23', title:'주간회의', directives:'채널 입점 완료 순서대로 프로모션 시작\n사방넷 연동·운영 양식 정립 (수요일 신규인력 합류)\n재고 부족 2,400개 조리 후 입고\n광고 소재 실촬영 기반 확대\n매출 회복·효율 중심 운영\n이번 주 최우선 — 메타 광고 효율 개선', content:'1. 영업·운영: 입점 채널 확대, 사방넷 연동, 발주·상품 관리 이지어드민+사방넷 병행\n2. 상품·물류: 상품명/정가 재정리, 썸네일·상세페이지 최종본, 아블러 몰드 4월 말 일정\n3. 마케팅·광고: 메타 재가동, 듀오메이커 입고 시 메타·쿠팡·네이버 즉시 활성화, 실촬영 콘텐츠 확대\n4. 콘텐츠: 브랜드커넥트·태그바이 체험단, 공동구매 4/1 연기, 어쿠스틱 토요일 업로드\n5. 조직: 신규 인력 수요일 출근, 반복 업무 체계화\n6. 대표 전달: 매출 회복·효율 중심, 부정적 언어 지양, 메타 효율 개선 최우선' },
+  { id:'preset-m-2026-03-20', date:'2026-03-20', title:'주간업무회의', directives:'신규 입점 오늘까지 신청 마무리, 현황 별도 시트\n내부 데이터 양식 금주 최종 정리\n메타 광고 정상 운영 지연 — 계속 점검\n듀오메이커 3/24 입고 후 3/25~26 판매 준비\n어쿠스틱 드링크 프로모션 심플하게\n실무진→팀장→대표 보고 체계 통일\n대표 — 사업계획서·자금 조달·인력 보충 집중', content:'1. 신규 입점 오늘까지 신청 마무리\n2. 내부 데이터 양식 금주 중 정리\n3. 메타 광고 일부 노출, 정상 운영 지연\n4. 듀오메이커 3/24 입고, 25~26일 판매 준비\n5. 쇼핑몰 연동 완료, 카테고리·상품 등록·프로모션 기획\n6. 어쿠스틱 프로모션 심플\n7. 광고·콘텐츠 보고서·협업 제안서 다음 주 공유\n8. 올해 업무 보고 체계 통일' },
+  { id:'preset-m-2026-03-18', date:'2026-03-18', title:'주간업무회의(전사직원)', directives:'박스/패키지 리뉴얼 — 2일 내 초안, 컬러 변경·이메일·쿠팡 규격 반영\n아블러 신규 컬러 딥그린·코랄, 은색 레이저 로고\n아블러 제로 즉시 변경X — 장점 소구+VOC 대응 강화\n메타 광고 부진 — 일매출 하락, 3월 매출 방어\n11개 채널 입점 확대\n4/1 블로그 공동구매\n상세페이지 효익·리뷰·전환 포인트 상단\n아블러 4월 넷째 주 생산 / 5월 초 입고', content:'1. 박스/패키지 리뉴얼 — 초안 2일 내\n2. 아블러 신규 컬러 확정 (딥그린·코랄)\n3. 아블러 제로 VOC 대응 강화, 빨대/뚜껑/누수 안내 보완\n4. 매출: 메타 광고 이슈, 11개 채널 입점·공동구매·체험단 추진\n5. 상세페이지 개선 — 효익/리뷰/전환 포인트 상단\n6. 스피어 재고(1,200개) 단기 프로모션\n7. 생산: 아블러 4월 넷째 주 / 5월 초 입고, 스틱 보관통 다음주, 아이스볼 2~3주\n8. 닐링체어 초도 50개 발주 검토\n9. 사방넷 이번 주 쇼핑몰 연동, 다음 주 카테고리 매칭\n10. 얼음 괄사 시장성 검토(소싱 판매 선행)' },
+  { id:'preset-m-2026-03-16', date:'2026-03-16', title:'주간업무회의(전사직원)', directives:'아블러 메인 집중, 아블러 제로 품질 이슈 신중\n와디즈 1차 러프안 구성/가격안 전달, 보상판매 별도 검토\n상세페이지 신규 촬영 X — 기존 자료 활용 개편\n메타 광고 계정·픽셀·사방넷 점검·정비\n컬러 최종안 — 딥포레스트, 세이지그린', content:'1. 아블러 메인, 아블러 제로 신중\n2. 와디즈 1차 러프안 전달, 보상판매 별도\n3. 상세페이지 기존 자료 활용\n4. 메타 광고·픽셀·사방넷 운영 점검\n5. 신규 소싱·컬러 추가 검토\n액션: 제안서 금일 전달, 와디즈 구성/가격안, 보상판매 재검토, 아블러 제로 개선 확인, 메타 세팅, 컬러 대표님 확인(딥포레스트/세이지그린)' },
+  { id:'preset-m-2026-03-13', date:'2026-03-13', title:'와디즈 미팅', directives:'와디즈 목표 매출 3,000만~5,000만원\n구성: 듀오·아블러·얼음틀·집게·보관통 (보냉백 차기)\n오픈 후 3일 알림신청 푸시, 4~14일차 신규유입 확대\n미식여행 프로모션 쿠폰(2만원)\n보상판매 할인 프로모션 추가 검토\n상세페이지 150만원 상당 무상 지원\n수수료 최대한 조정', content:'1. 목표 매출 3,000만~5,000만원\n2. 행사 제품: 듀오, 아블러, 얼음틀, 집게, 보관통 (보냉백 차기)\n3. 오픈 후 3일 알림신청 푸시, 4~14일차 신규유입\n4. 미식여행 프로모션 쿠폰 2만원 할인\n5. 보상판매 할인 프로모션 검토\n6. 와디즈 측: 상세페이지 150만원 상당 무상 지원\n7. 보상판매 시스템 구현 여부·데이터 추출·구매이력 PD 측 추가 확인\n8. 수수료 최대한 조정, 새소식/커뮤니티 적극 운영' },
+  { id:'preset-m-2026-03-09', date:'2026-03-09', title:'주간업무회의', directives:'아블러 조립·재고 반영 진행\n듀오메이커 외통 인쇄·납품\n신규 컬러 MOQ 1,500개 협의 완료\n사방넷 이번 주 세팅 완료 목표\n와디즈 수수료 조건 회신 대기\n신규 컬러 SNS 투표 운영', content:'1. 진행 중: 아블러 조립·재고, 듀오메이커 외통, 신규 컬러 MOQ 1,500개, 사방넷 세팅, 와디즈 수수료 회신 대기\n2. 결정 필요: 외통 단색(브라운/네이비)/이미지, 와디즈 아블러 중심·듀오 비중\n3. 이번 주: 신규 컬러 SNS 투표, 사방넷 마무리, 외통 인쇄 업체 추가 확인, 와디즈 피드백 반영' },
+  { id:'preset-m-2026-03-07', date:'2026-03-07', title:'외부미팅 - 에벤에셀', content:'완료 | 기존 시트에서 이전' },
+  { id:'preset-m-2026-03-05', date:'2026-03-05', title:'주간업무회의', directives:'아블러 신규 컬러 1~2종 추가 (실버 제외, 여성 타깃)\n전체 발주 5,000개, 신규 컬러 추가 시 6,000~7,000개\n신규 컬러 내부 후보 4~5개 → SNS 투표 검증\n큐브 화이트 재고 부족 원인·출고 경로 확인\n와디즈 — 아블러 메인 + 듀오 옵션 서브\n3월 인플루언서 — 어쿠스틱 3/28 확정\n4~5월 추가 인플루언서 협업 가능성\n컬러/로고/디자인 시안 이미지 먼저 제작', content:'1. 제품·생산: 아블러 신규 컬러 1~2종 (실버 제외), 발주 5,000개 기준, 생산 리드타임 3개월, 듀오 라운딩 다음 회차\n2. 마케팅: 3월 어쿠스틱 3/28, 4~5월 추가 협업, 미스터 위스키 성과 좋음 (제품 스토리 설득력)\n3. 와디즈: 아블러 메인+듀오 옵션 서브 효율적, 신규 유입·브랜드 노출용\n4. 디자인: 컬러 시안 이미지 우선 제작\n5. 신규 사업: 별도 브랜드 샘플·상표·패키지 진행, 담당자 퇴사로 멈춤, 진입장벽 낮은 변형 런칭 검토\n6. 운영: 메타 광고 관리자 권한 오류 점검' },
+  { id:'preset-m-2026-03-03', date:'2026-03-03', title:'주간업무회의', directives:'메타 광고 25만~30만원 증액 (리타겟팅)\n신규 얼음 몰드 40mm 설계 확정 (실물 테스트 우선)\n재고 부족 SKU 전체 파악 + 추가 생산 발주\n아블러 제로 광고 소재 신제작, 시딩/공구 100만원 테스트\n닐링체어 수정 샘플 확인 후 최종 판단\n와디즈 미팅 전 사전 협의', content:'1. 광고: 메타 리타겟팅 25~30만원 증액\n2. 제품: 40mm 몰드 기준 설계 (AI 데이터 < 실물 테스트)\n3. 재고·생산: 이번 주 전체 파악·추가 발주, SKU 품절 점검\n4. 아블러 제로: 광고 소재 신제작, 시딩/공구 100만원 예산\n5. 와디즈/닐링체어: 사전 협의, 수정 샘플 확인\n대표 확인: 증액 속도, 40mm 다음 개발 단계, 아블러 제로 테스트 예산, 와디즈 우선 아이템, 닐링체어 통과 기준' },
+  { id:'preset-m-2026-02-27', date:'2026-02-27', title:'주간업무회의', directives:'미스터 위스키 썸네일 최종 선택 (찰스 대표)\n브릭스 진행 여부 검토 (찰스 대표)\n박지현 팀장 — 다음 주 대표 보고자료\n권나경 과장 — 미스터위스키 가편집본 수정, 아블러 제로 공동구매/벤더사 확인\n조송희 대리 — 듀오/아블러제로 광고 소재, SNS 리포트 보완', content:'1. 찰스 대표님: 미스터 위스키 썸네일 선택, 브릭스 검토\n2. 박지현 팀장: 다음 주 대표 보고자료\n3. 이호혁 차장: 광고 소재 여분 확보\n4. 권나경 과장: 미스터위스키 가편집본 수정(볼륨·확대 삭제), 샘플 재작업, 아블러 제로 공동구매 후보\n5. 조송희 대리: 듀오/아블러제로 광고 소재, SNS 업로드, 리포트 다음 주 공유' },
+  { id:'preset-m-2026-02-23', date:'2026-02-23', title:'주간업무회의', directives:'금요일 업로드 목표 (랜딩·썸네일)\n촬영 제품 우선순위 — 스피어 중심\n상세페이지/GIF 다플랫폼 피그마 한계\n징소싱 샘플 품질 문제, 반값 재샘플 제안\n글라스 발주 계획·단가, 스틱 사이즈 회신 대기\n외통 컬러 테스트\nNabbi 계약 해지 + 계정 삭제 명확화\n광고 소재 2~3개 우선 제작/개선\n핵심지표+매출 트래킹 시트 구축\n주유소 채널 월 10만원 주 1회 목요일 업로드 4회 테스트', content:'권과장: 금요일 업로드(랜딩·썸네일), 촬영 스피어 중심, 피그마 구현 한계, 징소싱 품질·반값 재샘플, 글라스·스틱 회신, 외통 컬러, Nabbi 해지/계정 삭제, 업로드 연휴 현실성, 상세페이지 대표 컨펌 후 전체 적용, 샘플 대표 체험 후 Go/Stop\n조대리: 광고 소재 2~3개 개선, 핵심지표+매출 트래킹 시트, 주유소 채널 월 10만원 주 1회 목요일 4회 테스트(시청완료율), 쥬얼아이스 소개서 이관' },
+  { id:'preset-m-2026-02-19', date:'2026-02-19', title:'회의록 (어쿠스틱 규격·광고)', directives:'어쿠스틱 40×40 규격 우선 존중 (사용자 의미)\n65ml 큰 잔 기준 43 적합 — 상대 의견 수용\n몰드 3개 구성 언급\n스틱 투명도 이슈 — 뒤쪽 차폐 테스트 2개 월요일 보고\n네이버 검색광고 자동충전 재세팅\nGFA 정상화, 메타 재세팅 모니터링\n주말 효율 좋은 캠페인 증액 검토\n외주 샘플 코팅·도장 불량 — 개선 소통, 현장 방문 압박\nnabbi 영상 내일 저녁\n미스터 위스키 초안 → 다음 주 금요일 업로드\n닐링체어 상품소개서 와디즈 PD 전달', content:'1. 결정: 40×40 어쿠스틱 우선, 65ml 기준 43 내부 의견, 몰드 3개 구성\n2. 실행: 스틱 투명도 테스트 2개 월요일 / 네이버 검색광고 재세팅, GFA/메타 모니터링, 주말 증액 / 샘플 코팅·포장 불량 컴플레인, 징소싱 중간업자 구조, 현장 방문 압박 / nabbi 내일 업로드, 미스터 위스키 다음주 금요일, 큐브 몰드 오늘 발송, 어쿠스틱 3월 일정 재확인\n3. 공유: 닐링체어 와디즈 PD 전달, 대표 재택 가능성, 월요일 박지현 팀장 합류' },
+  { id:'preset-m-2026-02-09', date:'2026-02-09', title:'회의록 (구정 전 재고·광고)', directives:'구정 전 재고·생산 관리 + 광고 세팅 완료\n성과 좋은 광고 20%내 증액\n쿠팡 상세 GIF/영상 노출 들쭉날쭉 — 유튜브 정책 확인, 대체안 준비\n유튜브 쇼핑 상세 개선 (전일 30만원 사례)\n각인 이벤트 — 20종 3카테고리 댓글 투표, 오늘~2/22, 당첨 3명 (아블러 제로)\n탈형 "쉽게 빼는 법" GIF/영상 (구정 이후)', content:'1. 이번 주 우선순위: 구정 전 재고·생산 + 광고 세팅 (연휴 매출 유지)\n2. 성과 좋은 광고 20% 증액\n3. 쿠팡 상세 GIF/영상 노출 이슈 — 유튜브 정책 확인\n4. 유튜브 쇼핑 상세 개선\n5. 각인 이벤트 20종 3카테고리 투표 ~2/22, 당첨 3명\n6. 탈형 GIF/영상 구정 이후' },
+  { id:'preset-m-2026-02-02', date:'2026-02-02', title:'회의록', directives:'에버런스 메타 대행 종료, 직접 운영+소재 제작 (조송희)\nGFA 담당자 변경 요청 회신 대기\n이지어드민 품절 전 미리 조립·생산\n어쿠스틱 전자계약 진행, 미스터위스키 업로드 후 계약서\n술익는집 하반기 판단 (수수료·RS 비쌈)\nSNS 각인 이벤트 / UGC 진행\n아블러 제로 개선·신규 컬러 신제품 필요 (뚜껑·분리·고무패킹·이물질)', content:'1. 에버런스 메타 대행 종료, 조송희 직접 운영+소재\n2. GFA 담당자 이슈 회신 대기\n3. 이지어드민 품절 전 사전 조립·생산\n4. 어쿠스틱 드링크 전자계약, 미스터위스키 업로드 후 계약\n5. 술익는집 하반기 판단, SNS 각인 이벤트/UGC\n6. 아블러 제로 개선·신규 컬러 필요 (뚜껑·유리 분리·패킹 이물질)' },
+  { id:'preset-m-2026-01-30', date:'2026-01-30', title:'회의록', directives:'소싱 — 와인병 조명·안새는 텀블러 샘플구매, 향수 가습기·차고 열쇠고리 대표 확인, 정과 패키지 투표 중\n인플루언서 — 나삐위스키 1/29 계약서, 홈텐딩백과/띠동갑바텐더 AI 성과 후 결정(롱폼 500만원), 미스터위스키 2~3월 초, 술익는집 3천만 OR 2천만+RS, 어쿠스틱 계약서 수정\n주말 광고 — 메타 22만원(아블러6·듀오8·아블러제로8), 쇠맛×여자 소재 전환, GFA 15만원 유지\n고객 CS — 아블러 뚜껑 이슈, 내부 유리 파손, 피플 재고 오류 13건 배송완료\n아블러 명절 각인 이벤트\nCS 대표 인터뷰 유튜브/인스타 업로드', content:'1. 소싱: 와인병 조명·텀블러 샘플구매, 향수 가습기·열쇠고리 대표 확인, 정과 패키지 투표, 상세페이지 디자인 수정\n2. 인플루언서: 나삐위스키 1/29 계약서, 홈텐딩백과/띠동갑바텐더 AI 후 결정, 미스터위스키 2월말~3월초 아블러, 술익는집/어쿠스틱 조건\n3. 광고: 메타 22만(아블러6·듀오8·아블러제로8), 쇠맛×여자 반응, GFA 15만 유지 월말 증액 검토\n4. CS: 아블러 뚜껑·유리 파손·누수, 피플 재고 오류 13건 배송완료, 아블러 볼 화이트 품절\n5. 특이: 아블러 명절 각인 이벤트, CS 대표 인터뷰 업로드' },
+  { id:'preset-m-2026-01-26', date:'2026-01-26', title:'회의록', directives:'네이버 AI방송 — 아블러제로 팔로업\n미스터위스키 큐브 듀오메이커 제작 일정 / 어쿠스틱 금형 신규 제작\n정과 프로젝트 "넛넛" 결정, 금일 패키지 투표\n주유소 유튜브 화요일 무알콜 막걸리 촬영\n메타 소재 미리 제작, 중단 방지 푸시', content:'1. 네이버 AI방송 아블러제로 팔로업\n2. 미스터위스키 큐브 듀오메이커 일정, 어쿠스틱 금형 신규\n3. 정과 프로젝트 "넛넛" 결정, 금일 투표\n4. 주유소 유튜브 화요일 무알콜 막걸리 촬영\n5. 메타 소재 사전 제작 지속' },
+  { id:'preset-m-2026-01-19', date:'2026-01-19', title:'회의록', directives:'에버런스·원정대 주간 광고 운영 공유\n인플루언서 상반기 계획 잡고 진행\n"한국전통주하이볼" 유튜브 개설 및 주 1회 영상 업로드 — 기획안\n정과 및 영상 콘텐츠 대표 직접 노출\n대표 참여 브랜드 철학·회사 방향 오픈 토킹 기획', content:'1. 주간 광고 운영 계획 공유\n2. 인플루언서 상반기 계획\n3. 유튜브 "한국전통주하이볼" 개설, 주 1회 업로드, 기획안 작성\n4. 영상 콘텐츠 대표 직접 참여\n5. 브랜드 이미지·철학 오픈 토킹 기획' },
+  { id:'preset-m-2026-01-13', date:'2026-01-13', title:'회의록', directives:'메타 광고 아블러/듀오 이미지 배너 에버런스 요청\n리퍼 블프 자사몰 미노출, 광고 유입만\n2026 마케팅 캘린더 → 참여형 콘텐츠·각인 몰드 제작\n영상 세부 기획안 잔디 공유\n닐링체어 주문 3건 발송, DIY 사이트 공지 필요', content:'1. 메타 광고 이미지 배너 에버런스\n2. 리퍼 블프 광고로만 유입\n3. 2026 마케팅 캘린더 → 참여형 콘텐츠·각인 몰드\n4. 영상 세부 기획안, 콘텐츠 아이디어 잔디 공유\n5. 닐링체어 발송 + DIY 공지' },
+  { id:'preset-m-2026-01-09', date:'2026-01-09', title:'회의록', directives:'전직원 KPI 전달\n주간 업무 공유\n인플루언서 섭외 관련 구글 닷 등 제작\n영상 콘텐츠 아이디어 발표', content:'1. 전직원 KPI 전달\n2. 주간 업무 공유\n3. 인플루언서 섭외 (구글 닷)\n4. 영상 콘텐츠 아이디어 발표' },
 ];
 
 // ── localStorage / API ───────────────────────────────────────
@@ -1451,6 +1466,11 @@ function showMinutesDoc(m) {
   const dateEl=document.createElement('div'); dateEl.className='minutes-doc-date'; dateEl.textContent=m.date;
   const titleEl=document.createElement('div'); titleEl.className='minutes-doc-title'; titleEl.textContent=m.title;
   viewer.appendChild(dateEl); viewer.appendChild(titleEl);
+  if (m.attendees) {
+    const att=document.createElement('div'); att.className='minutes-doc-attendees';
+    att.textContent=`👥 참석: ${m.attendees}`;
+    viewer.appendChild(att);
+  }
   const directives=m.directives?m.directives.trim().split('\n').filter(Boolean):[];
   if (directives.length) {
     const block=document.createElement('div'); block.className='minutes-directive-block';
@@ -1630,4 +1650,604 @@ document.addEventListener('DOMContentLoaded', () => {
   initNotifications();
   // 팀 업무 탭 기본 시작 월: 3월
   calMonth = new Date(2026, 2, 1);
+  // v2 신규 초기화
+  renderMemberTabs();
+  bindMonthlyWeeklyEvents();
+  bindManualEvents();
+  bindSettingsEvents();
 });
+
+// ═══════════════════════════════════════════════════════════════════════
+// v2 신규 기능: 팀원 탭 동적 / 월간·주간 패널 / 운영매뉴얼 / 설정
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── 팀원 관리 (localStorage) ──────────────────────────────────
+function loadTeamMembers() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('ob_team_members') || 'null');
+    if (Array.isArray(saved) && saved.length) return saved;
+  } catch {}
+  return TEAM_MEMBERS.map(m => ({...m})); // 기본값
+}
+function saveTeamMembers(list) {
+  localStorage.setItem('ob_team_members', JSON.stringify(list));
+}
+function getActiveMembers() {
+  return loadTeamMembers();
+}
+// TEAM_MEMBERS 배열을 동기화 (기존 렌더 함수들이 사용)
+function syncTeamMembersGlobal() {
+  const list = loadTeamMembers();
+  TEAM_MEMBERS.length = 0;
+  list.forEach(m => TEAM_MEMBERS.push(m));
+}
+
+const MEMBER_COLORS = [
+  { color:'#3B82F6', bg:'#EFF6FF' },
+  { color:'#10B981', bg:'#F0FDF4' },
+  { color:'#F59E0B', bg:'#FFFBEB' },
+  { color:'#8B5CF6', bg:'#F5F3FF' },
+  { color:'#EF4444', bg:'#FEF2F2' },
+  { color:'#EC4899', bg:'#FDF2F8' },
+  { color:'#14B8A6', bg:'#F0FDFA' },
+];
+
+function renderMemberTabs() {
+  syncTeamMembersGlobal();
+  const container = document.getElementById('memberTabs');
+  if (!container) return;
+  container.innerHTML = '';
+  // 통합 탭
+  const int = document.createElement('button');
+  int.className = 'member-tab-btn' + (currentMemberTab==='통합'?' active':'');
+  int.dataset.member = '통합';
+  int.textContent = '🔗 통합';
+  int.addEventListener('click', () => switchMemberTab('통합'));
+  container.appendChild(int);
+  // 팀원 탭
+  const members = loadTeamMembers();
+  members.forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'member-tab-btn' + (currentMemberTab===m.id?' active':'');
+    btn.dataset.member = m.id;
+    const label = document.createElement('span');
+    label.textContent = `${m.name}${m.role?' '+m.role:''}`;
+    btn.appendChild(label);
+    const del = document.createElement('span');
+    del.className = 'member-tab-del';
+    del.textContent = '✕';
+    del.title = '삭제';
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!confirm(`"${m.name} ${m.role||''}" 탭을 삭제할까요?\n(해당 팀원의 월간/주간 데이터도 함께 삭제됩니다)`)) return;
+      const next = loadTeamMembers().filter(x => x.id !== m.id);
+      saveTeamMembers(next);
+      // 월간·주간 데이터 정리
+      const mo = loadMonthlyAll(); delete mo[m.id]; saveMonthlyAll(mo);
+      const wk = loadWeeklyAll(); delete wk[m.id]; saveWeeklyAll(wk);
+      if (currentMemberTab === m.id) currentMemberTab = '통합';
+      renderMemberTabs();
+      renderTeamMgmtList();
+      switchMemberTab(currentMemberTab);
+    });
+    btn.appendChild(del);
+    btn.addEventListener('click', () => switchMemberTab(m.id));
+    container.appendChild(btn);
+  });
+  // + 탭 추가
+  const add = document.createElement('button');
+  add.className = 'member-tab-add';
+  add.textContent = '+ 탭 추가';
+  add.addEventListener('click', () => {
+    const name = prompt('새 팀원/팀 이름:');
+    if (!name || !name.trim()) return;
+    const role = prompt('직책 (예: 팀장, 과장, 팀) — 생략 가능:') || '';
+    addTeamMember(name.trim(), role.trim());
+  });
+  container.appendChild(add);
+}
+
+function addTeamMember(name, role) {
+  const list = loadTeamMembers();
+  const id = name;
+  if (list.some(m => m.id === id)) { alert('이미 존재하는 이름입니다.'); return; }
+  const col = MEMBER_COLORS[list.length % MEMBER_COLORS.length];
+  list.push({ id, name, role, ...col });
+  saveTeamMembers(list);
+  renderMemberTabs();
+  renderTeamMgmtList();
+}
+
+// ── 월간 주관업무 ────────────────────────────────────────────
+let monthlyViewYM = ymNow();
+let weeklyViewYM = ymNow();
+
+function ymNow() {
+  const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function shiftYM(ym, delta) {
+  const [y,m] = ym.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function loadMonthlyAll() {
+  try { return JSON.parse(localStorage.getItem('ob_team_monthly') || '{}'); } catch { return {}; }
+}
+function saveMonthlyAll(data) { localStorage.setItem('ob_team_monthly', JSON.stringify(data)); }
+
+function getMonthlyFor(memberId, ym) {
+  const all = loadMonthlyAll();
+  return (all[memberId]?.[ym]) || [];
+}
+function setMonthlyFor(memberId, ym, rows) {
+  const all = loadMonthlyAll();
+  if (!all[memberId]) all[memberId] = {};
+  all[memberId][ym] = rows;
+  saveMonthlyAll(all);
+}
+
+function renderMonthlyPanel(memberId) {
+  const block = document.getElementById('monthlyBlock');
+  if (!block) return;
+  const label = document.getElementById('monthlyMonthLabel');
+  if (label) label.textContent = monthlyViewYM;
+  const body = document.getElementById('monthlyBody');
+  if (!body) return;
+  body.innerHTML = '';
+  const rows = getMonthlyFor(memberId, monthlyViewYM);
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="4" class="tier-empty">아직 업무가 없습니다. [+ 행 추가]로 시작하세요.</td></tr>';
+    return;
+  }
+  rows.forEach((r, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input class="tier-input" data-f="task" value="${escapeAttr(r.task||'')}" placeholder="업무 내용"></td>
+      <td><input class="tier-input" data-f="platform" value="${escapeAttr(r.platform||'')}" placeholder="플랫폼/툴"></td>
+      <td><input class="tier-input" data-f="automation" value="${escapeAttr(r.automation||'')}" placeholder="자동화 방안"></td>
+      <td><button class="tier-del" title="삭제">✕</button></td>
+    `;
+    tr.querySelectorAll('.tier-input').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const list = getMonthlyFor(memberId, monthlyViewYM);
+        list[idx][inp.dataset.f] = inp.value;
+        setMonthlyFor(memberId, monthlyViewYM, list);
+      });
+    });
+    tr.querySelector('.tier-del').addEventListener('click', () => {
+      const list = getMonthlyFor(memberId, monthlyViewYM);
+      list.splice(idx, 1);
+      setMonthlyFor(memberId, monthlyViewYM, list);
+      renderMonthlyPanel(memberId);
+    });
+    body.appendChild(tr);
+  });
+}
+
+function escapeAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+// ── 주간 업무 (1주차~5주차 + 상시) ──────────────────────────
+const WEEK_SLOTS = ['1주차','2주차','3주차','4주차','5주차','상시'];
+
+function loadWeeklyAll() {
+  try { return JSON.parse(localStorage.getItem('ob_team_weekly') || '{}'); } catch { return {}; }
+}
+function saveWeeklyAll(data) { localStorage.setItem('ob_team_weekly', JSON.stringify(data)); }
+function getWeeklyFor(memberId, ym) {
+  const all = loadWeeklyAll();
+  const m = all[memberId]?.[ym];
+  if (m) return m;
+  return Object.fromEntries(WEEK_SLOTS.map(s => [s, []]));
+}
+function setWeeklyFor(memberId, ym, data) {
+  const all = loadWeeklyAll();
+  if (!all[memberId]) all[memberId] = {};
+  all[memberId][ym] = data;
+  saveWeeklyAll(all);
+}
+
+function renderWeeklyPanel(memberId) {
+  const grid = document.getElementById('weeklyGrid');
+  if (!grid) return;
+  const label = document.getElementById('weeklyMonthLabel');
+  if (label) label.textContent = weeklyViewYM;
+  const data = getWeeklyFor(memberId, weeklyViewYM);
+  grid.innerHTML = '';
+  WEEK_SLOTS.forEach(slot => {
+    const col = document.createElement('div');
+    col.className = 'weekly-col';
+    col.innerHTML = `
+      <div class="weekly-col-head">${slot}</div>
+      <div class="weekly-col-body"></div>
+      <button class="weekly-add">+ 항목</button>
+    `;
+    const body = col.querySelector('.weekly-col-body');
+    const items = data[slot] || [];
+    items.forEach((it, idx) => {
+      const row = document.createElement('div');
+      row.className = 'weekly-item' + (it.done?' done':'');
+      row.innerHTML = `
+        <input type="checkbox" ${it.done?'checked':''}>
+        <span class="weekly-item-text" contenteditable="true">${escapeAttr(it.text||'')}</span>
+        <span class="weekly-item-del" title="삭제">✕</span>
+      `;
+      row.querySelector('input').addEventListener('change', (e) => {
+        const d = getWeeklyFor(memberId, weeklyViewYM);
+        d[slot][idx].done = e.target.checked;
+        setWeeklyFor(memberId, weeklyViewYM, d);
+        row.classList.toggle('done', e.target.checked);
+      });
+      row.querySelector('.weekly-item-text').addEventListener('blur', (e) => {
+        const d = getWeeklyFor(memberId, weeklyViewYM);
+        d[slot][idx].text = e.target.textContent.trim();
+        setWeeklyFor(memberId, weeklyViewYM, d);
+      });
+      row.querySelector('.weekly-item-del').addEventListener('click', () => {
+        const d = getWeeklyFor(memberId, weeklyViewYM);
+        d[slot].splice(idx, 1);
+        setWeeklyFor(memberId, weeklyViewYM, d);
+        renderWeeklyPanel(memberId);
+      });
+      body.appendChild(row);
+    });
+    col.querySelector('.weekly-add').addEventListener('click', () => {
+      const d = getWeeklyFor(memberId, weeklyViewYM);
+      d[slot] = d[slot] || [];
+      d[slot].push({ text:'새 항목', done:false });
+      setWeeklyFor(memberId, weeklyViewYM, d);
+      renderWeeklyPanel(memberId);
+    });
+    grid.appendChild(col);
+  });
+}
+
+function bindMonthlyWeeklyEvents() {
+  document.getElementById('monthlyPrev')?.addEventListener('click', () => {
+    monthlyViewYM = shiftYM(monthlyViewYM, -1);
+    if (currentMemberTab !== '통합') renderMonthlyPanel(currentMemberTab);
+  });
+  document.getElementById('monthlyNext')?.addEventListener('click', () => {
+    monthlyViewYM = shiftYM(monthlyViewYM, 1);
+    if (currentMemberTab !== '통합') renderMonthlyPanel(currentMemberTab);
+  });
+  document.getElementById('monthlyAddRow')?.addEventListener('click', () => {
+    if (currentMemberTab === '통합') return;
+    const list = getMonthlyFor(currentMemberTab, monthlyViewYM);
+    list.push({ task:'', platform:'', automation:'' });
+    setMonthlyFor(currentMemberTab, monthlyViewYM, list);
+    renderMonthlyPanel(currentMemberTab);
+  });
+  document.getElementById('weeklyPrev')?.addEventListener('click', () => {
+    weeklyViewYM = shiftYM(weeklyViewYM, -1);
+    if (currentMemberTab !== '통합') renderWeeklyPanel(currentMemberTab);
+  });
+  document.getElementById('weeklyNext')?.addEventListener('click', () => {
+    weeklyViewYM = shiftYM(weeklyViewYM, 1);
+    if (currentMemberTab !== '통합') renderWeeklyPanel(currentMemberTab);
+  });
+}
+
+// switchMemberTab 래핑 — 월간/주간 패널 함께 렌더
+const _origSwitchMemberTab = switchMemberTab;
+switchMemberTab = function(member) {
+  _origSwitchMemberTab(member);
+  if (member !== '통합') {
+    renderMonthlyPanel(member);
+    renderWeeklyPanel(member);
+  }
+};
+
+// ── 운영매뉴얼 ───────────────────────────────────────────────
+const MANUAL_DOCS = [
+  { cat:'🏠 팀 매뉴얼', items:[
+    { file:'README.md', title:'전체 개요' },
+  ]},
+  { cat:'🎧 CS 대응', items:[
+    { file:'소스_CS_얼음증상_대응가이드.md', title:'얼음 증상 대응 가이드 🔥' },
+    { file:'소스_CS_트러블슈팅DB.md', title:'트러블슈팅 DB' },
+    { file:'소스_CS_응대프로세스_4단계.md', title:'CS 응대 4단계 프로세스' },
+    { file:'소스_CS_채널8개_FAQ22_2021.md', title:'8채널 FAQ22' },
+    { file:'소스_채널운영_권수지_인수인계.md', title:'채널 운영 인수인계 (권수지)' },
+  ]},
+  { cat:'📦 제품 매뉴얼', items:[
+    { file:'소스_쥬얼아이스_사용설명서_공식OL.md', title:'쥬얼아이스 공식 설명서 🔥' },
+    { file:'소스_듀오메이커_풀매뉴얼.md', title:'듀오메이커 풀매뉴얼' },
+    { file:'소스_듀오메이커_사용법_6단계.md', title:'듀오메이커 6단계' },
+    { file:'소스_아블러_사용가이드.md', title:'아블러 사용 가이드' },
+    { file:'소스_아블러제로_사용설명서.md', title:'아블러 제로 설명서' },
+    { file:'소스_아블러제로_FAQ_상세페이지.md', title:'아블러 제로 FAQ' },
+    { file:'소스_세척가이드_실리콘몰드.md', title:'실리콘 몰드 세척' },
+    { file:'소스_ABLR_제안서_기술스펙.md', title:'ABLR 기술스펙 제안서' },
+  ]},
+  { cat:'📝 FAQ', items:[
+    { file:'소스_FAQ_와디즈_ablr.md', title:'와디즈 ABLR FAQ' },
+    { file:'소스_FAQ_굿네이버스_예상질문.md', title:'굿네이버스 예상질문' },
+    { file:'소스_FAQ_영상기획_재구매율.md', title:'영상 기획·재구매율' },
+  ]},
+  { cat:'📋 SOP', items:[
+    { file:'SOP_택배발송_CS이슈대응.md', title:'택배 발송·CS 이슈' },
+    { file:'SOP_B2B_문의접수_프로세스.md', title:'B2B 문의접수 프로세스' },
+  ]},
+  { cat:'🎬 영상 자산', items:[
+    { file:'영상자산_링크카드.md', title:'영상/이미지 자산 카드' },
+  ]},
+];
+
+let manualCache = {};
+let manualCurrent = null;
+
+function renderManualNav() {
+  const nav = document.getElementById('manualNav');
+  if (!nav) return;
+  nav.innerHTML = '';
+  MANUAL_DOCS.forEach(group => {
+    const g = document.createElement('div'); g.className='manual-group';
+    const h = document.createElement('div'); h.className='manual-group-title'; h.textContent=group.cat;
+    g.appendChild(h);
+    group.items.forEach(it => {
+      const a = document.createElement('div');
+      a.className='manual-item';
+      a.textContent = it.title;
+      a.addEventListener('click', () => loadManualDoc(it.file, it.title, a));
+      g.appendChild(a);
+    });
+    nav.appendChild(g);
+  });
+}
+
+async function loadManualDoc(file, title, el) {
+  document.querySelectorAll('.manual-item').forEach(x => x.classList.remove('active'));
+  el?.classList.add('active');
+  const viewer = document.getElementById('manualViewer');
+  if (!viewer) return;
+  viewer.innerHTML = '<div class="manual-placeholder"><div>⏳ 로딩 중...</div></div>';
+  try {
+    let md = manualCache[file];
+    if (!md) {
+      const res = await fetch(`manuals/${encodeURIComponent(file)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      md = await res.text();
+      manualCache[file] = md;
+    }
+    manualCurrent = { file, title, md };
+    const html = (typeof marked !== 'undefined') ? marked.parse(md) : `<pre>${md.replace(/</g,'&lt;')}</pre>`;
+    viewer.innerHTML = `
+      <div class="manual-doc-title">${escapeAttr(title)}</div>
+      <div class="manual-doc-file">${escapeAttr(file)}</div>
+      <div class="manual-doc-body">${html}</div>
+    `;
+  } catch (e) {
+    viewer.innerHTML = `<div class="manual-placeholder"><div>⚠️ 문서를 불러올 수 없습니다: ${e.message}</div><div style="font-size:12px;color:#94a3b8;margin-top:8px">manuals/${file}</div></div>`;
+  }
+}
+
+function bindManualEvents() {
+  const search = document.getElementById('manualSearch');
+  if (search) {
+    search.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      document.querySelectorAll('.manual-item').forEach(el => {
+        const hit = !q || el.textContent.toLowerCase().includes(q);
+        el.style.display = hit ? '' : 'none';
+      });
+    });
+  }
+}
+
+// ── 설정 ─────────────────────────────────────────────────────
+const SETTINGS_PASSWORD = 'JEWELICE';
+
+const CHANNEL_KEYS_DEF = [
+  { id:'cafe24', name:'🛒 카페24 (자사몰)', keys:['mall_id','client_id','client_secret','access_token','refresh_token'], doc:'developers.cafe24.com' },
+  { id:'smartstore', name:'🟢 네이버 스마트스토어', keys:['client_id','client_secret'], doc:'apicenter.commerce.naver.com' },
+  { id:'coupang', name:'🟡 쿠팡', keys:['access_key','secret_key','vendor_id'], doc:'wing.coupang.com' },
+  { id:'meta', name:'📘 META (페이스북/인스타)', keys:['app_id','app_secret','access_token','ad_account_id'], doc:'developers.facebook.com' },
+  { id:'naver_ad', name:'🟢 네이버 검색광고', keys:['api_key','secret_key','customer_id'], doc:'searchad.naver.com' },
+  { id:'kakao', name:'🟡 카카오모먼트', keys:['access_token','ad_account_id'], doc:'moment.kakao.com' },
+];
+
+function isSettingsUnlocked() {
+  return localStorage.getItem('ob_settings_auth') === 'true';
+}
+
+function renderChannelKeys() {
+  const grid = document.getElementById('channelKeysGrid');
+  if (!grid) return;
+  const saved = JSON.parse(localStorage.getItem('ob_channel_status') || '{}');
+  grid.innerHTML = '';
+  CHANNEL_KEYS_DEF.forEach(ch => {
+    const card = document.createElement('div');
+    card.className = 'channel-key-card';
+    const st = saved[ch.id]?.status || 'pending';
+    const stLabel = st==='connected'?'🟢 연결됨':st==='error'?'🔴 오류':'⚪ 미연동';
+    card.innerHTML = `
+      <div class="channel-key-head">
+        <div class="channel-key-name">${ch.name}</div>
+        <div class="channel-key-status">${stLabel}</div>
+      </div>
+      <div class="channel-key-keys">필요 키: ${ch.keys.join(' · ')}</div>
+      <div class="channel-key-doc">발급: ${ch.doc}</div>
+      <div class="channel-key-actions">
+        <button class="btn-secondary" data-ch="${ch.id}" data-act="enter">키 입력</button>
+        ${ch.id==='cafe24' ? '<button class="btn-secondary" data-ch="cafe24" data-act="oauth">OAuth 인증 시작</button>' : ''}
+      </div>
+    `;
+    card.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        const act = b.dataset.act;
+        if (act === 'enter') {
+          alert(`[${ch.name}] 키 입력은 oneboard-server 환경변수로 관리됩니다.\n필요 키: ${ch.keys.join(', ')}\n\n보안 정책상 프론트에서는 키를 저장하지 않습니다.\n서버 측에 발급한 키를 전달해 주세요.`);
+        } else if (act === 'oauth') {
+          alert('카페24 OAuth 인증은 oneboard-server 설정 후 활성화됩니다.');
+        }
+      });
+    });
+    grid.appendChild(card);
+  });
+}
+
+function renderTeamMgmtList() {
+  const list = document.getElementById('teamMgmtList');
+  if (!list) return;
+  const members = loadTeamMembers();
+  list.innerHTML = '';
+  members.forEach(m => {
+    const row = document.createElement('div');
+    row.className = 'team-mgmt-row';
+    row.innerHTML = `
+      <span class="team-mgmt-dot" style="background:${m.color}"></span>
+      <span class="team-mgmt-name">${escapeAttr(m.name)} <span class="team-mgmt-role">${escapeAttr(m.role||'')}</span></span>
+      <button class="btn-danger" data-id="${escapeAttr(m.id)}">삭제</button>
+    `;
+    row.querySelector('.btn-danger').addEventListener('click', () => {
+      if (!confirm(`${m.name} 탭을 삭제할까요? (월간/주간 데이터 함께 삭제)`)) return;
+      const next = loadTeamMembers().filter(x => x.id !== m.id);
+      saveTeamMembers(next);
+      const mo = loadMonthlyAll(); delete mo[m.id]; saveMonthlyAll(mo);
+      const wk = loadWeeklyAll(); delete wk[m.id]; saveWeeklyAll(wk);
+      if (currentMemberTab === m.id) currentMemberTab = '통합';
+      renderMemberTabs();
+      renderTeamMgmtList();
+    });
+    list.appendChild(row);
+  });
+}
+
+function loadSettingsPrefs() {
+  try { return JSON.parse(localStorage.getItem('ob_settings_prefs') || '{}'); } catch { return {}; }
+}
+function saveSettingsPrefs(p) { localStorage.setItem('ob_settings_prefs', JSON.stringify(p)); }
+
+function populateSettingsInputs() {
+  const p = loadSettingsPrefs();
+  const g = document.getElementById('goalInput'); if (g) g.value = p.goal || '₩20억';
+  const r = document.getElementById('defaultRangeSelect'); if (r) r.value = p.defaultRange || '30';
+  const n1 = document.getElementById('notifMinutesAi'); if (n1) n1.checked = p.notifMinutesAi !== false;
+  const n2 = document.getElementById('notifSalesDrop'); if (n2) n2.checked = p.notifSalesDrop !== false;
+  const ri = document.getElementById('refreshInterval'); if (ri) ri.value = p.refreshInterval || '5';
+}
+
+function collectSettingsPrefs() {
+  return {
+    goal: document.getElementById('goalInput')?.value || '₩20억',
+    defaultRange: document.getElementById('defaultRangeSelect')?.value || '30',
+    notifMinutesAi: !!document.getElementById('notifMinutesAi')?.checked,
+    notifSalesDrop: !!document.getElementById('notifSalesDrop')?.checked,
+    refreshInterval: document.getElementById('refreshInterval')?.value || '5',
+  };
+}
+
+function openSettingsBody() {
+  document.getElementById('settingsGate').style.display = 'none';
+  document.getElementById('settingsBody').style.display = '';
+  renderChannelKeys();
+  renderTeamMgmtList();
+  populateSettingsInputs();
+}
+
+function lockSettings() {
+  localStorage.removeItem('ob_settings_auth');
+  document.getElementById('settingsGate').style.display = '';
+  document.getElementById('settingsBody').style.display = 'none';
+  const pw = document.getElementById('settingsPassword'); if (pw) pw.value = '';
+}
+
+function bindSettingsEvents() {
+  const unlock = document.getElementById('settingsUnlock');
+  const pw = document.getElementById('settingsPassword');
+  const err = document.getElementById('settingsErr');
+  const tryUnlock = () => {
+    if ((pw?.value || '').trim().toUpperCase() === SETTINGS_PASSWORD) {
+      localStorage.setItem('ob_settings_auth', 'true');
+      openSettingsBody();
+    } else {
+      if (err) { err.textContent='❌ 비밀번호가 틀렸습니다.'; err.style.display=''; }
+    }
+  };
+  unlock?.addEventListener('click', tryUnlock);
+  pw?.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock(); });
+  document.getElementById('settingsLockBtn')?.addEventListener('click', lockSettings);
+
+  // 프리퍼런스 저장 (변경 즉시)
+  ['goalInput','defaultRangeSelect','notifMinutesAi','notifSalesDrop','refreshInterval'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', () => saveSettingsPrefs(collectSettingsPrefs()));
+  });
+
+  // 팀원 추가
+  document.getElementById('addMemberBtn')?.addEventListener('click', () => {
+    const name = document.getElementById('newMemberName')?.value.trim();
+    const role = document.getElementById('newMemberRole')?.value.trim() || '';
+    if (!name) { alert('이름을 입력하세요'); return; }
+    addTeamMember(name, role);
+    document.getElementById('newMemberName').value = '';
+    document.getElementById('newMemberRole').value = '';
+  });
+
+  // 동기화/연결 테스트 (stub)
+  document.getElementById('syncAllBtn')?.addEventListener('click', () => {
+    const lbl = document.getElementById('lastSyncLabel');
+    if (lbl) lbl.textContent = `마지막 동기화: ${new Date().toLocaleString('ko-KR')}`;
+    alert('🔄 동기화: oneboard-server 연결 후 실제 API 동기화가 수행됩니다.\n현재는 Google Sheets 데이터를 사용 중입니다.');
+  });
+  document.getElementById('testConnBtn')?.addEventListener('click', async () => {
+    try {
+      const res = await fetch(`${API_BASE}/health`, { method:'GET' });
+      alert(res.ok ? '✅ oneboard-server 연결 OK' : `⚠️ 서버 응답: ${res.status}`);
+    } catch (e) {
+      alert(`❌ 연결 실패: ${e.message}\n(현재는 Google Sheets로 동작 중)`);
+    }
+  });
+
+  // 설정 내보내기/가져오기
+  document.getElementById('exportSettingsBtn')?.addEventListener('click', () => {
+    const dump = {
+      prefs: loadSettingsPrefs(),
+      members: loadTeamMembers(),
+      monthly: loadMonthlyAll(),
+      weekly: loadWeeklyAll(),
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(dump, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `oneboard-settings-${new Date().toISOString().slice(0,10)}.json`;
+    a.click(); URL.revokeObjectURL(url);
+  });
+  document.getElementById('importSettingsBtn')?.addEventListener('click', () => {
+    document.getElementById('importSettingsFile')?.click();
+  });
+  document.getElementById('importSettingsFile')?.addEventListener('change', async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    try {
+      const text = await f.text();
+      const data = JSON.parse(text);
+      if (data.prefs) saveSettingsPrefs(data.prefs);
+      if (data.members) saveTeamMembers(data.members);
+      if (data.monthly) saveMonthlyAll(data.monthly);
+      if (data.weekly) saveWeeklyAll(data.weekly);
+      alert('✅ 설정을 가져왔습니다. 새로고침 권장.');
+      renderMemberTabs();
+      renderTeamMgmtList();
+      populateSettingsInputs();
+    } catch (err) {
+      alert(`❌ 가져오기 실패: ${err.message}`);
+    }
+  });
+}
+
+// ── 섹션 스위치 확장: manual, settings ────────────────────────
+const _origSwitchSection = switchSection;
+switchSection = function(section) {
+  _origSwitchSection(section);
+  if (section === 'manual') {
+    renderManualNav();
+  }
+  if (section === 'settings') {
+    if (isSettingsUnlocked()) openSettingsBody();
+    else {
+      document.getElementById('settingsGate').style.display = '';
+      document.getElementById('settingsBody').style.display = 'none';
+    }
+  }
+};

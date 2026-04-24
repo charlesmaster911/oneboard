@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -55,6 +56,8 @@
     <button class="section-btn" data-section="team">👥 팀 업무</button>
     <button class="section-btn" data-section="minutes">📋 회의록</button>
     <button class="section-btn" data-section="kpi">🏆 팀 KPI</button>
+    <button class="section-btn" data-section="manual">📘 운영매뉴얼</button>
+    <button class="section-btn" data-section="settings">⚙️ 설정</button>
   </nav>
 
   <!-- ── AI 인사이트 배너 ── -->
@@ -219,13 +222,9 @@
     ═══════════════════════════════════════ -->
     <div id="section-team" class="section-content" style="display:none">
 
-      <!-- 팀원 탭 -->
+      <!-- 팀원 탭 (동적) -->
       <div class="member-tabs" id="memberTabs">
-        <button class="member-tab-btn active" data-member="통합">🔗 통합</button>
-        <button class="member-tab-btn" data-member="박지현">박지현 팀장</button>
-        <button class="member-tab-btn" data-member="권나경">권나경 과장</button>
-        <button class="member-tab-btn" data-member="권수지">권수지 대리</button>
-        <button class="member-tab-btn" data-member="컨텐츠팀">컨텐츠팀</button>
+        <!-- JS로 렌더링: 🔗 통합 + 팀원 + + 탭 추가 -->
       </div>
 
       <!-- 통합 뷰 (기본) -->
@@ -256,6 +255,43 @@
 
       <!-- 개인 탭 뷰 (숨김) -->
       <div id="memberCalView" style="display:none">
+
+        <!-- ① 월간 주관업무 (팀원 직접 입력) -->
+        <section class="tier-block" id="monthlyBlock">
+          <div class="tier-header">
+            <div class="tier-title">① 월간 주관업무 <span class="tier-sub" id="monthlyMonthLabel">2026-04</span></div>
+            <div class="tier-nav">
+              <button class="tier-nav-btn" id="monthlyPrev">‹</button>
+              <button class="tier-nav-btn" id="monthlyNext">›</button>
+              <button class="btn-secondary" id="monthlyAddRow">+ 행 추가</button>
+            </div>
+          </div>
+          <div class="monthly-table-wrap">
+            <table class="monthly-table">
+              <thead>
+                <tr><th style="width:40%">업무</th><th style="width:25%">플랫폼/툴</th><th style="width:30%">자동화 방안</th><th style="width:5%"></th></tr>
+              </thead>
+              <tbody id="monthlyBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ② 주간업무 (6칸) -->
+        <section class="tier-block" id="weeklyBlock">
+          <div class="tier-header">
+            <div class="tier-title">② 주간업무 <span class="tier-sub" id="weeklyMonthLabel">2026-04</span></div>
+            <div class="tier-nav">
+              <button class="tier-nav-btn" id="weeklyPrev">‹</button>
+              <button class="tier-nav-btn" id="weeklyNext">›</button>
+            </div>
+          </div>
+          <div class="weekly-grid" id="weeklyGrid">
+            <!-- JS로 6칸 렌더링 (1주~5주 + 상시) -->
+          </div>
+        </section>
+
+        <!-- ③ 일간업무 — 기존 캘린더 -->
+        <div class="tier-title" style="margin-top:20px">③ 일간업무 (캘린더)</div>
 
         <!-- 캘린더 헤더 -->
         <div class="cal-header">
@@ -489,6 +525,137 @@
       </section>
 
     </div><!-- /section-kpi -->
+
+    <!-- ═══════════════════════════════════════
+         섹션 5: 운영매뉴얼
+    ═══════════════════════════════════════ -->
+    <div id="section-manual" class="section-content" style="display:none">
+      <div class="manual-layout">
+        <aside class="manual-sidebar">
+          <div class="manual-search-wrap">
+            <input type="text" class="form-input" id="manualSearch" placeholder="🔍 문서 검색...">
+          </div>
+          <div class="manual-nav" id="manualNav"><!-- JS --></div>
+        </aside>
+        <article class="manual-viewer" id="manualViewer">
+          <div class="manual-placeholder">
+            <div class="manual-placeholder-icon">📘</div>
+            <div>왼쪽 사이드바에서 문서를 선택하세요</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:8px">쥬얼아이스 회사기본 운영매뉴얼 · CS 통합</div>
+          </div>
+        </article>
+      </div>
+    </div><!-- /section-manual -->
+
+    <!-- ═══════════════════════════════════════
+         섹션 6: 설정
+    ═══════════════════════════════════════ -->
+    <div id="section-settings" class="section-content" style="display:none">
+      <!-- 비밀번호 게이트 -->
+      <div class="settings-gate" id="settingsGate">
+        <div class="settings-gate-card">
+          <div class="settings-gate-icon">🔒</div>
+          <div class="settings-gate-title">관리자 접근</div>
+          <div class="settings-gate-sub">OneBoard 설정은 관리자 비밀번호가 필요합니다.</div>
+          <input type="password" class="form-input" id="settingsPassword" placeholder="비밀번호" autocomplete="off">
+          <button class="btn-primary" id="settingsUnlock" style="width:100%;margin-top:12px">잠금 해제</button>
+          <div class="settings-gate-err" id="settingsErr" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- 설정 본문 -->
+      <div class="settings-body" id="settingsBody" style="display:none">
+
+        <!-- 매출 데이터 소스 -->
+        <section class="settings-section">
+          <div class="settings-section-title">📊 매출 데이터 소스</div>
+          <div class="settings-status-row">
+            <span class="settings-status-label">현재 상태:</span>
+            <span class="settings-status-value" id="salesSourceStatus">🟢 Google Sheets 연동 중</span>
+          </div>
+          <div class="settings-source-priority">
+            <div class="source-item" data-source="api"><span class="source-dot"></span>① oneboard-server API (실시간, 키 필요)</div>
+            <div class="source-item active" data-source="sheets"><span class="source-dot active"></span>② Google Sheets CSV (현재 사용 중)</div>
+            <div class="source-item" data-source="mock"><span class="source-dot"></span>③ Mock 데이터 (오프라인)</div>
+          </div>
+
+          <div class="channel-keys-grid" id="channelKeysGrid">
+            <!-- JS 렌더링: 6채널 -->
+          </div>
+
+          <div class="settings-actions">
+            <button class="btn-primary" id="syncAllBtn">🔄 전체 동기화</button>
+            <button class="btn-secondary" id="testConnBtn">🧪 연결 테스트</button>
+            <span class="settings-meta" id="lastSyncLabel">마지막 동기화: —</span>
+          </div>
+        </section>
+
+        <!-- 대시보드 설정 -->
+        <section class="settings-section">
+          <div class="settings-section-title">🎯 대시보드 설정</div>
+          <div class="form-row">
+            <div class="form-group" style="flex:1">
+              <label class="form-label">연간 목표</label>
+              <input type="text" class="form-input" id="goalInput" placeholder="₩20억">
+            </div>
+            <div class="form-group" style="flex:1">
+              <label class="form-label">기본 기간</label>
+              <select class="form-input" id="defaultRangeSelect">
+                <option value="7">7일</option>
+                <option value="30" selected>30일</option>
+                <option value="90">90일</option>
+                <option value="0">전체</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- 팀원 관리 -->
+        <section class="settings-section">
+          <div class="settings-section-title">👥 팀원 관리</div>
+          <div class="team-mgmt-list" id="teamMgmtList"><!-- JS --></div>
+          <div class="form-row" style="margin-top:12px">
+            <input type="text" class="form-input" id="newMemberName" placeholder="이름" style="flex:1">
+            <input type="text" class="form-input" id="newMemberRole" placeholder="직책 (예: 팀장, 과장, 팀)" style="flex:1">
+            <button class="btn-primary" id="addMemberBtn">+ 추가</button>
+          </div>
+        </section>
+
+        <!-- 알림 설정 -->
+        <section class="settings-section">
+          <div class="settings-section-title">🔔 알림 설정</div>
+          <label class="checkbox-row"><input type="checkbox" id="notifMinutesAi" checked> 회의록 저장 시 AI 업무 알림</label>
+          <label class="checkbox-row"><input type="checkbox" id="notifSalesDrop" checked> 매출 급락 알림 (-20% 이상)</label>
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label">자동 갱신 주기</label>
+            <select class="form-input" id="refreshInterval">
+              <option value="1">1분</option>
+              <option value="5" selected>5분</option>
+              <option value="15">15분</option>
+              <option value="0">수동</option>
+            </select>
+          </div>
+        </section>
+
+        <!-- 데이터 백업 -->
+        <section class="settings-section">
+          <div class="settings-section-title">💾 데이터 백업/복원</div>
+          <div class="settings-actions">
+            <button class="btn-secondary" id="exportSettingsBtn">💾 설정 내보내기 (JSON)</button>
+            <button class="btn-secondary" id="importSettingsBtn">📂 설정 가져오기</button>
+            <input type="file" id="importSettingsFile" accept=".json" style="display:none">
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <div class="settings-section-title">ℹ️ 앱 정보</div>
+          <div class="settings-meta">OneBoard v2.0 · 2026-04-24 업데이트 · CHEONGYE Protocol v2.0</div>
+          <div class="settings-actions" style="margin-top:12px">
+            <button class="btn-secondary" id="settingsLockBtn">🔒 잠금</button>
+          </div>
+        </section>
+      </div>
+    </div><!-- /section-settings -->
 
   </main>
 
