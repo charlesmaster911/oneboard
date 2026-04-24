@@ -1940,39 +1940,114 @@ switchMemberTab = function(member) {
 
 // ── 운영매뉴얼 ───────────────────────────────────────────────
 const MANUAL_DOCS = [
-  { cat:'🏠 팀 매뉴얼', items:[
-    { file:'README.md', title:'전체 개요' },
+  { cat:'🎧 CS 대응', color:'#EF4444', desc:'고객 문의·증상별 응대 가이드', items:[
+    { file:'소스_CS_얼음증상_대응가이드.md', title:'얼음 증상 대응 가이드', hot:true, summary:'뽀얀얼음·안떨어짐·깨짐 등 실제 증상별 응대 스크립트' },
+    { file:'소스_CS_트러블슈팅DB.md', title:'트러블슈팅 DB', summary:'실전 사례 기반 문제 해결 DB' },
+    { file:'소스_CS_응대프로세스_4단계.md', title:'CS 응대 4단계 프로세스', summary:'문의확인 → FAQ답변 → 응대기록 → Slack 알림' },
+    { file:'소스_CS_채널8개_FAQ22_2021.md', title:'8채널 FAQ22', summary:'네이버·쿠팡 등 8채널 접속법 + FAQ 22개' },
+    { file:'소스_채널운영_권수지_인수인계.md', title:'채널 운영 인수인계 (권수지)', summary:'4채널 CS 운영 + 개선 과제' },
   ]},
-  { cat:'🎧 CS 대응', items:[
-    { file:'소스_CS_얼음증상_대응가이드.md', title:'얼음 증상 대응 가이드 🔥' },
-    { file:'소스_CS_트러블슈팅DB.md', title:'트러블슈팅 DB' },
-    { file:'소스_CS_응대프로세스_4단계.md', title:'CS 응대 4단계 프로세스' },
-    { file:'소스_CS_채널8개_FAQ22_2021.md', title:'8채널 FAQ22' },
-    { file:'소스_채널운영_권수지_인수인계.md', title:'채널 운영 인수인계 (권수지)' },
+  { cat:'📦 제품 매뉴얼', color:'#3B82F6', desc:'제품별 사용법·스펙·주의사항', items:[
+    { file:'소스_쥬얼아이스_사용설명서_공식OL.md', title:'쥬얼아이스 공식 설명서', hot:true, summary:'공식 동봉 설명서 (한/영/일 3개국어)' },
+    { file:'소스_듀오메이커_풀매뉴얼.md', title:'듀오메이커 풀매뉴얼', summary:'도요타쯔우쇼용 7단계 상세' },
+    { file:'소스_듀오메이커_사용법_6단계.md', title:'듀오메이커 6단계 사용법', summary:'냉동 24~36H, 냉매 먼 곳, 하단 배치' },
+    { file:'소스_아블러_사용가이드.md', title:'아블러 사용 가이드', summary:'한영 bilingual + 주의 15항 + 트러블슈팅' },
+    { file:'소스_아블러제로_사용설명서.md', title:'아블러 제로 설명서', summary:'420ml·폴리카보네이트·유리·트라이탄' },
+    { file:'소스_아블러제로_FAQ_상세페이지.md', title:'아블러 제로 FAQ', summary:'식세기·강화유리·전자레인지·뜨거운 음료' },
+    { file:'소스_세척가이드_실리콘몰드.md', title:'실리콘 몰드 세척', summary:'냄새·끈적임·살균 6방식' },
+    { file:'소스_ABLR_제안서_기술스펙.md', title:'ABLR 기술스펙 제안서', summary:'6대 핵심 기술·삼단 방한공법·커스텀 아이스' },
   ]},
-  { cat:'📦 제품 매뉴얼', items:[
-    { file:'소스_쥬얼아이스_사용설명서_공식OL.md', title:'쥬얼아이스 공식 설명서 🔥' },
-    { file:'소스_듀오메이커_풀매뉴얼.md', title:'듀오메이커 풀매뉴얼' },
-    { file:'소스_듀오메이커_사용법_6단계.md', title:'듀오메이커 6단계' },
-    { file:'소스_아블러_사용가이드.md', title:'아블러 사용 가이드' },
-    { file:'소스_아블러제로_사용설명서.md', title:'아블러 제로 설명서' },
-    { file:'소스_아블러제로_FAQ_상세페이지.md', title:'아블러 제로 FAQ' },
-    { file:'소스_세척가이드_실리콘몰드.md', title:'실리콘 몰드 세척' },
-    { file:'소스_ABLR_제안서_기술스펙.md', title:'ABLR 기술스펙 제안서' },
+  { cat:'📝 FAQ', color:'#10B981', desc:'자주 묻는 질문 / 예상 질문 대응', items:[
+    { file:'소스_FAQ_와디즈_ablr.md', title:'와디즈 ABLR FAQ', summary:'ablr 캠페인 FAQ (제품·투명얼음·배송)' },
+    { file:'소스_FAQ_굿네이버스_예상질문.md', title:'굿네이버스 예상질문', summary:'협력 15개 예상질문 + 난처한 질문 대응' },
+    { file:'소스_FAQ_영상기획_재구매율.md', title:'영상 기획·재구매율', summary:'3차 촬영 기획 (구성품·AS·칵테일)' },
   ]},
-  { cat:'📝 FAQ', items:[
-    { file:'소스_FAQ_와디즈_ablr.md', title:'와디즈 ABLR FAQ' },
-    { file:'소스_FAQ_굿네이버스_예상질문.md', title:'굿네이버스 예상질문' },
-    { file:'소스_FAQ_영상기획_재구매율.md', title:'영상 기획·재구매율' },
+  { cat:'📋 SOP', color:'#8B5CF6', desc:'실무 프로세스·표준 운영 절차', items:[
+    { file:'SOP_택배발송_CS이슈대응.md', title:'택배 발송·CS 이슈', summary:'발송 전후 이슈 대응 표준 절차' },
+    { file:'SOP_B2B_문의접수_프로세스.md', title:'B2B 문의접수 프로세스', summary:'B2B 상담 접수 → 제안 → 계약' },
   ]},
-  { cat:'📋 SOP', items:[
-    { file:'SOP_택배발송_CS이슈대응.md', title:'택배 발송·CS 이슈' },
-    { file:'SOP_B2B_문의접수_프로세스.md', title:'B2B 문의접수 프로세스' },
-  ]},
-  { cat:'🎬 영상 자산', items:[
-    { file:'영상자산_링크카드.md', title:'영상/이미지 자산 카드' },
+  { cat:'🎬 영상 자산', color:'#F59E0B', desc:'영상·이미지 Drive 링크', items:[
+    { file:'영상자산_링크카드.md', title:'영상/이미지 자산 카드', summary:'사용법 영상 7+건 · FAQ 영상 4종 · 개봉 GIF' },
   ]},
 ];
+
+function getTotalDocCount() {
+  return MANUAL_DOCS.reduce((sum, g) => sum + g.items.length, 0);
+}
+
+function renderManualHome() {
+  const viewer = document.getElementById('manualViewer');
+  if (!viewer) return;
+  manualCurrent = null;
+  document.querySelectorAll('.manual-item').forEach(x => x.classList.remove('active'));
+
+  const hotDocs = MANUAL_DOCS.flatMap(g => g.items.filter(i => i.hot).map(i => ({...i, catColor:g.color, cat:g.cat})));
+
+  let html = `
+    <div class="manual-home">
+      <div class="manual-hero">
+        <div class="manual-hero-badge">운영매뉴얼 v1.0 · ${getTotalDocCount()}개 문서 통합</div>
+        <h1>쥬얼아이스 운영 매뉴얼</h1>
+        <p>팀 공통 업무 매뉴얼 + 고객 CS 대응 자료 · 회사기본 운영매뉴얼 통합본</p>
+        <div class="manual-hero-meta">
+          <span>📅 2026-04-24 배포</span>
+          <span>📚 ${MANUAL_DOCS.length}개 카테고리 · ${getTotalDocCount()}개 문서</span>
+        </div>
+      </div>
+
+      ${hotDocs.length ? `
+      <section class="manual-section">
+        <div class="manual-section-title">🔥 주요 문서 (먼저 읽기)</div>
+        <div class="manual-hot-grid">
+          ${hotDocs.map(d => `
+            <div class="manual-hot-card" data-file="${escapeAttr(d.file)}" data-title="${escapeAttr(d.title)}" style="border-left-color:${d.catColor}">
+              <div class="manual-hot-cat" style="color:${d.catColor}">${d.cat}</div>
+              <div class="manual-hot-title">🔥 ${escapeAttr(d.title)}</div>
+              <div class="manual-hot-summary">${escapeAttr(d.summary||'')}</div>
+              <div class="manual-hot-cta">읽기 →</div>
+            </div>
+          `).join('')}
+        </div>
+      </section>` : ''}
+
+      ${MANUAL_DOCS.map(group => `
+        <section class="manual-section">
+          <div class="manual-section-title" style="border-left-color:${group.color}">
+            <span>${group.cat}</span>
+            <span class="manual-section-count">${group.items.length}</span>
+          </div>
+          <div class="manual-section-desc">${group.desc}</div>
+          <div class="manual-card-grid">
+            ${group.items.map(it => `
+              <div class="manual-doc-card" data-file="${escapeAttr(it.file)}" data-title="${escapeAttr(it.title)}">
+                <div class="manual-doc-card-title">${it.hot?'🔥 ':''}${escapeAttr(it.title)}</div>
+                <div class="manual-doc-card-summary">${escapeAttr(it.summary||'')}</div>
+                <div class="manual-doc-card-foot">
+                  <span class="manual-doc-card-file">${escapeAttr(it.file)}</span>
+                  <span class="manual-doc-card-arrow">→</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </section>
+      `).join('')}
+
+      <div class="manual-footer">
+        OneBoard v2.0 · 쥬얼아이스 · <span style="color:#94a3b8">문서 수정은 <code>oneboard/manuals/</code> 폴더의 마크다운 파일을 편집하세요</span>
+      </div>
+    </div>
+  `;
+  viewer.innerHTML = html;
+
+  // 카드 클릭 바인딩
+  viewer.querySelectorAll('.manual-hot-card, .manual-doc-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const file = card.dataset.file, title = card.dataset.title;
+      const navEl = document.querySelector(`.manual-item[data-file="${file}"]`);
+      loadManualDoc(file, title, navEl);
+    });
+  });
+}
 
 let manualCache = {};
 let manualCurrent = null;
@@ -1981,14 +2056,29 @@ function renderManualNav() {
   const nav = document.getElementById('manualNav');
   if (!nav) return;
   nav.innerHTML = '';
+  // 홈 버튼
+  const home = document.createElement('div');
+  home.className = 'manual-item manual-home-btn';
+  home.innerHTML = '🏠 홈 · 전체 문서';
+  home.addEventListener('click', () => {
+    document.querySelectorAll('.manual-item').forEach(x => x.classList.remove('active'));
+    home.classList.add('active');
+    renderManualHome();
+  });
+  nav.appendChild(home);
+  // 카테고리별
   MANUAL_DOCS.forEach(group => {
     const g = document.createElement('div'); g.className='manual-group';
-    const h = document.createElement('div'); h.className='manual-group-title'; h.textContent=group.cat;
+    const h = document.createElement('div');
+    h.className='manual-group-title';
+    h.textContent=group.cat;
+    h.style.color = group.color;
     g.appendChild(h);
     group.items.forEach(it => {
       const a = document.createElement('div');
       a.className='manual-item';
-      a.textContent = it.title;
+      a.dataset.file = it.file;
+      a.innerHTML = `${it.hot?'<span style="color:#EF4444">🔥</span> ':''}${it.title}`;
       a.addEventListener('click', () => loadManualDoc(it.file, it.title, a));
       g.appendChild(a);
     });
@@ -2011,12 +2101,33 @@ async function loadManualDoc(file, title, el) {
       manualCache[file] = md;
     }
     manualCurrent = { file, title, md };
+    // 카테고리 찾기
+    let groupInfo = null;
+    for (const g of MANUAL_DOCS) {
+      const f = g.items.find(i => i.file === file);
+      if (f) { groupInfo = { ...g, doc:f }; break; }
+    }
     const html = (typeof marked !== 'undefined') ? marked.parse(md) : `<pre>${md.replace(/</g,'&lt;')}</pre>`;
+    const catBadge = groupInfo ? `<span class="manual-doc-cat" style="background:${groupInfo.color}15;color:${groupInfo.color};border:1px solid ${groupInfo.color}40">${groupInfo.cat}</span>` : '';
+    const hotBadge = groupInfo?.doc?.hot ? '<span class="manual-doc-hot">🔥 주요</span>' : '';
+    const summary = groupInfo?.doc?.summary || '';
     viewer.innerHTML = `
-      <div class="manual-doc-title">${escapeAttr(title)}</div>
-      <div class="manual-doc-file">${escapeAttr(file)}</div>
+      <div class="manual-doc-head">
+        <div class="manual-doc-breadcrumb">
+          <a class="manual-back" id="manualBackBtn">← 홈</a>
+          ${catBadge}
+          ${hotBadge}
+        </div>
+        <div class="manual-doc-title">${escapeAttr(title)}</div>
+        ${summary ? `<div class="manual-doc-summary">${escapeAttr(summary)}</div>` : ''}
+        <div class="manual-doc-file">📄 ${escapeAttr(file)}</div>
+      </div>
       <div class="manual-doc-body">${html}</div>
     `;
+    document.getElementById('manualBackBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      renderManualHome();
+    });
   } catch (e) {
     viewer.innerHTML = `<div class="manual-placeholder"><div>⚠️ 문서를 불러올 수 없습니다: ${e.message}</div><div style="font-size:12px;color:#94a3b8;margin-top:8px">manuals/${file}</div></div>`;
   }
@@ -2242,6 +2353,7 @@ switchSection = function(section) {
   _origSwitchSection(section);
   if (section === 'manual') {
     renderManualNav();
+    if (!manualCurrent) renderManualHome();
   }
   if (section === 'settings') {
     if (isSettingsUnlocked()) openSettingsBody();

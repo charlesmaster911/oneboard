@@ -1508,18 +1508,138 @@ body {
   height: 100%; color: var(--muted); gap: 12px;
 }
 .manual-placeholder-icon { font-size: 48px; opacity: 0.5; }
-.manual-doc-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-.manual-doc-file { font-size: 12px; color: #94A3B8; margin-bottom: 20px; font-family: monospace; }
-.manual-doc-body { font-size: 14px; line-height: 1.7; color: var(--text); }
-.manual-doc-body h1, .manual-doc-body h2, .manual-doc-body h3 {
-  margin-top: 24px; margin-bottom: 12px; font-weight: 700;
+/* 홈 화면 (카드 그리드) */
+.manual-home { }
+.manual-hero {
+  background: linear-gradient(135deg, #6B46C1 0%, #553C9A 100%);
+  color: white; padding: 32px 36px; border-radius: 14px; margin-bottom: 28px;
+  position: relative; overflow: hidden;
 }
-.manual-doc-body h1 { font-size: 22px; border-bottom: 2px solid var(--border); padding-bottom: 8px; }
-.manual-doc-body h2 { font-size: 18px; color: var(--primary); }
-.manual-doc-body h3 { font-size: 15px; }
-.manual-doc-body p { margin: 10px 0; }
-.manual-doc-body ul, .manual-doc-body ol { margin: 10px 0 10px 24px; }
-.manual-doc-body li { margin: 4px 0; }
+.manual-hero::after {
+  content: ''; position: absolute; top: -40px; right: -40px;
+  width: 180px; height: 180px; background: #FBBF24; border-radius: 50%; opacity: 0.22;
+}
+.manual-hero-badge {
+  display: inline-block; background: #FBBF24; color: #1F2937;
+  padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 800;
+  margin-bottom: 10px; position: relative; z-index: 2;
+}
+.manual-hero h1 { font-size: 26px; font-weight: 800; margin-bottom: 6px; position: relative; z-index: 2; }
+.manual-hero p { font-size: 14px; opacity: 0.95; position: relative; z-index: 2; }
+.manual-hero-meta {
+  display: flex; gap: 16px; margin-top: 14px; font-size: 12px; opacity: 0.9;
+  position: relative; z-index: 2; flex-wrap: wrap;
+}
+
+.manual-section { margin-bottom: 28px; }
+.manual-section-title {
+  font-size: 16px; font-weight: 800; color: var(--text);
+  border-left: 5px solid #FBBF24; padding-left: 12px; margin-bottom: 6px;
+  display: flex; align-items: center; gap: 10px;
+}
+.manual-section-count {
+  background: #F1F5F9; color: #64748B; font-size: 11px; font-weight: 700;
+  padding: 2px 8px; border-radius: 10px;
+}
+.manual-section-desc { font-size: 12px; color: #94A3B8; margin-bottom: 14px; padding-left: 17px; }
+
+.manual-hot-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px; margin-bottom: 8px;
+}
+.manual-hot-card {
+  background: linear-gradient(135deg, #FFF 0%, #FEF3C7 100%);
+  border: 1px solid #E5E7EB; border-left: 4px solid; border-radius: 10px;
+  padding: 16px 18px; cursor: pointer; transition: all .15s;
+}
+.manual-hot-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.08); }
+.manual-hot-cat { font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+.manual-hot-title { font-size: 15px; font-weight: 800; margin-bottom: 6px; color: var(--text); }
+.manual-hot-summary { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
+.manual-hot-cta { font-size: 12px; font-weight: 700; color: #F59E0B; }
+
+.manual-card-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px;
+}
+.manual-doc-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; cursor: pointer; transition: all .15s;
+  display: flex; flex-direction: column;
+}
+.manual-doc-card:hover {
+  border-color: var(--primary); transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59,130,246,.1);
+}
+.manual-doc-card-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+.manual-doc-card-summary { font-size: 12px; color: var(--muted); line-height: 1.5; flex: 1; margin-bottom: 10px; }
+.manual-doc-card-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-top: 8px; border-top: 1px dashed var(--border);
+}
+.manual-doc-card-file { font-size: 10px; color: #94A3B8; font-family: monospace; }
+.manual-doc-card-arrow { font-size: 14px; color: var(--primary); font-weight: 700; }
+
+.manual-footer {
+  text-align: center; padding: 24px 0; font-size: 11px; color: var(--muted);
+  border-top: 1px solid var(--border); margin-top: 24px;
+}
+.manual-footer code {
+  background: #F1F5F9; padding: 2px 6px; border-radius: 4px;
+  font-size: 10px; font-family: monospace;
+}
+
+/* 홈 버튼 / 카테고리 컬러 */
+.manual-home-btn {
+  font-weight: 700 !important; background: #EFF6FF;
+  border: 1px solid #DBEAFE; margin-bottom: 12px !important;
+}
+.manual-home-btn.active { background: #DBEAFE; color: var(--primary); }
+
+/* 문서 보기 헤더 */
+.manual-doc-head {
+  padding-bottom: 20px; margin-bottom: 24px; border-bottom: 2px solid var(--border);
+}
+.manual-doc-breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.manual-back {
+  font-size: 12px; color: var(--primary); cursor: pointer; font-weight: 600;
+  padding: 4px 10px; border-radius: 6px; background: #EFF6FF; text-decoration: none;
+  transition: background .1s;
+}
+.manual-back:hover { background: #DBEAFE; }
+.manual-doc-cat {
+  display: inline-block; padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 700;
+}
+.manual-doc-hot {
+  display: inline-block; padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 700; background: #FEF3C7; color: #F59E0B;
+  border: 1px solid #FDE68A;
+}
+.manual-doc-title { font-size: 26px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px; }
+.manual-doc-summary { font-size: 14px; color: var(--muted); margin-bottom: 10px; line-height: 1.6; }
+.manual-doc-file { font-size: 11px; color: #94A3B8; font-family: monospace; }
+.manual-doc-body {
+  font-size: 15px; line-height: 1.8; color: var(--text);
+  max-width: 760px;
+}
+.manual-doc-body h1, .manual-doc-body h2, .manual-doc-body h3 {
+  margin-top: 32px; margin-bottom: 14px; font-weight: 800; letter-spacing: -0.3px;
+}
+.manual-doc-body h1:first-child, .manual-doc-body h2:first-child { margin-top: 0; }
+.manual-doc-body h1 { font-size: 24px; padding-bottom: 10px; border-bottom: 2px solid #EDE9FE; color: #553C9A; }
+.manual-doc-body h2 {
+  font-size: 20px; color: var(--primary);
+  padding-left: 14px; border-left: 5px solid var(--primary);
+}
+.manual-doc-body h3 { font-size: 16px; color: #334155; }
+.manual-doc-body h4 { font-size: 14px; color: var(--muted); margin-top: 20px; margin-bottom: 8px; font-weight: 700; }
+.manual-doc-body p { margin: 12px 0; }
+.manual-doc-body ul, .manual-doc-body ol { margin: 12px 0 12px 28px; }
+.manual-doc-body li { margin: 6px 0; }
+.manual-doc-body strong { color: #553C9A; font-weight: 700; }
+.manual-doc-body hr {
+  border: none; border-top: 1px dashed var(--border); margin: 24px 0;
+}
 .manual-doc-body code {
   background: #F1F5F9; padding: 2px 6px; border-radius: 4px;
   font-size: 13px; font-family: 'Monaco', 'Consolas', monospace;
@@ -1616,3 +1736,30 @@ body {
 
 .checkbox-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
 .checkbox-row input { cursor: pointer; }
+
+/* 인수인계 카드 (설정 최상단) */
+.settings-section.handoff-card {
+  background: linear-gradient(135deg, #6B46C1 0%, #553C9A 100%);
+  padding: 0; overflow: hidden; border: none; position: relative;
+}
+.handoff-card-inner {
+  padding: 28px 32px; color: white; position: relative; z-index: 2;
+}
+.settings-section.handoff-card::after {
+  content: ''; position: absolute; top: -60px; right: -40px;
+  width: 200px; height: 200px; background: #FBBF24; border-radius: 50%; opacity: 0.2;
+  z-index: 1;
+}
+.handoff-card-badge {
+  display: inline-block; background: #FBBF24; color: #1F2937;
+  padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 800;
+  margin-bottom: 10px;
+}
+.handoff-card-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+.handoff-card-desc { font-size: 13px; opacity: 0.95; line-height: 1.6; margin-bottom: 16px; max-width: 680px; }
+.handoff-card-btn {
+  display: inline-block; background: #FBBF24; color: #1F2937 !important;
+  padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 800;
+  text-decoration: none; transition: all .15s;
+}
+.handoff-card-btn:hover { background: #F59E0B; transform: translateY(-1px); }
