@@ -1940,6 +1940,10 @@ switchMemberTab = function(member) {
 
 // ── 운영매뉴얼 ───────────────────────────────────────────────
 const MANUAL_DOCS = [
+  { cat:'🏠 팀 매뉴얼', color:'#6B46C1', desc:'매일 반복 루틴 · 전화 응대 표준', items:[
+    { file:'일일_체크리스트.md', title:'일일 체크리스트 (출근/퇴근)', hot:true, summary:'09:00 출근 루틴 5항목 + 18:00 퇴근 루틴 5항목 + 책상·공용공간 5룰' },
+    { file:'전화_응대.md', title:'전화 응대 매뉴얼', hot:true, summary:'황금 3문장 + 4가지 유형별 분기(세일즈·B2B·대표·거래처) + 메모 양식' },
+  ]},
   { cat:'🎧 CS 대응', color:'#EF4444', desc:'고객 문의·증상별 응대 가이드', items:[
     { file:'소스_CS_얼음증상_대응가이드.md', title:'얼음 증상 대응 가이드', hot:true, summary:'뽀얀얼음·안떨어짐·깨짐 등 실제 증상별 응대 스크립트' },
     { file:'소스_CS_트러블슈팅DB.md', title:'트러블슈팅 DB', summary:'실전 사례 기반 문제 해결 DB' },
