@@ -2163,19 +2163,64 @@ const CHANNEL_KEYS_DEF = [
 ];
 
 function isSettingsUnlocked() {
-  return localStorage.getItem('ob_settings_auth') === 'true';
+  return !!localStorage.getItem('ob_admin_token');
+}
+function getAdminToken() {
+  return localStorage.getItem('ob_admin_token') || '';
+}
+async function adminFetch(path, opts = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Admin-Token': getAdminToken(),
+      ...(opts.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`${res.status}: ${body.slice(0, 200)}`);
+  }
+  return res.json();
+}
+
+// CHANNEL_KEYS_DEF의 name ↔ server platform id 매핑
+const CHANNEL_PLATFORM_MAP = {
+  cafe24: 'cafe24',
+  smartstore: 'naver_store',
+  coupang: 'coupang',
+  meta: 'meta',
+  naver_ad: 'naver_ads',
+  kakao: 'kakao',
+};
+
+let channelStatusCache = {};
+
+async function fetchChannelStatus() {
+  try {
+    const data = await adminFetch('/admin/platforms');
+    channelStatusCache = {};
+    (data.platforms || []).forEach(p => {
+      channelStatusCache[p.id] = p;
+    });
+  } catch (e) {
+    console.warn('[settings] platforms 조회 실패:', e.message);
+    channelStatusCache = {};
+  }
 }
 
 function renderChannelKeys() {
   const grid = document.getElementById('channelKeysGrid');
   if (!grid) return;
-  const saved = JSON.parse(localStorage.getItem('ob_channel_status') || '{}');
   grid.innerHTML = '';
   CHANNEL_KEYS_DEF.forEach(ch => {
+    const platformId = CHANNEL_PLATFORM_MAP[ch.id] || ch.id;
+    const info = channelStatusCache[platformId] || { status:'pending' };
+    const st = info.status;
+    const stLabel = st==='connected'?'🟢 연결됨':st==='error'?'🔴 오류':'⚪ 미연동';
+    const lastSync = info.lastSync ? new Date(info.lastSync).toLocaleString('ko-KR') : null;
     const card = document.createElement('div');
     card.className = 'channel-key-card';
-    const st = saved[ch.id]?.status || 'pending';
-    const stLabel = st==='connected'?'🟢 연결됨':st==='error'?'🔴 오류':'⚪ 미연동';
     card.innerHTML = `
       <div class="channel-key-head">
         <div class="channel-key-name">${ch.name}</div>
@@ -2183,23 +2228,98 @@ function renderChannelKeys() {
       </div>
       <div class="channel-key-keys">필요 키: ${ch.keys.join(' · ')}</div>
       <div class="channel-key-doc">발급: ${ch.doc}</div>
+      ${lastSync ? `<div class="channel-key-doc" style="color:#10B981">최근 저장: ${lastSync}</div>` : ''}
       <div class="channel-key-actions">
-        <button class="btn-secondary" data-ch="${ch.id}" data-act="enter">키 입력</button>
-        ${ch.id==='cafe24' ? '<button class="btn-secondary" data-ch="cafe24" data-act="oauth">OAuth 인증 시작</button>' : ''}
+        <button class="btn-primary" data-ch="${ch.id}" data-act="enter">🔑 키 입력</button>
+        ${ch.id==='cafe24' ? '<button class="btn-secondary" data-ch="cafe24" data-act="oauth">🔗 OAuth 인증 시작</button>' : ''}
+        ${st==='connected' ? `<button class="btn-danger" data-ch="${ch.id}" data-act="delete">삭제</button>` : ''}
       </div>
     `;
     card.querySelectorAll('button').forEach(b => {
-      b.addEventListener('click', () => {
-        const act = b.dataset.act;
-        if (act === 'enter') {
-          alert(`[${ch.name}] 키 입력은 oneboard-server 환경변수로 관리됩니다.\n필요 키: ${ch.keys.join(', ')}\n\n보안 정책상 프론트에서는 키를 저장하지 않습니다.\n서버 측에 발급한 키를 전달해 주세요.`);
-        } else if (act === 'oauth') {
-          alert('카페24 OAuth 인증은 oneboard-server 설정 후 활성화됩니다.');
-        }
-      });
+      b.addEventListener('click', () => handleChannelAction(ch, b.dataset.act));
     });
     grid.appendChild(card);
   });
+}
+
+async function handleChannelAction(ch, act) {
+  const platformId = CHANNEL_PLATFORM_MAP[ch.id] || ch.id;
+  if (act === 'enter') {
+    openCredModal(ch, platformId);
+  } else if (act === 'oauth') {
+    if (!confirm('카페24 OAuth 인증을 시작합니다.\n먼저 mall_id, client_id, client_secret 3개가 저장되어 있어야 합니다.\n\n계속하시겠습니까?')) return;
+    const token = encodeURIComponent(getAdminToken());
+    window.location.href = `${API_BASE}/admin/oauth/cafe24/start?admin_token=${token}`;
+  } else if (act === 'delete') {
+    if (!confirm(`${ch.name} 연동을 삭제할까요?`)) return;
+    try {
+      await adminFetch(`/admin/platforms/${platformId}`, { method:'DELETE' });
+      await fetchChannelStatus();
+      renderChannelKeys();
+    } catch (e) {
+      alert(`삭제 실패: ${e.message}`);
+    }
+  }
+}
+
+function openCredModal(ch, platformId) {
+  const modal = document.getElementById('credModal');
+  const title = document.getElementById('credModalTitle');
+  const body = document.getElementById('credModalBody');
+  if (!modal || !body) return;
+  title.textContent = `${ch.name} — 키 입력`;
+  body.innerHTML = `
+    <div class="cred-modal-hint">
+      각 필드에 플랫폼에서 발급받은 키를 입력하세요. 키는 서버에서 암호화되어 저장됩니다. 프론트에는 저장되지 않습니다.
+      <br><br>
+      <strong>발급 위치:</strong> ${escapeAttr(ch.doc)}
+    </div>
+    ${ch.keys.map(k => `
+      <div class="form-group">
+        <label class="form-label">${k}</label>
+        <input type="text" class="form-input cred-input" data-key="${escapeAttr(k)}" placeholder="${escapeAttr(k)} 값 입력" autocomplete="off">
+      </div>
+    `).join('')}
+    ${ch.id==='cafe24' ? '<div class="cred-modal-note">💡 access_token, refresh_token은 자동으로 생성됩니다. mall_id · client_id · client_secret 3개만 입력하세요.</div>' : ''}
+  `;
+  modal.dataset.platform = platformId;
+  modal.dataset.chId = ch.id;
+  modal.style.display = 'flex';
+  setTimeout(() => body.querySelector('.cred-input')?.focus(), 50);
+}
+
+function closeCredModal() {
+  const modal = document.getElementById('credModal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function saveCredModal() {
+  const modal = document.getElementById('credModal');
+  const platformId = modal.dataset.platform;
+  const chId = modal.dataset.chId;
+  const creds = {};
+  modal.querySelectorAll('.cred-input').forEach(inp => {
+    if (inp.value.trim()) creds[inp.dataset.key] = inp.value.trim();
+  });
+  if (Object.keys(creds).length === 0) {
+    alert('최소 1개 이상의 키를 입력해주세요.');
+    return;
+  }
+  const saveBtn = document.getElementById('credModalSave');
+  saveBtn.disabled = true; saveBtn.textContent = '저장 중...';
+  try {
+    await adminFetch(`/admin/platforms/${platformId}`, {
+      method:'POST', body: JSON.stringify(creds),
+    });
+    closeCredModal();
+    await fetchChannelStatus();
+    renderChannelKeys();
+    alert(`✅ ${Object.keys(creds).length}개 키 저장 완료`);
+  } catch (e) {
+    alert(`저장 실패: ${e.message}`);
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = '저장';
+  }
 }
 
 function renderTeamMgmtList() {
@@ -2253,15 +2373,18 @@ function collectSettingsPrefs() {
   };
 }
 
-function openSettingsBody() {
+async function openSettingsBody() {
   document.getElementById('settingsGate').style.display = 'none';
   document.getElementById('settingsBody').style.display = '';
   renderChannelKeys();
   renderTeamMgmtList();
   populateSettingsInputs();
+  await fetchChannelStatus();
+  renderChannelKeys();
 }
 
 function lockSettings() {
+  localStorage.removeItem('ob_admin_token');
   localStorage.removeItem('ob_settings_auth');
   document.getElementById('settingsGate').style.display = '';
   document.getElementById('settingsBody').style.display = 'none';
@@ -2272,17 +2395,73 @@ function bindSettingsEvents() {
   const unlock = document.getElementById('settingsUnlock');
   const pw = document.getElementById('settingsPassword');
   const err = document.getElementById('settingsErr');
-  const tryUnlock = () => {
-    if ((pw?.value || '').trim().toUpperCase() === SETTINGS_PASSWORD) {
-      localStorage.setItem('ob_settings_auth', 'true');
-      openSettingsBody();
-    } else {
-      if (err) { err.textContent='❌ 비밀번호가 틀렸습니다.'; err.style.display=''; }
+  const tryUnlock = async () => {
+    const input = (pw?.value || '').trim();
+    if (!input) return;
+    if (err) { err.style.display='none'; }
+    unlock.disabled = true; unlock.textContent = '확인 중...';
+    try {
+      // 서버에 토큰 검증 요청
+      const res = await fetch(`${API_BASE}/admin/verify`, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'X-Admin-Token': input },
+      });
+      if (res.ok) {
+        localStorage.setItem('ob_admin_token', input);
+        localStorage.setItem('ob_settings_auth', 'true');
+        await openSettingsBody();
+      } else if (res.status === 503) {
+        // 서버 환경변수 미설정 — 로컬 폴백 (데모 모드)
+        if (input.toUpperCase() === SETTINGS_PASSWORD) {
+          localStorage.setItem('ob_admin_token', input);
+          localStorage.setItem('ob_settings_auth', 'true');
+          if (err) {
+            err.textContent = '⚠️ 서버에 ONEBOARD_ADMIN_TOKEN이 미설정 — 로컬 모드로 진입 (실제 키 저장 불가)';
+            err.style.color = '#F59E0B';
+            err.style.display = '';
+          }
+          await openSettingsBody();
+        } else {
+          if (err) { err.textContent='❌ 비밀번호가 틀렸습니다.'; err.style.display=''; err.style.color=''; }
+        }
+      } else {
+        if (err) { err.textContent='❌ 비밀번호가 틀렸습니다.'; err.style.display=''; err.style.color=''; }
+      }
+    } catch (e) {
+      // 네트워크 에러 — 로컬 폴백
+      if (input.toUpperCase() === SETTINGS_PASSWORD) {
+        localStorage.setItem('ob_admin_token', input);
+        localStorage.setItem('ob_settings_auth', 'true');
+        if (err) {
+          err.textContent = '⚠️ 서버 연결 실패 — 로컬 모드 (실제 키 저장 불가)';
+          err.style.color = '#F59E0B';
+          err.style.display = '';
+        }
+        await openSettingsBody();
+      } else {
+        if (err) { err.textContent=`❌ ${e.message}`; err.style.display=''; err.style.color=''; }
+      }
+    } finally {
+      unlock.disabled = false; unlock.textContent = '잠금 해제';
     }
   };
   unlock?.addEventListener('click', tryUnlock);
   pw?.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock(); });
   document.getElementById('settingsLockBtn')?.addEventListener('click', lockSettings);
+
+  // 키 입력 모달 이벤트
+  document.getElementById('credModalClose')?.addEventListener('click', closeCredModal);
+  document.getElementById('credModalCancel')?.addEventListener('click', closeCredModal);
+  document.getElementById('credModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'credModal') closeCredModal();
+  });
+  document.getElementById('credModalSave')?.addEventListener('click', saveCredModal);
+
+  // OAuth 성공 리턴 처리 (?oauth=success)
+  if (new URLSearchParams(location.search).get('oauth') === 'success') {
+    setTimeout(() => alert('✅ OAuth 인증 완료! access/refresh 토큰이 서버에 저장되었습니다.'), 500);
+    history.replaceState({}, '', location.pathname);
+  }
 
   // 프리퍼런스 저장 (변경 즉시)
   ['goalInput','defaultRangeSelect','notifMinutesAi','notifSalesDrop','refreshInterval'].forEach(id => {
