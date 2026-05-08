@@ -1120,6 +1120,72 @@ body {
 .member-tab-btn[data-member="컨텐츠팀"].active { background: #8B5CF6; border-color: #8B5CF6; }
 
 /* ═══════════════════════════════════════
+   Quick Add Popover (Google Calendar 식)
+═══════════════════════════════════════ */
+.cal-month-cell { cursor: pointer; }
+.cal-month-cell:hover { background: rgba(59, 130, 246, 0.04); }
+.cal-month-cell.other-month:hover { background: rgba(0,0,0,0.02); }
+
+.quick-add-popover {
+  position: absolute;
+  z-index: 1000;
+  width: 320px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.15), 0 4px 8px rgba(0,0,0,0.06);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  animation: quickAddIn 0.15s ease-out;
+}
+@keyframes quickAddIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.quick-add-header {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.quick-add-date { font-weight: 600; color: #111827; font-size: 13px; }
+.quick-add-close {
+  background: none; border: none; font-size: 20px; line-height: 1;
+  cursor: pointer; color: #9ca3af; padding: 0 4px;
+}
+.quick-add-close:hover { color: #111827; }
+.quick-add-input {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid #e5e7eb; border-radius: 8px;
+  font-size: 14px; transition: border-color .15s;
+  box-sizing: border-box;
+}
+.quick-add-input:focus { outline: none; border-color: #3B82F6; }
+.quick-add-row {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;
+}
+.quick-add-row select {
+  padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 6px;
+  font-size: 12px; background: #fff; cursor: pointer;
+}
+.quick-add-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 2px;
+}
+.quick-add-detail {
+  background: none; border: none; color: #6b7280;
+  cursor: pointer; font-size: 12px; padding: 4px 0;
+}
+.quick-add-detail:hover { color: #3B82F6; text-decoration: underline; }
+.quick-add-save {
+  padding: 7px 16px; font-size: 13px; font-weight: 600;
+  background: #3B82F6; color: #fff; border: none; border-radius: 6px;
+  cursor: pointer;
+}
+.quick-add-save:hover { background: #2563EB; }
+.quick-add-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ═══════════════════════════════════════
    통합 뷰
 ═══════════════════════════════════════ */
 .integrated-sections {

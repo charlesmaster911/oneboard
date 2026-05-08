@@ -1087,12 +1087,21 @@ function renderMonthCalendar() {
       cell.appendChild(more);
     }
 
-    // + 추가
+    // + 추가 (호버 시 노출)
     const addBtn = document.createElement('button');
     addBtn.className = 'cal-month-add';
     addBtn.textContent = '+';
-    addBtn.addEventListener('click', e=>{ e.stopPropagation(); openTaskModal(ymd, null); });
+    addBtn.addEventListener('click', e=>{ e.stopPropagation(); openQuickAdd(ymd, cell); });
     cell.appendChild(addBtn);
+
+    // 셀 빈 공간 클릭 → 캘린더식 인라인 입력 (Google Calendar 패턴)
+    cell.addEventListener('click', e=>{
+      if (e.target === cell
+          || e.target === dayNum
+          || e.target.classList.contains('cal-month-day-num')) {
+        openQuickAdd(ymd, cell);
+      }
+    });
 
     fragment.appendChild(cell);
   });
@@ -1124,7 +1133,7 @@ function renderDayView(date) {
   addBtn.className = 'btn-primary';
   addBtn.style.fontSize='13px';
   addBtn.textContent = `+ ${fmtKo(date)} 업무 추가`;
-  addBtn.addEventListener('click', ()=>openTaskModal(ymd, null));
+  addBtn.addEventListener('click', ()=>openQuickAdd(ymd, addBtn));
   addRow.appendChild(addBtn);
   list.appendChild(addRow);
 
@@ -1368,6 +1377,121 @@ async function renderTeamSection() {
   const from = '2026-03-01', to = '2026-04-30';
   teamTasks = await fetchTeamTasks(from, to);
   switchMemberTab(currentMemberTab);
+}
+
+// ── Quick Add Popover (Google Calendar 식 인라인 입력) ──────
+let quickAddEl = null;
+
+function closeQuickAdd() {
+  if (quickAddEl) { quickAddEl.remove(); quickAddEl = null; }
+  document.removeEventListener('mousedown', quickAddOutsideClick, true);
+  document.removeEventListener('keydown', quickAddKeydown);
+}
+function quickAddOutsideClick(e) {
+  if (quickAddEl && !quickAddEl.contains(e.target)) closeQuickAdd();
+}
+function quickAddKeydown(e) {
+  if (e.key === 'Escape') closeQuickAdd();
+}
+
+function openQuickAdd(date, anchorEl) {
+  closeQuickAdd();
+  const ymd = typeof date === 'string' ? date : toYMD(date);
+  const dateObj = typeof date === 'string' ? new Date(date+'T00:00:00') : date;
+  const autoAssignee = currentMemberTab !== '통합' ? currentMemberTab : (TEAM_MEMBERS[0]?.id || '');
+
+  const pop = document.createElement('div');
+  pop.className = 'quick-add-popover';
+  pop.innerHTML = `
+    <div class="quick-add-header">
+      <span class="quick-add-date">${fmtKo(dateObj)}</span>
+      <button class="quick-add-close" type="button" aria-label="닫기">×</button>
+    </div>
+    <input class="quick-add-input" type="text" placeholder="업무 내용 (Enter 저장 · Esc 취소)" maxlength="120">
+    <div class="quick-add-row">
+      <select class="quick-add-assignee" title="담당자">
+        ${TEAM_MEMBERS.map(m => `<option value="${escapeAttr(m.id)}" ${m.id===autoAssignee?'selected':''}>${escapeAttr(m.name)} ${escapeAttr(m.role||'')}</option>`).join('')}
+      </select>
+      <select class="quick-add-priority" title="우선순위">
+        <option value="낮음">낮음</option>
+        <option value="보통" selected>보통</option>
+        <option value="높음">높음</option>
+      </select>
+      <select class="quick-add-status" title="상태">
+        <option value="예정" selected>예정</option>
+        <option value="진행">진행</option>
+        <option value="완료">완료</option>
+      </select>
+    </div>
+    <div class="quick-add-foot">
+      <button class="quick-add-detail" type="button">상세 편집…</button>
+      <button class="quick-add-save btn-primary" type="button">저장</button>
+    </div>
+  `;
+  document.body.appendChild(pop);
+  quickAddEl = pop;
+
+  // 위치 (anchor 셀 기준 — 우/하 오버플로 방지)
+  const r = anchorEl.getBoundingClientRect();
+  const popW = 320, popH = 200;
+  let left = r.left + window.scrollX;
+  if (left + popW > window.scrollX + window.innerWidth - 12) {
+    left = window.scrollX + window.innerWidth - popW - 12;
+  }
+  let top = r.bottom + window.scrollY + 6;
+  if (r.bottom + popH > window.innerHeight - 12) {
+    top = r.top + window.scrollY - popH - 6;
+  }
+  pop.style.left = Math.max(12, left) + 'px';
+  pop.style.top = Math.max(12, top) + 'px';
+
+  const input = pop.querySelector('.quick-add-input');
+  input.focus();
+
+  pop.querySelector('.quick-add-close').onclick = closeQuickAdd;
+  pop.querySelector('.quick-add-detail').onclick = () => {
+    const who = pop.querySelector('.quick-add-assignee').value;
+    const text = input.value.trim();
+    closeQuickAdd();
+    openTaskModal(ymd, who);
+    if (text) {
+      const c = document.getElementById('taskContent');
+      if (c) c.value = text;
+    }
+  };
+  pop.querySelector('.quick-add-save').onclick = saveQuick;
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); saveQuick(); }
+  });
+
+  async function saveQuick() {
+    const text = input.value.trim();
+    if (!text) {
+      input.style.borderColor = '#EF4444';
+      setTimeout(()=>input.style.borderColor='',800);
+      input.focus();
+      return;
+    }
+    const who = pop.querySelector('.quick-add-assignee').value;
+    const status = pop.querySelector('.quick-add-status').value;
+    const priority = pop.querySelector('.quick-add-priority').value;
+    const saveBtn = pop.querySelector('.quick-add-save');
+    saveBtn.textContent='저장 중…'; saveBtn.disabled=true;
+    try {
+      const newTask = await createTask({date:ymd, who, task:text, status, priority, memo:''});
+      teamTasks.push(newTask);
+      closeQuickAdd();
+      switchCalView(calView);
+    } catch(err) {
+      saveBtn.textContent='저장'; saveBtn.disabled=false;
+      alert('저장 실패: ' + (err?.message || err));
+    }
+  }
+
+  setTimeout(() => {
+    document.addEventListener('mousedown', quickAddOutsideClick, true);
+    document.addEventListener('keydown', quickAddKeydown);
+  }, 0);
 }
 
 // ── 업무 입력 모달 ────────────────────────────────────────────
