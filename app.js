@@ -935,18 +935,57 @@ async function apiFetch(path, opts = {}) {
   return res.json();
 }
 
+// 저장 상태 추적 (헤더 배지에 표시)
+let dataSourceStatus = 'unknown'; // 'db' | 'local' | 'unknown'
+
 async function fetchTeamTasks(from, to) {
+  let dbTasks = null;
   try {
     const data = await apiFetch(`/team/tasks?from=${from}&to=${to}`);
-    return data.tasks.map(t => ({
+    dbTasks = data.tasks.map(t => ({
       id: t.id, date: t.date?.slice(0,10), who: t.assignee,
       task: t.task, status: t.status, priority: t.priority, memo: t.memo||'',
+      _origin: 'db',
     }));
+    dataSourceStatus = 'db';
   } catch {
-    const local = loadLocalTasks();
-    const preset = SHEET_TASKS_PRESET.map((t,i) => ({ id:`preset-${i}`, ...t, memo:'' }));
-    const all = [...preset, ...local];
-    return all.filter(t => (!from||t.date>=from) && (!to||t.date<=to));
+    dataSourceStatus = 'local';
+  }
+
+  // DB 성공: DB tasks + (DB에 없는) PRESET ghost + localStorage 잔여
+  if (dbTasks) {
+    const dbKeys = new Set(dbTasks.map(t => `${t.date}|${t.who}|${t.task}`));
+    const presetGhost = SHEET_TASKS_PRESET
+      .filter(t => !dbKeys.has(`${t.date}|${t.who}|${t.task}`))
+      .map((t,i) => ({ id:`preset-${i}`, ...t, memo:'', _origin:'preset_ghost' }));
+    const local = loadLocalTasks()
+      .map(t => ({ ...t, _origin: 'local' }))
+      .filter(t => !dbKeys.has(`${t.date}|${t.who}|${t.task}`));
+    const merged = [...dbTasks, ...presetGhost, ...local];
+    return merged.filter(t => (!from||t.date>=from) && (!to||t.date<=to));
+  }
+
+  // DB 실패: PRESET + localStorage
+  const local = loadLocalTasks().map(t => ({ ...t, _origin: 'local' }));
+  const preset = SHEET_TASKS_PRESET.map((t,i) => ({ id:`preset-${i}`, ...t, memo:'', _origin:'preset_ghost' }));
+  const all = [...preset, ...local];
+  return all.filter(t => (!from||t.date>=from) && (!to||t.date<=to));
+}
+
+function refreshStatusBadge() {
+  const el = document.getElementById('dataStatusBadge');
+  if (!el) return;
+  if (dataSourceStatus === 'db') {
+    el.textContent = '💾 백엔드 저장 중';
+    el.title = '입력하시는 모든 데이터가 Render PostgreSQL에 영구 저장됩니다.';
+    el.style.cssText = 'background:#D1FAE5;color:#065F46;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;';
+  } else if (dataSourceStatus === 'local') {
+    el.textContent = '⚠ 로컬 임시저장 (백엔드 연결 끊김)';
+    el.title = '백엔드 연결 실패 — 데이터가 이 브라우저에만 저장됩니다.';
+    el.style.cssText = 'background:#FEE2E2;color:#991B1B;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;';
+  } else {
+    el.textContent = '… 확인 중';
+    el.style.cssText = 'background:#F3F4F6;color:#4B5563;padding:3px 10px;border-radius:999px;font-size:11px;';
   }
 }
 
@@ -1568,8 +1607,12 @@ function renderMemberLegend() {
 
 // ── 팀 섹션 초기화 ───────────────────────────────────────────
 async function renderTeamSection() {
-  const from = '2026-03-01', to = '2026-04-30';
+  // 현재 월 ±3개월 — 과거 3개월 + 미래 3개월
+  const today = new Date();
+  const from = toYMD(new Date(today.getFullYear(), today.getMonth()-3, 1));
+  const to   = toYMD(new Date(today.getFullYear(), today.getMonth()+4, 0));
   teamTasks = await fetchTeamTasks(from, to);
+  refreshStatusBadge();
   switchMemberTab(currentMemberTab);
 }
 
@@ -2072,12 +2115,37 @@ function bindSectionEvents() {
   document.getElementById('saveTask')?.addEventListener('click',handleSaveTask);
   document.getElementById('taskContent')?.addEventListener('keydown',e=>{ if(e.key==='Enter') handleSaveTask(); });
 
-  // Sheets import 버튼 — 명시적 클릭만
-  document.getElementById('importSheetBtn')?.addEventListener('click',()=>{
-    const bar=document.getElementById('importBar');
-    if(bar) bar.style.display='none';
-    // 이미 SHEET_TASKS_PRESET 로드됨 — 안내만
-    alert('✅ Google Sheets 데이터가 이미 캘린더에 반영되어 있습니다.');
+  // Sheets PRESET → 백엔드 DB 영구 저장 (실제 import)
+  document.getElementById('importSheetBtn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('importSheetBtn');
+    if (!btn) return;
+    if (dataSourceStatus !== 'db') {
+      alert('백엔드 연결이 끊긴 상태입니다. 연결 후 다시 시도해 주세요.');
+      return;
+    }
+    const ghosts = teamTasks.filter(t => t._origin === 'preset_ghost');
+    if (!ghosts.length) {
+      alert('✅ 모든 시트 데이터가 이미 백엔드에 저장되어 있습니다.');
+      return;
+    }
+    if (!confirm(`시트 데이터 ${ghosts.length}건을 백엔드에 영구 저장합니다.\n저장 후엔 OneBoard에서 자유롭게 수정·삭제 가능합니다. 계속할까요?`)) return;
+    btn.disabled = true; btn.textContent = '저장 중…';
+    try {
+      const payload = ghosts.map(t => ({
+        date: t.date, assignee: t.who, task: t.task,
+        status: t.status, priority: t.priority, memo: t.memo || ''
+      }));
+      const result = await apiFetch('/team/import-sheet', {
+        method: 'POST',
+        body: JSON.stringify({ tasks: payload })
+      });
+      alert(`✅ ${result.imported || ghosts.length}건 백엔드에 영구 저장되었습니다.\n이제 OneBoard에서 자유롭게 수정·삭제 가능합니다.`);
+      await loadTeamTasks();
+    } catch (err) {
+      alert('저장 실패: ' + (err?.message || err));
+    } finally {
+      btn.disabled = false; btn.textContent = '영구 저장';
+    }
   });
 
   bindMinutesEvents();
