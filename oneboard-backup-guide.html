@@ -28,6 +28,12 @@
 <h1>📦 OneBoard → Google Sheet 자동 백업 가이드</h1>
 <p class="lead">매일 새벽 03:00, OneBoard의 모든 데이터(팀 업무·회의록)가 Google Sheet에 자동으로 백업됩니다. <strong>Apps Script 한 번만 설정</strong>하면 끝.</p>
 
+<div class="success" style="font-size:15px;line-height:1.7">
+  <strong>✅ 백업 받을 시트는 온이 이미 만들어 두었습니다.</strong><br>
+  → <a href="https://docs.google.com/spreadsheets/d/1AJ1dXtkua7t0xhS2TRNrb9l4_CLVTyWkeP-0_Xz7A9U/edit" target="_blank" style="color:#3B82F6;font-weight:600">OneBoard 백업 (자동) — 쥬얼아이스 [열기]</a><br>
+  <span style="font-size:13px;color:#4B5563">시트 ID: <code>1AJ1dXtkua7t0xhS2TRNrb9l4_CLVTyWkeP-0_Xz7A9U</code></span>
+</div>
+
 <div class="success">
 <strong>왜 백업?</strong> OneBoard PostgreSQL이 장애나 실수로 데이터가 사라져도, Google Sheet에 어제 자정까지의 데이터가 안전하게 보관됩니다. <strong>읽기 전용 백업</strong>이라 시트에서 직접 편집해도 OneBoard에 반영되진 않습니다 (단방향).
 </div>
@@ -39,18 +45,10 @@
   <li>5분 정도</li>
 </ul>
 
-<h2>단계 1 — 백업 받을 시트 만들기</h2>
+<h2>단계 1 — Apps Script 설정 (시트는 이미 만들어둠)</h2>
 <div class="step">
-  <span class="step-num">1</span> Google Drive 접속 → 새 시트 생성<br>
-  <span class="step-num">2</span> 이름: <code>OneBoard 백업 (자동)</code><br>
-  <span class="step-num">3</span> 시트 탭 2개 만들기 — <code>tasks</code>, <code>minutes</code><br>
-  <span class="step-num">4</span> 시트 ID 확인 — URL에서 <code>/d/</code>와 <code>/edit</code> 사이 긴 문자열
-  <p class="tip">예: <code>https://docs.google.com/spreadsheets/d/<strong>1abc...XYZ</strong>/edit</code> → <code>1abc...XYZ</code>가 시트 ID</p>
-</div>
-
-<h2>단계 2 — Apps Script 설정</h2>
-<div class="step">
-  <span class="step-num">1</span> 시트에서 메뉴 → <strong>확장 프로그램 → Apps Script</strong><br>
+  <span class="step-num">1</span> 위의 <strong>시트 링크 클릭</strong>해서 시트 열기<br>
+  <span class="step-num">2</span> 시트에서 메뉴 → <strong>확장 프로그램 → Apps Script</strong><br>
   <span class="step-num">2</span> 기본 코드 모두 지우고 아래 코드 붙여넣기:
   <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('script-code').innerText); this.textContent='복사됨!'; setTimeout(()=>this.textContent='코드 복사',1500);">코드 복사</button>
 <pre id="script-code">// OneBoard → Google Sheet 자동 백업
@@ -115,11 +113,11 @@ function backup() {
     Logger.log('⚠ 백업 오류: ' + err.message);
   }
 }</pre>
-  <span class="step-num">3</span> 상단 저장 (💾) 후 함수 선택 칸에서 <code>backup</code> 선택 → <strong>실행</strong> 한 번 (권한 승인 필요)<br>
-  <span class="step-num">4</span> 첫 실행에서 권한 승인 화면 뜨면 → "고급" → "신뢰할 수 있음" → 진행
+  <span class="step-num">4</span> 상단 저장 (💾) 후 함수 선택 칸에서 <code>backup</code> 선택 → <strong>실행</strong> 한 번 (권한 승인 필요)<br>
+  <span class="step-num">5</span> 첫 실행에서 권한 승인 화면 뜨면 → "고급" → "신뢰할 수 있음" → 진행
 </div>
 
-<h2>단계 3 — 매일 03:00 자동 실행 트리거</h2>
+<h2>단계 2 — 매일 03:00 자동 실행 트리거</h2>
 <div class="step">
   <span class="step-num">1</span> Apps Script 좌측 메뉴 → <strong>트리거</strong> (시계 아이콘 ⏰)<br>
   <span class="step-num">2</span> 우하단 <strong>+ 트리거 추가</strong><br>

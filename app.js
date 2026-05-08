@@ -1613,7 +1613,60 @@ async function renderTeamSection() {
   const to   = toYMD(new Date(today.getFullYear(), today.getMonth()+4, 0));
   teamTasks = await fetchTeamTasks(from, to);
   refreshStatusBadge();
+  // 백엔드 연결됐는데 localStorage에 옛날 입력 남아있으면 1회 자동 이전
+  if (dataSourceStatus === 'db') await migrateLocalToBackend();
   switchMemberTab(currentMemberTab);
+}
+
+// ── localStorage → 백엔드 1회 자동 이전 ──────────────────────
+let _localMigrationDone = false;
+async function migrateLocalToBackend() {
+  if (_localMigrationDone) return;
+  _localMigrationDone = true;
+  const local = loadLocalTasks();
+  if (!local.length) return;
+  // 백엔드 현재 데이터로 dedup
+  const dbKeys = new Set(teamTasks
+    .filter(t => t._origin === 'db')
+    .map(t => `${t.date}|${t.who}|${t.task}`));
+  const toMigrate = local.filter(t => t.date && t.who && t.task
+    && !dbKeys.has(`${t.date}|${t.who}|${t.task}`));
+  if (!toMigrate.length) {
+    saveLocalTasks([]); // 이미 백엔드에 다 있으면 localStorage 비우기
+    return;
+  }
+  try {
+    const payload = toMigrate.map(t => ({
+      date: t.date, assignee: t.who, task: t.task,
+      status: t.status || '예정', priority: t.priority || '보통',
+      memo: t.memo || ''
+    }));
+    const result = await apiFetch('/team/import-sheet', {
+      method: 'POST',
+      body: JSON.stringify({ tasks: payload })
+    });
+    saveLocalTasks([]);
+    console.log(`[migrate] localStorage → 백엔드 ${result.imported || toMigrate.length}건 이전 완료`);
+    showMigrationToast(result.imported || toMigrate.length);
+    // refetch
+    const today = new Date();
+    const from = toYMD(new Date(today.getFullYear(), today.getMonth()-3, 1));
+    const to   = toYMD(new Date(today.getFullYear(), today.getMonth()+4, 0));
+    teamTasks = await fetchTeamTasks(from, to);
+  } catch (err) {
+    console.warn('[migrate] 이전 실패 — localStorage 보존:', err);
+    _localMigrationDone = false;
+  }
+}
+
+function showMigrationToast(count) {
+  const toast = document.createElement('div');
+  toast.style.cssText = `position:fixed;top:20px;right:20px;z-index:9999;
+    background:#10B981;color:#fff;padding:12px 20px;border-radius:8px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:14px;font-weight:600;`;
+  toast.textContent = `✅ 이전 임시저장 ${count}건 백엔드 영구 저장 완료`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 5000);
 }
 
 // ── Quick Add Popover (Google Calendar 식 인라인 입력) ──────
