@@ -290,8 +290,8 @@
           </div>
         </section>
 
-        <!-- ③ 일간업무 — 기존 캘린더 -->
-        <div class="tier-title" style="margin-top:20px">③ 일간업무 (캘린더)</div>
+        <!-- ③ 팀 업무 캘린더 -->
+        <div class="tier-title" style="margin-top:20px">③ 팀 업무 캘린더</div>
 
         <!-- 캘린더 헤더 -->
         <div class="cal-header">
@@ -302,23 +302,24 @@
             <button class="cal-today-btn" id="calToday">오늘</button>
           </div>
           <div class="cal-view-btns">
-            <button class="range-btn active" data-calview="week">월간</button>
-            <button class="range-btn" data-calview="day">일간</button>
+            <button class="range-btn active" data-calview="month">월간</button>
+            <button class="range-btn" data-calview="week">주간</button>
           </div>
           <button class="cal-add-member-btn" id="calAddMemberBtn">+ 업무 추가</button>
         </div>
 
-        <!-- 주간/월간 캘린더 -->
-        <div id="calWeekView" class="cal-week-wrap">
+        <!-- 월간 캘린더 -->
+        <div id="calMonthView" class="cal-week-wrap">
           <div class="cal-grid" id="calGrid">
             <!-- JS로 렌더링 -->
           </div>
         </div>
 
-        <!-- 일간 뷰 -->
-        <div id="calDayView" class="cal-day-wrap" style="display:none">
-          <div class="cal-day-date" id="calDayDate">—</div>
-          <div class="cal-day-list" id="calDayList"></div>
+        <!-- 주간 뷰 (7일 가로 그리드) -->
+        <div id="calWeekView" class="cal-week-wrap" style="display:none">
+          <div class="cal-grid" id="calWeekGrid">
+            <!-- JS로 렌더링 -->
+          </div>
         </div>
 
       </div><!-- /memberCalView -->

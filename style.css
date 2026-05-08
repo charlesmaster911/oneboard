@@ -1259,6 +1259,17 @@ body {
   word-break: keep-all;
 }
 
+/* 주간 캘린더 셀 — 한 주만 표시하니 더 길게 */
+.cal-week-cell {
+  min-height: 280px;
+}
+.cal-week-cell .cal-month-task {
+  white-space: normal;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 6px 8px;
+}
+
 /* ═══════════════════════════════════════
    통합 뷰
 ═══════════════════════════════════════ */

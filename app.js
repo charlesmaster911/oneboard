@@ -1179,7 +1179,7 @@ function renderMonthCalendar() {
       const more = document.createElement('div');
       more.className = 'cal-month-more';
       more.textContent = `+${dayTasks.length-3}개 더`;
-      more.addEventListener('click', ()=>{ calSelectedDate=d; switchCalView('day'); });
+      more.addEventListener('click', ()=>{ calSelectedDate=d; switchCalView('week'); });
       cell.appendChild(more);
     }
 
@@ -1211,9 +1211,106 @@ function renderMonthCalendar() {
   }
 }
 
-// ── 일간 뷰 ──────────────────────────────────────────────────
+// ── 주간 뷰 (월~일 7일 가로 그리드) ──────────────────────────
 function fmtKo(d) { return d.toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'long'}); }
 
+function getWeekStart(d) {
+  const dt = new Date(d);
+  const dow = dt.getDay() === 0 ? 6 : dt.getDay() - 1; // 월=0
+  dt.setDate(dt.getDate() - dow);
+  dt.setHours(0,0,0,0);
+  return dt;
+}
+
+function renderWeekCalendar() {
+  const grid = document.getElementById('calWeekGrid');
+  if (!grid) return;
+  const start = getWeekStart(calSelectedDate || calMonth || new Date());
+  const dates = [];
+  for (let i=0; i<7; i++) {
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    dates.push(d);
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  // 요일 헤더
+  DAYS_KO.forEach((day, i) => {
+    const th = document.createElement('div');
+    th.className = 'cal-col-header';
+    th.style.cssText = 'border-right:1px solid var(--border);padding:8px 10px;text-align:center';
+    const dn = document.createElement('div');
+    dn.className = 'cal-day-name';
+    dn.textContent = `${day} · ${dates[i].getMonth()+1}/${dates[i].getDate()}`;
+    th.appendChild(dn);
+    fragment.appendChild(th);
+  });
+
+  const visibleTasks = currentMemberTab === '통합'
+    ? teamTasks
+    : teamTasks.filter(t => t.who === currentMemberTab);
+
+  dates.forEach(d => {
+    const ymd = toYMD(d);
+    const dayTasks = visibleTasks.filter(t => t.date === ymd);
+
+    const cell = document.createElement('div');
+    cell.className = 'cal-month-cell cal-week-cell' + (isToday(d) ? ' today' : '');
+
+    const dayNum = document.createElement('div');
+    dayNum.className = 'cal-month-day-num';
+    dayNum.textContent = d.getDate();
+    cell.appendChild(dayNum);
+
+    // 주간뷰는 모든 task 표시 (제한 X)
+    dayTasks.forEach(t => {
+      const style = getMemberStyle(t.who);
+      const el = document.createElement('div');
+      el.className = `cal-month-task${t.status==='완료'?' done':''}`;
+      el.style.cssText = `background:${style.bg};border-left:3px solid ${style.color};color:${style.color}`;
+      el.textContent = `${t.who.slice(0,3)} ${t.task}`;
+      el.title = `${t.who}: ${t.task} (${t.status} · ${t.priority})`;
+      el.addEventListener('click', e => { e.stopPropagation(); openTaskEditModal(t); });
+
+      const delBtn = document.createElement('span');
+      delBtn.textContent = '✕';
+      delBtn.style.cssText = 'float:right;cursor:pointer;opacity:0;transition:opacity .1s';
+      delBtn.addEventListener('mouseenter', () => delBtn.style.opacity='1');
+      delBtn.addEventListener('mouseleave', () => delBtn.style.opacity='0');
+      delBtn.addEventListener('click', async e => { e.stopPropagation(); if (confirm('삭제?')) await deleteTask(t.id); });
+      el.appendChild(delBtn);
+      cell.appendChild(el);
+    });
+
+    // + 버튼
+    const addBtn = document.createElement('button');
+    addBtn.className = 'cal-month-add';
+    addBtn.textContent = '+';
+    addBtn.addEventListener('click', e => { e.stopPropagation(); openQuickAdd(ymd, cell); });
+    cell.appendChild(addBtn);
+
+    // 셀 빈 공간 클릭
+    cell.addEventListener('click', e => {
+      if (e.target === cell || e.target === dayNum
+          || e.target.classList.contains('cal-month-day-num')) {
+        openQuickAdd(ymd, cell);
+      }
+    });
+
+    fragment.appendChild(cell);
+  });
+
+  grid.replaceChildren(fragment);
+  grid.style.gridTemplateColumns = 'repeat(7,1fr)';
+
+  const labelEl = document.getElementById('calWeekLabel');
+  if (labelEl) {
+    const last = dates[6];
+    labelEl.textContent = `${start.getMonth()+1}/${start.getDate()} ~ ${last.getMonth()+1}/${last.getDate()}`;
+  }
+}
+
+// (보존: 일간 뷰는 비활성. 향후 재사용 대비)
 function renderDayView(date) {
   const dateEl = document.getElementById('calDayDate');
   if (dateEl) dateEl.textContent = fmtKo(date);
@@ -1277,18 +1374,19 @@ function renderDayView(date) {
 }
 
 function switchCalView(view) {
+  if (view !== 'month' && view !== 'week') view = 'month';
   calView = view;
   document.querySelectorAll('[data-calview]').forEach(b=>b.classList.toggle('active',b.dataset.calview===view));
-  const weekWrap = document.getElementById('calWeekView');
-  const dayWrap  = document.getElementById('calDayView');
-  if (view==='month' || view==='week') {
-    if (weekWrap) weekWrap.style.display='';
-    if (dayWrap)  dayWrap.style.display='none';
+  const monthWrap = document.getElementById('calMonthView');
+  const weekWrap  = document.getElementById('calWeekView');
+  if (view==='month') {
+    if (monthWrap) monthWrap.style.display='';
+    if (weekWrap)  weekWrap.style.display='none';
     renderMonthCalendar();
   } else {
-    if (weekWrap) weekWrap.style.display='none';
-    if (dayWrap)  dayWrap.style.display='';
-    renderDayView(calSelectedDate||new Date());
+    if (monthWrap) monthWrap.style.display='none';
+    if (weekWrap)  weekWrap.style.display='';
+    renderWeekCalendar();
   }
 }
 
@@ -1925,18 +2023,31 @@ function bindMinutesEvents() {
 function bindSectionEvents() {
   document.querySelectorAll('.section-btn').forEach(btn=>btn.addEventListener('click',()=>switchSection(btn.dataset.section)));
 
-  // 월 네비게이션
+  // 월/주 네비게이션 (현재 view에 따라 ±1개월 또는 ±7일)
   document.getElementById('calPrev')?.addEventListener('click',()=>{
-    calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()-1, 1);
-    renderMonthCalendar();
+    if (calView === 'week') {
+      const base = calSelectedDate || new Date();
+      calSelectedDate = new Date(base); calSelectedDate.setDate(base.getDate()-7);
+      renderWeekCalendar();
+    } else {
+      calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()-1, 1);
+      renderMonthCalendar();
+    }
   });
   document.getElementById('calNext')?.addEventListener('click',()=>{
-    calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 1);
-    renderMonthCalendar();
+    if (calView === 'week') {
+      const base = calSelectedDate || new Date();
+      calSelectedDate = new Date(base); calSelectedDate.setDate(base.getDate()+7);
+      renderWeekCalendar();
+    } else {
+      calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 1);
+      renderMonthCalendar();
+    }
   });
   document.getElementById('calToday')?.addEventListener('click',()=>{
     calMonth = new Date(); calMonth.setDate(1);
-    switchCalView('month');
+    calSelectedDate = new Date();
+    switchCalView(calView);
   });
   document.getElementById('refreshTeamBtn')?.addEventListener('click',renderTeamSection);
 
@@ -1946,7 +2057,7 @@ function bindSectionEvents() {
   });
 
   document.querySelectorAll('[data-calview]').forEach(btn=>btn.addEventListener('click',()=>{
-    if(btn.dataset.calview==='day') calSelectedDate=new Date();
+    if (btn.dataset.calview === 'week' && !calSelectedDate) calSelectedDate = new Date();
     switchCalView(btn.dataset.calview);
   }));
   document.querySelectorAll('.kpi-period-btns .range-btn').forEach(btn=>btn.addEventListener('click',()=>{
