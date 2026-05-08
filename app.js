@@ -1455,135 +1455,201 @@ function switchMemberTab(member) {
   }
 }
 
-// ── 통합 뷰 렌더링 ────────────────────────────────────────────
+// ── 통합 뷰 렌더링 (3컬럼: 좌 우선순위 / 가운데 캘린더 / 우 알림) ──
+let intCalMonth = null;
+let intShowArchive = false;
+
+function isCurrentMonth(ymd, ref) {
+  if (!ymd) return false;
+  const [y,m] = ymd.split('-').map(n=>parseInt(n,10));
+  return y === ref.getFullYear() && m === ref.getMonth()+1;
+}
+
 function renderIntegratedView() {
   const today = new Date();
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() - (today.getDay()===0?6:today.getDay()-1));
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
-  const ws = toYMD(weekStart), we = toYMD(weekEnd);
+  if (!intCalMonth) intCalMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  // 블로커: 높음 우선순위 + 미완료
-  const blockers = teamTasks.filter(t => t.priority==='높음' && t.status!=='완료');
+  // ── 좌측: 우선순위 (현재월 미완료, 우선순위·날짜 정렬) ──
+  const monthLabel = `${intCalMonth.getFullYear()}년 ${intCalMonth.getMonth()+1}월`;
+  const monthLbl = document.getElementById('intPriorityMonth');
+  if (monthLbl) monthLbl.textContent = `${monthLabel} 기준`;
+
+  const priOrder = { '높음':0, '보통':1, '낮음':2 };
+  const statusOrder = { '진행':0, '예정':1, '완료':2 };
+  const monthly = teamTasks
+    .filter(t => intShowArchive || isCurrentMonth(t.date, intCalMonth))
+    .filter(t => intShowArchive || t.status !== '완료')
+    .sort((a,b) => {
+      const p = (priOrder[a.priority]??1) - (priOrder[b.priority]??1);
+      if (p !== 0) return p;
+      const s = (statusOrder[a.status]??1) - (statusOrder[b.status]??1);
+      if (s !== 0) return s;
+      return (a.date||'').localeCompare(b.date||'');
+    });
+
   const blockersEl = document.getElementById('intBlockers');
   if (blockersEl) {
-    if (!blockers.length) {
-      blockersEl.innerHTML = '<div class="int-empty">이번 주 블로커 없음 ✅</div>';
+    if (!monthly.length) {
+      blockersEl.innerHTML = `<div class="int3-empty">${intShowArchive?'표시할 항목 없음':'이번 달 미완료 없음 ✅'}</div>`;
     } else {
       blockersEl.innerHTML = '';
       const frag = document.createDocumentFragment();
-      blockers.slice(0,10).forEach(t => {
+      monthly.forEach(t => {
         const style = getMemberStyle(t.who);
         const row = document.createElement('div');
-        row.className = 'int-item';
-        row.innerHTML = '';
-        const badge = document.createElement('span');
-        badge.className = 'int-member-badge';
-        badge.style.cssText = `background:${style.bg};color:${style.color};border:1px solid ${style.color}20`;
-        badge.textContent = t.who;
-        const text = document.createElement('span');
-        text.className = 'int-task-text';
-        text.textContent = t.task;
-        const status = document.createElement('span');
-        status.className = `int-status int-status-${t.status==='진행'?'progress':'todo'}`;
-        status.textContent = t.status;
-        const date = document.createElement('span');
-        date.className = 'int-date';
-        date.textContent = t.date;
-        row.appendChild(badge); row.appendChild(text); row.appendChild(status); row.appendChild(date);
+        row.className = 'int3-pri-item';
+        if (t.priority === '높음') row.classList.add('hi');
+        row.innerHTML = `
+          <span class="int3-mb" style="background:${style.bg};color:${style.color}">${escapeAttr(t.who)}</span>
+          <span class="int3-pt">${escapeAttr(t.task)}</span>
+          <span class="int3-st int3-st-${t.status==='진행'?'progress':(t.status==='완료'?'done':'todo')}">${t.status}</span>
+          <span class="int3-dt">${t.date||''}</span>
+        `;
+        row.addEventListener('click', () => openTaskEditModal(t));
         frag.appendChild(row);
       });
       blockersEl.appendChild(frag);
     }
   }
 
-  // 팀원별 현황
-  const memberGrid = document.getElementById('intMemberStatus');
-  if (memberGrid) {
-    memberGrid.innerHTML = '';
+  // ── 가운데: 통합 캘린더 (모든 멤버 색상 dot) ──
+  renderIntegratedCalendar();
+
+  // ── 우측: 최근 회의록 ──
+  fetchMinutes().then(minutes => {
+    const minEl = document.getElementById('intMinutes');
+    if (!minEl) return;
+    if (!minutes.length) {
+      minEl.innerHTML = '<div class="int3-empty">회의록 없음</div>';
+      return;
+    }
+    minEl.innerHTML = '';
     const frag = document.createDocumentFragment();
-    TEAM_MEMBERS.forEach(member => {
-      const mTasks = teamTasks.filter(t => t.who===member.id||t.who===member.name);
-      const todo = mTasks.filter(t=>t.status==='예정').length;
-      const progress = mTasks.filter(t=>t.status==='진행').length;
-      const done = mTasks.filter(t=>t.status==='완료').length;
-      const latest = mTasks.filter(t=>t.status!=='완료').sort((a,b)=>a.date>b.date?1:-1)[0];
-
+    minutes.slice(0,5).forEach(m => {
+      const c = dirCount(m);
+      const status = autoStatusFromStates(m);
       const card = document.createElement('div');
-      card.className = 'int-member-card';
-      card.style.cssText = `border-top:3px solid ${member.color}`;
-
-      const header = document.createElement('div');
-      header.className = 'int-member-card-header';
-      const dot = document.createElement('div');
-      dot.style.cssText = `width:8px;height:8px;border-radius:50%;background:${member.color};flex-shrink:0`;
-      const name = document.createElement('span');
-      name.style.cssText = `font-weight:600;font-size:13px;color:${member.color}`;
-      name.textContent = `${member.name} ${member.role}`;
-      header.appendChild(dot); header.appendChild(name);
-
-      const stats = document.createElement('div');
-      stats.className = 'int-member-stats';
-      stats.innerHTML = `<span class="int-stat todo-stat">예정 ${todo}</span><span class="int-stat prog-stat">진행 ${progress}</span><span class="int-stat done-stat">완료 ${done}</span>`;
-
-      const taskPreview = document.createElement('div');
-      taskPreview.className = 'int-member-task';
-      taskPreview.textContent = latest ? `▶ ${latest.task}` : '진행 중인 업무 없음';
-
-      const openBtn = document.createElement('button');
-      openBtn.className = 'int-open-btn';
-      openBtn.textContent = '업무 보기 →';
-      openBtn.addEventListener('click', () => switchMemberTab(member.id));
-
-      card.appendChild(header); card.appendChild(stats); card.appendChild(taskPreview); card.appendChild(openBtn);
+      card.className = 'int3-min-card';
+      card.innerHTML = `
+        <div class="int3-min-head">
+          <span class="int3-min-date">${m.date}</span>
+          ${statusBadgeHtml(status)}
+        </div>
+        <div class="int3-min-title">${escapeAttr(m.title)}</div>
+        ${c.total ? `<div class="int3-min-counter">지시 <strong>${c.done}/${c.total}</strong></div>` : ''}
+      `;
+      card.addEventListener('click', () => {
+        switchSection('minutes');
+        setTimeout(() => showMinutesDoc(m), 100);
+      });
       frag.appendChild(card);
     });
-    memberGrid.appendChild(frag);
-  }
+    minEl.appendChild(frag);
+  }).catch(()=>{});
 
-  // 최신 회의록 지시사항 → 통합 뷰 상단 배너
-  const latestMinutes = MINUTES_PRESET[0];
-  if (latestMinutes?.directives) {
-    const alertsBlock = document.querySelector('.integrated-block:last-child .integrated-block-title');
-    if (alertsBlock) {
-      const minBanner = document.createElement('div');
-      minBanner.className = 'int-minutes-banner';
-      minBanner.style.cssText = 'background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#1E40AF';
-      minBanner.innerHTML = `<strong>📋 최근 회의 (${latestMinutes.date})</strong><div style="margin-top:4px;color:#3B82F6">${latestMinutes.title}</div>`;
-      alertsBlock.parentElement.insertBefore(minBanner, alertsBlock);
-    }
-  }
-
-  // 협업 알림: 진행 중이면서 날짜가 오늘 이전인 항목 (지연 가능성)
-  const delayed = teamTasks.filter(t => t.status==='진행' && t.date < toYMD(today));
+  // ── 우측: 협업 알림 (지연 task) ──
+  const delayed = teamTasks.filter(t => t.status==='진행' && t.date && t.date < toYMD(today));
   const alertsEl = document.getElementById('intAlerts');
   if (alertsEl) {
     if (!delayed.length) {
-      alertsEl.innerHTML = '<div class="int-empty">지연 항목 없음 ✅</div>';
+      alertsEl.innerHTML = '<div class="int3-empty">지연 항목 없음 ✅</div>';
     } else {
       alertsEl.innerHTML = '';
       const frag = document.createDocumentFragment();
       delayed.slice(0,8).forEach(t => {
         const style = getMemberStyle(t.who);
         const row = document.createElement('div');
-        row.className = 'int-item int-item-delay';
-        const badge = document.createElement('span');
-        badge.className = 'int-member-badge';
-        badge.style.cssText = `background:${style.bg};color:${style.color};border:1px solid ${style.color}20`;
-        badge.textContent = t.who;
-        const text = document.createElement('span');
-        text.className = 'int-task-text';
-        text.textContent = t.task;
-        const info = document.createElement('span');
-        info.className = 'int-delay-badge';
-        info.textContent = `${t.date} 진행 중`;
-        row.appendChild(badge); row.appendChild(text); row.appendChild(info);
+        row.className = 'int3-pri-item int3-delay';
+        row.innerHTML = `
+          <span class="int3-mb" style="background:${style.bg};color:${style.color}">${escapeAttr(t.who)}</span>
+          <span class="int3-pt">${escapeAttr(t.task)}</span>
+          <span class="int3-dt">${t.date} 지연</span>
+        `;
+        row.addEventListener('click', () => openTaskEditModal(t));
         frag.appendChild(row);
       });
       alertsEl.appendChild(frag);
     }
   }
+
+  // 범례
+  const legend = document.getElementById('intCalLegend');
+  if (legend) {
+    legend.innerHTML = TEAM_MEMBERS.map(m =>
+      `<span class="int3-legend-item"><span class="int3-legend-dot" style="background:${m.color}"></span>${escapeAttr(m.name)} ${escapeAttr(m.role||'')}</span>`
+    ).join('');
+  }
+}
+
+// 통합 캘린더 (모든 멤버 task 한 그리드에)
+function renderIntegratedCalendar() {
+  const grid = document.getElementById('intCalGrid');
+  if (!grid) return;
+  const dates = getMonthCalDates(intCalMonth);
+  const fragment = document.createDocumentFragment();
+
+  // 요일 헤더
+  DAYS_KO.forEach(day => {
+    const th = document.createElement('div');
+    th.className = 'cal-col-header';
+    th.style.cssText = 'border-right:1px solid var(--border);padding:6px 10px;text-align:center';
+    th.innerHTML = `<div class="cal-day-name">${day}</div>`;
+    fragment.appendChild(th);
+  });
+
+  dates.forEach(d => {
+    const ymd = toYMD(d);
+    const dayTasks = teamTasks.filter(t => t.date === ymd);
+    const inMonth = isSameMonth(d, intCalMonth);
+
+    const cell = document.createElement('div');
+    cell.className = 'cal-month-cell int3-cal-cell' + (isToday(d)?' today':'') + (inMonth?'':' other-month');
+
+    const dayNum = document.createElement('div');
+    dayNum.className = 'cal-month-day-num';
+    dayNum.textContent = d.getDate();
+    cell.appendChild(dayNum);
+
+    // 최대 4개 표시 + 더보기
+    dayTasks.slice(0,4).forEach(t => {
+      const style = getMemberStyle(t.who);
+      const el = document.createElement('div');
+      el.className = `cal-month-task${t.status==='완료'?' done':''}`;
+      el.style.cssText = `background:${style.bg};border-left:3px solid ${style.color};color:${style.color}`;
+      el.textContent = `${(t.who||'').slice(0,2)} ${t.task}`;
+      el.title = `${t.who}: ${t.task} (${t.status})`;
+      el.addEventListener('click', e => { e.stopPropagation(); openTaskEditModal(t); });
+      cell.appendChild(el);
+    });
+    if (dayTasks.length > 4) {
+      const more = document.createElement('div');
+      more.className = 'cal-month-more';
+      more.textContent = `+${dayTasks.length-4}개 더`;
+      cell.appendChild(more);
+    }
+
+    // + 추가 (호버 시 노출)
+    const addBtn = document.createElement('button');
+    addBtn.className = 'cal-month-add';
+    addBtn.textContent = '+';
+    addBtn.addEventListener('click', e => { e.stopPropagation(); openQuickAdd(ymd, cell); });
+    cell.appendChild(addBtn);
+
+    cell.addEventListener('click', e => {
+      if (e.target === cell || e.target === dayNum
+          || e.target.classList.contains('cal-month-day-num')) {
+        openQuickAdd(ymd, cell);
+      }
+    });
+
+    fragment.appendChild(cell);
+  });
+
+  grid.replaceChildren(fragment);
+  grid.style.gridTemplateColumns = 'repeat(7,1fr)';
+
+  const lbl = document.getElementById('intCalLabel');
+  if (lbl) lbl.textContent = `${intCalMonth.getFullYear()}년 ${intCalMonth.getMonth()+1}월`;
 }
 
 // ── 범례 ─────────────────────────────────────────────────────
@@ -2146,6 +2212,26 @@ function bindSectionEvents() {
     switchCalView(calView);
   });
   document.getElementById('refreshTeamBtn')?.addEventListener('click',renderTeamSection);
+
+  // 통합 뷰 캘린더 네비
+  document.getElementById('intCalPrev')?.addEventListener('click', () => {
+    if (!intCalMonth) intCalMonth = new Date();
+    intCalMonth = new Date(intCalMonth.getFullYear(), intCalMonth.getMonth()-1, 1);
+    renderIntegratedView();
+  });
+  document.getElementById('intCalNext')?.addEventListener('click', () => {
+    if (!intCalMonth) intCalMonth = new Date();
+    intCalMonth = new Date(intCalMonth.getFullYear(), intCalMonth.getMonth()+1, 1);
+    renderIntegratedView();
+  });
+  document.getElementById('intCalToday')?.addEventListener('click', () => {
+    intCalMonth = new Date(); intCalMonth.setDate(1);
+    renderIntegratedView();
+  });
+  document.getElementById('intShowArchive')?.addEventListener('change', e => {
+    intShowArchive = e.target.checked;
+    renderIntegratedView();
+  });
 
   // 팀원 탭 전환
   document.querySelectorAll('.member-tab-btn').forEach(btn => {

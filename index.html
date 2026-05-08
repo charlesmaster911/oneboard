@@ -227,27 +227,46 @@
         <!-- JS로 렌더링: 🔗 통합 + 팀원 + + 탭 추가 -->
       </div>
 
-      <!-- 통합 뷰 (기본) -->
+      <!-- 통합 뷰 (기본) — 3컬럼: 좌 우선순위 / 가운데 캘린더 / 우 알림 -->
       <div id="integratedView">
-        <div class="integrated-sections">
+        <div class="int3-grid">
 
-          <!-- 이번 주 주요 현황 -->
-          <div class="integrated-block">
-            <div class="integrated-block-title">🚨 이번 주 높음 우선순위 · 미완료</div>
-            <div id="intBlockers" class="integrated-list"></div>
-          </div>
+          <!-- 좌측: 우선순위 (현재월 미완료) -->
+          <aside class="int3-left">
+            <div class="int3-section-head">
+              <span class="int3-title">🚨 우선순위 · 미완료</span>
+              <label class="int3-archive-toggle">
+                <input type="checkbox" id="intShowArchive"> <span>아카이브 포함</span>
+              </label>
+            </div>
+            <div class="int3-month-label" id="intPriorityMonth">2026년 5월</div>
+            <div id="intBlockers" class="int3-priority-list"></div>
+          </aside>
 
-          <!-- 팀원별 진행 현황 -->
-          <div class="integrated-block">
-            <div class="integrated-block-title">📋 팀원별 현재 업무 현황</div>
-            <div id="intMemberStatus" class="integrated-member-grid"></div>
-          </div>
+          <!-- 가운데: 통합 캘린더 -->
+          <section class="int3-center">
+            <div class="int3-section-head">
+              <span class="int3-title">📅 팀 통합 캘린더</span>
+              <div class="int3-cal-nav">
+                <button class="cal-nav-btn" id="intCalPrev">‹</button>
+                <span class="int3-cal-label" id="intCalLabel">—</span>
+                <button class="cal-nav-btn" id="intCalNext">›</button>
+                <button class="cal-today-btn" id="intCalToday">오늘</button>
+              </div>
+            </div>
+            <div class="int3-cal-wrap">
+              <div class="cal-grid" id="intCalGrid"></div>
+            </div>
+            <div class="int3-cal-legend" id="intCalLegend"></div>
+          </section>
 
-          <!-- 서로 알아야 할 사항 -->
-          <div class="integrated-block">
-            <div class="integrated-block-title">🤝 협업 필요 · 알림 사항</div>
-            <div id="intAlerts" class="integrated-list"></div>
-          </div>
+          <!-- 우측: 회의록 + 알림 -->
+          <aside class="int3-right">
+            <div class="int3-section-head"><span class="int3-title">📋 최근 회의록</span></div>
+            <div id="intMinutes" class="int3-minutes-list"></div>
+            <div class="int3-section-head" style="margin-top:18px"><span class="int3-title">🤝 협업 필요</span></div>
+            <div id="intAlerts" class="int3-priority-list"></div>
+          </aside>
 
         </div>
         <button class="refresh-btn" id="refreshTeamBtn" style="margin:12px 0">↻ 새로고침</button>
