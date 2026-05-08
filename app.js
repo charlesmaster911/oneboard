@@ -776,10 +776,28 @@ const SHEET_TASKS_PRESET = [
   { date:'2026-04-23', who:'권나경',    task:'재구매 캠페인 소재 준비',         status:'예정', priority:'높음' },
   { date:'2026-04-25', who:'박지현',    task:'MMG 2차 팀 빌딩',                status:'예정', priority:'보통' },
   { date:'2026-04-28', who:'권수지',    task:'쥬얼아이스 리뷰 2차 정리',       status:'예정', priority:'보통' },
+  // ── 4월 후반 + 5월 첫 주 (회의록 시트 13yy1Mt... 4/30·5/4·5/8 추출) ──
+  { date:'2026-04-30', who:'권나경',    task:'대행사 에프로드로 이전 (수수료 15%)', status:'진행', priority:'높음' },
+  { date:'2026-04-30', who:'권나경',    task:'GFA→디스플레이/브랜드검색 광고 60만원 검토', status:'예정', priority:'보통' },
+  { date:'2026-04-30', who:'권수지',    task:'사방넷-이지어드민 안정화 2개월 운영',  status:'진행', priority:'보통' },
+  { date:'2026-05-04', who:'권나경',    task:'사방넷 후속 세팅 + 와디즈 건 진행',   status:'진행', priority:'높음' },
+  { date:'2026-05-04', who:'권나경',    task:'미스터스티키·어쿠스틱 큐브 정산 상신', status:'진행', priority:'높음' },
+  { date:'2026-05-04', who:'권수지',    task:'재고 업데이트 + 피플스토리 수량 관리', status:'진행', priority:'보통' },
+  { date:'2026-05-04', who:'권수지',    task:'B2B 업체 단가 인상 안내 (8건 후 인상)', status:'예정', priority:'보통' },
+  { date:'2026-05-04', who:'컨텐츠팀', task:'어버이날 카카오톡 알림톡 + 랜딩 페이지', status:'진행', priority:'높음' },
+  { date:'2026-05-06', who:'권수지',    task:'아블러(피플스토리)·듀오메이커(해피홈) 실링 출고', status:'예정', priority:'높음' },
+  { date:'2026-05-07', who:'권수지',    task:'해피홈 컬러박스 입고 후 조립',         status:'예정', priority:'높음' },
+  { date:'2026-05-07', who:'권나경',    task:'피플스토리 신규 물량 입고 + 몰드 수량 합산 반영', status:'예정', priority:'보통' },
+  { date:'2026-05-08', who:'권수지',    task:'해피홈 최종 출고',                     status:'예정', priority:'높음' },
+  { date:'2026-05-08', who:'이한수',    task:'팀장 합류 — 업무 인수인계 (or 5/12)', status:'예정', priority:'높음' },
+  { date:'2026-05-09', who:'이한수',    task:'주간 업무 진행 상황 공유 + 5월 말 거래처 방문 일정 수립', status:'예정', priority:'보통' },
 ];
 
-// ── 회의록 프리셋 (시트 13yy1MtUh... gid=1125757148 29건 전수 반영) ─────────
+// ── 회의록 프리셋 (시트 13yy1MtUh... gid=1125757148 + 4/30·5/4·5/8 보강) ─────────
 const MINUTES_PRESET = [
+  { id:'preset-m-2026-05-08', date:'2026-05-08', title:'주간업무회의 (4/27 회의 정리분)', attendees:'장정훈 권나경 권수지', directives:'권수지 대리, 권나경 과장 업무 정리 방식 참고하여 이번/다음 주 할 일 체계화\n사무실 창고 정리 및 정리 현황 파일 보고\n쿠팡 로켓그로스 품절 관리 명확화\n차주 팀장 출근 시 업무 진행 상황 면밀히 공유\n5월 말 일정 보고 + 거래처(해피홈·성준테크·피플스토리) 방문 일정 수립\nAI 전화 서비스 비용 대비 실효성 재검토', content:'1. 부서별 보고: 채널별 가격 조정·프로모션 MD 승인, 아블러 선적 서류 잔금 결제, SK스토아 후속 서류 + 구글 드라이브 폴더 재편성\n2. 생산·운영: 듀오메이커 생산 수량 비용 산출, 아블러 조립 일정·입고, AI 전화 서비스 효율 점검, 새일센터 담당자 방문\n3. 대표 지시: 업무 효율화·창고 정리·로켓그로스 품절 관리·팀장 출근 후 진행 공유·5월 말 거래처 방문' },
+  { id:'preset-m-2026-05-04', date:'2026-05-04', title:'주간 업무 점검 및 5월 프로모션 대응', attendees:'장정훈 권나경 권수지', directives:'어버이날·스승의 날 카카오톡 알림톡 + 랜딩 페이지 추진 (아블러 제로 효도 선물)\n가격 인하 X — \'선물 아이템\' 인지도 강조\nCJ MD 협업 도금 코드 발급 절차 진행\nB2B 단가 조정: 8개 발주분까지 기존 단가, 다음부터 인상 공지\n피플스토리 아블러 몰드 수량 5/7 입고 시 합산 반영\n신규 팀장 영입 확정 (5/8 또는 5/12 출근, 3개월/1년 보상 연동)\n와디즈 새소식 게시 + 소통 강화\n상품 관리표 수식 대표 직접 수정 업데이트\n미스터 스티키·어쿠스틱 큐브 정산 오늘 중 세금계산서 발행', content:'1. 마케팅: 가정의 달 카카오톡 알림톡, CJ MD 도금 코드, 와디즈 새소식\n2. 영업·정산: 가격표 수식 대표 직접 수정, 미스터스티키·어쿠스틱 정산 발행, B2B 단가 조정 (8건 후 인상)\n3. 물류·생산: 피플스토리 몰드 수량 오류 5/7 합산, 5/6 아블러·듀오 출고, 5/7~8 해피홈 컬러박스 조립·출고\n4. 인사: 신규 팀장 5/8 또는 5/12 출근 확정\n5. 결정: 어버이날 카카오톡 발송, 와디즈 새소식, 권 대리 발주·CS 우선 + API/전화 조사 데드라인 보고' },
+  { id:'preset-m-2026-04-30', date:'2026-04-30', title:'4월 광고 결과·5월 마케팅 전략', attendees:'장정훈 박지현 권나경 권수지', directives:'4월 광고비 450만원·매출 1.6억·ROAS 360% (안정권 진입)\n대행사 \'에프로드\'로 변경 결정 (수수료 15%, 안정성 우수)\nGFA 효율 저하 → 디스플레이·브랜드 검색 광고 월 60만원 도입 검토\n자사몰/네이버/쿠팡 최저가 채널 + 단품 특가 시 이벤트 페이지 필수\n사방넷-이지어드민 API 충돌 우려 — 2개월 안정화\nKT 사장님 비즈니스(월 9,900원) 또는 보이는 ARS 도입 검토\n어쿠스틱 큐브 5월 중순 금형비 지급, 6월 초 생산\n콘텐츠 마케팅 외부 위탁 결정 (내부 인력 X)\n해외 배송 프로젝트 6월 이후 연기\n가격표 재산출 — 수식 통한 리즈너블 판매가 가이드 (팀장 담당)', content:'1. 마케팅·광고: 4월 ROAS 360% 안정권, 에프로드 이전, GFA→DA·브랜드 검색, 콘텐츠 외부 위탁\n2. 영업·CS: 단품 특가↔세트 가격 역전 해소, 자사몰/네이버/쿠팡 최저가 채널, 이벤트 페이지 필수\n3. 시스템·운영: 사방넷-이지어드민 안정화 2개월, KT 사장님 비즈/보이는 ARS, 단순 배송 문의 카카오 채널 유도\n4. 생산·물류: 어쿠스틱 큐브 5월 중순 금형 + 6월 초 생산, 입고 체크리스트·박스 표기\n5. 결정: 콘텐츠 외부 위탁, 해외 배송 6월 이후, 가격 수식화, 5월 가정의 달 우선' },
   { id:'preset-m-2026-04-23', date:'2026-04-23', title:'AMPM글로벌 광고대행사 미팅', attendees:'박지현', directives:'광고 계정 권한 전달 후 현재 데이터 정밀 분석 요청\n예산안·매체 운영안 포함 1차 제안안 4/24 금요일까지 수령\n내부 광고 소재·콘텐츠 자산 정리 후 순차 전달\nCTR 하락·장바구니 이탈·구매 전환 저하 대응 필요', content:'1. 현재 광고 진단: CTR 하락·장바구니 이탈·구매 전환 저하\n2. 제안받은 광고 운영 방향 — 3단계 퍼널(신규 유입→리타겟팅→재구매/확장)\n3. 소재/메시지 전략: 퍼널별 맞춤 메시지, 실사용 콘텐츠·인플루언서·레시피 활용\n4. 자사 상황: 보고 체계 필요, 주요 SKU — 듀오메이커·아블러·아블러 제로\n5. 상품 확장: 듀오메이커 커피/우유/막걸리/팥빙수 활용, 아블러 제로 40-50대 여성 반응 좋음\n6. 추가: 유튜브 쇼핑·인플루언서·공동구매·라이브커머스 연계, 경쟁사 분석 요청' },
   { id:'preset-m-2026-04-20', date:'2026-04-20', title:'주간회의', attendees:'장정훈 박지현 권나경 권수지', directives:'업무의 입체화 — 회의록을 타 부서 업무와 크로싱 점검\n단순 업무 자동화 — 팀장급은 핵심 업무 집중, 단순 업무는 하급자/AI 위임\n데이터 중심 보고 — 매출 변동 큰 채널 원인 분석(재고/광고효율)\n와디즈 4/23 목요일 오픈\n메타 광고 대행사 2곳 대면 미팅 후 결정', content:'1. 마케팅: 와디즈 4/23 오픈, 블라썸 공동구매 시작, CJ 온스타일 팔로업, 자사몰 스토리텔링 랜딩 기획\n2. 생산·물류: 아블러 컬러 이슈로 5월 초 완료, 재고 오늘 3시까지 파악\n3. 인사·행정: 콘텐츠 마케터 면접 2시, SK 스토어 지원 사업 스케줄 확인\n4. 대표 지시: 업무 입체화·단순업무 자동화·데이터 중심 보고' },
   { id:'preset-m-2026-04-17', date:'2026-04-17', title:'주간회의', attendees:'장정훈 박지현 권나경 권수지', directives:'mop Structure — 점(Library)→선(Frame)→입체(Structure) 업무 방식\n와디즈 4/23 오픈, 집게 2,000개 추가 발주 검토\n쇼핑백+더스트백 패키지 리뉴얼 추진\nSNS 콘텐츠 대표 캐릭터 활용 실험\n4/20 월: 아블러 샘플 도착 + 음료 얼음 테스트 품평회', content:'1. 마케팅: 광고 350만원 집행, 체험단 10명, 와디즈 4/23 오픈\n2. 제품·물류: 패키지 쇼핑백+더스트백 리뉴얼, 아블러 신규 컬러 샘플 DHL 월요일 도착\n3. R&D: 아블러+듀오메이커 우유/콜라/주스/막걸리 품평회 월요일\n4. 시스템: AI 통합 리포트 툴 비교 분석 중\n5. 대표 지시: 소통의 맥락(mop) 파악, 점·선·구조(Circulation)' },
@@ -979,14 +997,92 @@ async function deleteTask(id) {
   renderMonthCalendar();
 }
 
+// ── 회의록 추적 상태 (preset 용 localStorage) ────────────────
+function loadMinuteStates() {
+  try { return JSON.parse(localStorage.getItem('minute_states') || '{}'); }
+  catch { return {}; }
+}
+function saveMinuteStates(map) {
+  try { localStorage.setItem('minute_states', JSON.stringify(map)); }
+  catch {}
+}
+function getMinuteState(id) {
+  const all = loadMinuteStates();
+  return all[id] || {};
+}
+function setMinuteStateLocal(id, patch) {
+  const all = loadMinuteStates();
+  all[id] = { ...(all[id]||{}), ...patch };
+  saveMinuteStates(all);
+}
+
+// 지시사항 카운트 (전체/완료) 계산
+function dirCount(m) {
+  const dirs = m.directives ? m.directives.trim().split('\n').filter(Boolean) : [];
+  const states = Array.isArray(m.directive_states) ? m.directive_states : [];
+  const done = dirs.reduce((acc, _, i) => acc + (states[i] ? 1 : 0), 0);
+  return { total: dirs.length, done };
+}
+
+// 자동 상태 — 지시사항 모두 ✓ 시 완료, 일부 ✓ 시 진행, 0 ✓ 시 진행 (기본)
+function autoStatusFromStates(m) {
+  const { total, done } = dirCount(m);
+  if (m.status === '보류') return '보류';
+  if (total > 0 && done === total) return '완료';
+  return '진행';
+}
+
 async function fetchMinutes() {
+  let raw;
   try {
     const data = await apiFetch('/team/minutes');
-    return data.minutes.map(m => ({ id:m.id, date:m.date?.slice(0,10), title:m.title, directives:m.directives, content:m.content }));
+    raw = data.minutes.map(m => ({
+      id: m.id,
+      date: m.date?.slice(0,10),
+      title: m.title,
+      directives: m.directives,
+      content: m.content,
+      attendees: m.attendees,
+      status: m.status || '진행',
+      directive_states: Array.isArray(m.directive_states) ? m.directive_states : [],
+      _origin: 'db',
+    }));
   } catch {
     const local = loadMinutesLocal();
-    return [...MINUTES_PRESET, ...local];
+    raw = [...MINUTES_PRESET, ...local].map(m => ({ ...m, _origin: 'preset' }));
   }
+  // localStorage 상태 병합 (preset/local 회의록 추적 — DB 없는 경우)
+  const states = loadMinuteStates();
+  return raw.map(m => {
+    const local = states[m.id] || {};
+    const merged = {
+      ...m,
+      status: m.status || local.status || '진행',
+      directive_states: (m.directive_states && m.directive_states.length)
+        ? m.directive_states
+        : (local.directive_states || []),
+    };
+    return merged;
+  });
+}
+
+async function patchMinute(id, patch, origin) {
+  // DB 회의록 → API PATCH, preset/local → localStorage
+  if (origin === 'db') {
+    try {
+      await apiFetch(`/team/minutes/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      });
+      return true;
+    } catch (err) {
+      console.warn('[minutes] PATCH 실패, localStorage fallback', err);
+      setMinuteStateLocal(id, patch);
+      return false;
+    }
+  }
+  setMinuteStateLocal(id, patch);
+  return true;
 }
 
 async function createMinutes(payload) {
@@ -1560,6 +1656,16 @@ async function renderMinutesSection() {
   if (minutes.length) showMinutesDoc(minutes[0]);
 }
 
+function statusBadgeHtml(status) {
+  const map = {
+    '진행': { icon:'🟡', label:'진행', cls:'mb-progress' },
+    '완료': { icon:'🟢', label:'완료', cls:'mb-done' },
+    '보류': { icon:'⚪', label:'보류', cls:'mb-hold' },
+  };
+  const s = map[status] || map['진행'];
+  return `<span class="minutes-badge ${s.cls}" title="${s.label}">${s.icon} ${s.label}</span>`;
+}
+
 function renderMinutesList(minutes) {
   const list = document.getElementById('minutesList');
   if (!list) return;
@@ -1568,12 +1674,24 @@ function renderMinutesList(minutes) {
   minutes.forEach((m,idx)=>{
     const item=document.createElement('div');
     item.className=`minutes-list-item${idx===0?' active':''}`;
+    item.dataset.minuteId = m.id;
+
+    const headRow=document.createElement('div');
+    headRow.className='minutes-item-headrow';
     const dateEl=document.createElement('div'); dateEl.className='minutes-item-date'; dateEl.textContent=m.date;
+    headRow.innerHTML = '';
+    headRow.appendChild(dateEl);
+    headRow.insertAdjacentHTML('beforeend', statusBadgeHtml(autoStatusFromStates(m)));
+
     const titleEl=document.createElement('div'); titleEl.className='minutes-item-title'; titleEl.textContent=m.title;
     const preview=document.createElement('div'); preview.className='minutes-item-preview';
-    const dirs=m.directives?m.directives.trim().split('\n').filter(Boolean):[];
-    preview.textContent=dirs.length?`지시사항 ${dirs.length}건`:'지시사항 없음';
-    item.appendChild(dateEl); item.appendChild(titleEl); item.appendChild(preview);
+    const c = dirCount(m);
+    if (c.total) {
+      preview.innerHTML = `지시 <span class="minutes-counter">${c.done}/${c.total}</span>${c.done===c.total?' · 마무리됨':''}`;
+    } else {
+      preview.textContent = '지시사항 없음';
+    }
+    item.appendChild(headRow); item.appendChild(titleEl); item.appendChild(preview);
     item.addEventListener('click',()=>{
       document.querySelectorAll('.minutes-list-item').forEach(el=>el.classList.remove('active'));
       item.classList.add('active'); showMinutesDoc(m);
@@ -1587,32 +1705,111 @@ function showMinutesDoc(m) {
   const viewer=document.getElementById('minutesViewer');
   if (!viewer) return;
   viewer.innerHTML='';
+
+  // 헤더
+  const headerWrap = document.createElement('div');
+  headerWrap.className = 'minutes-doc-header';
   const dateEl=document.createElement('div'); dateEl.className='minutes-doc-date'; dateEl.textContent=m.date;
+  headerWrap.appendChild(dateEl);
+  const status = autoStatusFromStates(m);
+  headerWrap.insertAdjacentHTML('beforeend', statusBadgeHtml(status));
+  const c0 = dirCount(m);
+  if (c0.total) {
+    const counter = document.createElement('span');
+    counter.className = 'minutes-doc-counter';
+    counter.innerHTML = `지시사항 <strong>${c0.done}/${c0.total}</strong>${c0.done===c0.total?' · 마무리됨':''}`;
+    headerWrap.appendChild(counter);
+  }
+  // 보류 토글 / 다시 진행
+  const toggleBtn = document.createElement('button');
+  toggleBtn.className = 'minutes-status-toggle';
+  toggleBtn.textContent = status === '보류' ? '↻ 다시 진행' : '⏸ 보류';
+  toggleBtn.addEventListener('click', async () => {
+    const newStatus = status === '보류' ? autoStatusFromStates({...m, status: null}) : '보류';
+    m.status = newStatus;
+    await patchMinute(m.id, { status: newStatus }, m._origin);
+    showMinutesDoc(m);
+    refreshMinutesListBadge(m);
+  });
+  headerWrap.appendChild(toggleBtn);
+  viewer.appendChild(headerWrap);
+
   const titleEl=document.createElement('div'); titleEl.className='minutes-doc-title'; titleEl.textContent=m.title;
-  viewer.appendChild(dateEl); viewer.appendChild(titleEl);
+  viewer.appendChild(titleEl);
+
   if (m.attendees) {
     const att=document.createElement('div'); att.className='minutes-doc-attendees';
     att.textContent=`👥 참석: ${m.attendees}`;
     viewer.appendChild(att);
   }
+
   const directives=m.directives?m.directives.trim().split('\n').filter(Boolean):[];
   if (directives.length) {
     const block=document.createElement('div'); block.className='minutes-directive-block';
     const bt=document.createElement('div'); bt.className='minutes-directive-title'; bt.textContent='찰스 지시사항 (판단 기준)';
     block.appendChild(bt);
+
+    // directive_states 보장 (길이 맞춤)
+    if (!Array.isArray(m.directive_states)) m.directive_states = [];
+    while (m.directive_states.length < directives.length) m.directive_states.push(false);
+
     directives.forEach((d,i)=>{
-      const row=document.createElement('div'); row.className='directive-item';
-      const num=document.createElement('div'); num.className='directive-num'; num.textContent=i+1;
-      const text=document.createElement('span'); text.textContent=d.replace(/^\d+\.\s*/,'');
-      row.appendChild(num); row.appendChild(text); block.appendChild(row);
+      const row=document.createElement('div');
+      row.className='directive-item' + (m.directive_states[i] ? ' done' : '');
+      const cb = document.createElement('div');
+      cb.className = 'directive-checkbox' + (m.directive_states[i] ? ' checked' : '');
+      cb.setAttribute('role', 'checkbox');
+      cb.setAttribute('aria-checked', m.directive_states[i] ? 'true' : 'false');
+      cb.textContent = m.directive_states[i] ? '✓' : '';
+      cb.addEventListener('click', async () => {
+        m.directive_states[i] = !m.directive_states[i];
+        const newStatus = autoStatusFromStates({...m, status: m.status === '보류' ? '보류' : null});
+        m.status = newStatus;
+        // optimistic UI
+        showMinutesDoc(m);
+        refreshMinutesListBadge(m);
+        // persist
+        await patchMinute(m.id, {
+          directive_states: m.directive_states,
+          status: newStatus,
+        }, m._origin);
+      });
+
+      const text=document.createElement('span');
+      text.className = 'directive-text';
+      text.textContent=d.replace(/^\d+\.\s*/,'');
+      row.appendChild(cb); row.appendChild(text); block.appendChild(row);
     });
     viewer.appendChild(block);
   }
+
   if (m.content) {
     const cb=document.createElement('div'); cb.className='minutes-content-block';
     const h3=document.createElement('h3'); h3.textContent='논의 내용';
     const p=document.createElement('p'); p.textContent=m.content;
     cb.appendChild(h3); cb.appendChild(p); viewer.appendChild(cb);
+  }
+}
+
+// 목록 카드의 배지·카운터만 갱신 (활성 상태 유지)
+function refreshMinutesListBadge(m) {
+  const item = document.querySelector(`.minutes-list-item[data-minute-id="${CSS.escape(String(m.id))}"]`);
+  if (!item) return;
+  const c = dirCount(m);
+  const status = autoStatusFromStates(m);
+  // 헤드 row 갱신
+  const headRow = item.querySelector('.minutes-item-headrow');
+  if (headRow) {
+    const dateText = headRow.querySelector('.minutes-item-date')?.textContent || m.date;
+    headRow.innerHTML = `<div class="minutes-item-date">${escapeAttr(dateText)}</div>${statusBadgeHtml(status)}`;
+  }
+  const preview = item.querySelector('.minutes-item-preview');
+  if (preview) {
+    if (c.total) {
+      preview.innerHTML = `지시 <span class="minutes-counter">${c.done}/${c.total}</span>${c.done===c.total?' · 마무리됨':''}`;
+    } else {
+      preview.textContent = '지시사항 없음';
+    }
   }
 }
 
@@ -1689,10 +1886,15 @@ function switchSection(section) {
 
 // ── 이벤트 바인딩 ────────────────────────────────────────────
 function bindMinutesEvents() {
-  document.getElementById('addMinutesBtn')?.addEventListener('click',()=>{ document.getElementById('minutesModal').style.display='flex'; });
+  document.getElementById('addMinutesBtn')?.addEventListener('click',()=>{
+    const dateEl = document.getElementById('minutesDate');
+    if (dateEl && !dateEl.value) dateEl.value = toYMD(new Date());
+    document.getElementById('minutesModal').style.display='flex';
+    setTimeout(()=>document.getElementById('minutesTitle')?.focus(), 60);
+  });
   const closeModal=()=>{
     document.getElementById('minutesModal').style.display='none';
-    ['minutesTitle','minutesDirectives','minutesContent'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    ['minutesTitle','minutesAttendees','minutesDirectives','minutesContent'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   };
   document.getElementById('closeMinutesModal')?.addEventListener('click',closeModal);
   document.getElementById('cancelMinutes')?.addEventListener('click',closeModal);
@@ -1703,8 +1905,10 @@ function bindMinutesEvents() {
     const saveBtn = document.getElementById('saveMinutes');
     saveBtn.disabled = true;
     saveBtn.textContent = 'AI 분석 중...';
-    const today=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\.\s*/g,'-').slice(0,10);
-    const result = await createMinutes({ date:today, title,
+    const dateInput = document.getElementById('minutesDate')?.value;
+    const meetingDate = dateInput || toYMD(new Date());
+    const result = await createMinutes({ date: meetingDate, title,
+      attendees: document.getElementById('minutesAttendees')?.value.trim() || '',
       directives:document.getElementById('minutesDirectives')?.value.trim()||'',
       content:document.getElementById('minutesContent')?.value.trim()||'' });
     saveBtn.disabled = false;

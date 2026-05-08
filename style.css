@@ -1186,6 +1186,80 @@ body {
 .quick-add-save:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* ═══════════════════════════════════════
+   회의록 추적 (F-2 — 상태/체크박스/카운터)
+═══════════════════════════════════════ */
+.minutes-item-headrow {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 6px; margin-bottom: 4px;
+}
+.minutes-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; line-height: 1.6;
+  white-space: nowrap;
+}
+.minutes-badge.mb-progress { background: #FEF3C7; color: #92400E; }
+.minutes-badge.mb-done     { background: #D1FAE5; color: #065F46; }
+.minutes-badge.mb-hold     { background: #E5E7EB; color: #4B5563; }
+
+.minutes-counter {
+  display: inline-block; padding: 1px 6px;
+  background: #EEF2FF; color: #3730A3; border-radius: 4px;
+  font-weight: 700; font-size: 11px;
+}
+
+.minutes-doc-header {
+  display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap; margin-bottom: 6px;
+}
+.minutes-doc-counter {
+  font-size: 12px; color: #4B5563;
+}
+.minutes-doc-counter strong { color: #111827; }
+.minutes-status-toggle {
+  margin-left: auto;
+  background: #fff; border: 1px solid #e5e7eb; color: #6B7280;
+  padding: 4px 10px; border-radius: 6px;
+  font-size: 11px; cursor: pointer;
+}
+.minutes-status-toggle:hover { background: #F3F4F6; color: #111827; }
+
+/* 지시사항 체크박스 */
+.directive-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  transition: background 0.15s;
+}
+.directive-item:hover { background: rgba(59,130,246,0.04); }
+.directive-item.done .directive-text {
+  text-decoration: line-through;
+  color: #9CA3AF;
+}
+.directive-item.done { background: rgba(16,185,129,0.04); }
+
+.directive-checkbox {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  border: 2px solid #D1D5DB; border-radius: 6px;
+  background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; color: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.directive-checkbox:hover { border-color: #3B82F6; }
+.directive-checkbox.checked {
+  background: #10B981;
+  border-color: #10B981;
+}
+.directive-text {
+  flex: 1;
+  font-size: 13px; line-height: 1.6;
+  word-break: keep-all;
+}
+
+/* ═══════════════════════════════════════
    통합 뷰
 ═══════════════════════════════════════ */
 .integrated-sections {

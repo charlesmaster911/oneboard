@@ -421,11 +421,19 @@
           </div>
           <div class="modal-body">
             <div class="form-group">
+              <label class="form-label">회의 날짜</label>
+              <input type="date" class="form-input" id="minutesDate">
+            </div>
+            <div class="form-group">
               <label class="form-label">회의 제목</label>
               <input type="text" class="form-input" id="minutesTitle" placeholder="예) 주간 팀 미팅">
             </div>
             <div class="form-group">
-              <label class="form-label">찰스 지시사항 (줄바꿈으로 구분)</label>
+              <label class="form-label">참석자 (선택)</label>
+              <input type="text" class="form-input" id="minutesAttendees" placeholder="예) 찰스 이한수 권나경 권수지">
+            </div>
+            <div class="form-group">
+              <label class="form-label">지시사항 (줄바꿈으로 구분 — 각 항목이 체크박스로 추적됩니다)</label>
               <textarea class="form-textarea" id="minutesDirectives" rows="4" placeholder="1. 이번 주 META 광고 예산 20% 증가&#10;2. 쿠팡 상품 리뷰 대응 완료&#10;3. 콘텐츠 캘린더 다음 달 분 작성"></textarea>
             </div>
             <div class="form-group">
