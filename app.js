@@ -731,7 +731,7 @@ document.addEventListener('DOMContentLoaded', init);
 // ═══════════════════════════════════════════════════════════════
 
 const TEAM_MEMBERS = [
-  { id: '박지현', name: '박지현', role: '팀장', color: '#3B82F6', bg: '#EFF6FF' },
+  { id: '이한수', name: '이한수', role: '차장', color: '#3B82F6', bg: '#EFF6FF' },
   { id: '권나경', name: '권나경', role: '과장', color: '#10B981', bg: '#F0FDF4' },
   { id: '권수지', name: '권수지', role: '대리', color: '#F59E0B', bg: '#FFFBEB' },
   { id: '컨텐츠팀', name: '컨텐츠팀', role: '콘텐츠', color: '#8B5CF6', bg: '#F5F3FF' },
@@ -1941,15 +1941,8 @@ switchMemberTab = function(member) {
 // ── 운영매뉴얼 ───────────────────────────────────────────────
 const MANUAL_DOCS = [
   { cat:'🏠 팀 매뉴얼', color:'#6B46C1', desc:'매일 반복 루틴 · 전화 응대 표준', items:[
-    { file:'일일_체크리스트.md', title:'일일 체크리스트 (출근/퇴근)', hot:true, summary:'09:00 출근 루틴 5항목 + 18:00 퇴근 루틴 5항목 + 책상·공용공간 5룰' },
+    { file:'일일_체크리스트.md', title:'일일 체크리스트 (출근/퇴근)', hot:true, summary:'09:00 출근 루틴 6항목(출근 인사 포함) + 18:00 퇴근 루틴 5항목 + 책상·공용공간 5룰' },
     { file:'전화_응대.md', title:'전화 응대 매뉴얼', hot:true, summary:'황금 3문장 + 4가지 유형별 분기(세일즈·B2B·대표·거래처) + 메모 양식' },
-  ]},
-  { cat:'🎧 CS 대응', color:'#EF4444', desc:'고객 문의·증상별 응대 가이드', items:[
-    { file:'소스_CS_얼음증상_대응가이드.md', title:'얼음 증상 대응 가이드', hot:true, summary:'뽀얀얼음·안떨어짐·깨짐 등 실제 증상별 응대 스크립트' },
-    { file:'소스_CS_트러블슈팅DB.md', title:'트러블슈팅 DB', summary:'실전 사례 기반 문제 해결 DB' },
-    { file:'소스_CS_응대프로세스_4단계.md', title:'CS 응대 4단계 프로세스', summary:'문의확인 → FAQ답변 → 응대기록 → Slack 알림' },
-    { file:'소스_CS_채널8개_FAQ22_2021.md', title:'8채널 FAQ22', summary:'네이버·쿠팡 등 8채널 접속법 + FAQ 22개' },
-    { file:'소스_채널운영_권수지_인수인계.md', title:'채널 운영 인수인계 (권수지)', summary:'4채널 CS 운영 + 개선 과제' },
   ]},
   { cat:'📦 제품 매뉴얼', color:'#3B82F6', desc:'제품별 사용법·스펙·주의사항', items:[
     { file:'소스_쥬얼아이스_사용설명서_공식OL.md', title:'쥬얼아이스 공식 설명서', hot:true, summary:'공식 동봉 설명서 (한/영/일 3개국어)' },
@@ -1960,6 +1953,13 @@ const MANUAL_DOCS = [
     { file:'소스_아블러제로_FAQ_상세페이지.md', title:'아블러 제로 FAQ', summary:'식세기·강화유리·전자레인지·뜨거운 음료' },
     { file:'소스_세척가이드_실리콘몰드.md', title:'실리콘 몰드 세척', summary:'냄새·끈적임·살균 6방식' },
     { file:'소스_ABLR_제안서_기술스펙.md', title:'ABLR 기술스펙 제안서', summary:'6대 핵심 기술·삼단 방한공법·커스텀 아이스' },
+  ]},
+  { cat:'🎧 CS 대응', color:'#EF4444', desc:'고객 문의·증상별 응대 가이드', items:[
+    { file:'소스_CS_얼음증상_대응가이드.md', title:'얼음 증상 대응 가이드', hot:true, summary:'뽀얀얼음·안떨어짐·깨짐 등 실제 증상별 응대 스크립트' },
+    { file:'소스_CS_트러블슈팅DB.md', title:'트러블슈팅 DB', summary:'실전 사례 기반 문제 해결 DB' },
+    { file:'소스_CS_응대프로세스_4단계.md', title:'CS 응대 4단계 프로세스', summary:'문의확인 → FAQ답변 → 응대기록 → Slack 알림' },
+    { file:'소스_CS_채널8개_FAQ22_2021.md', title:'8채널 FAQ22', summary:'네이버·쿠팡 등 8채널 접속법 + FAQ 22개' },
+    { file:'소스_채널운영_권수지_인수인계.md', title:'채널 운영 인수인계 (권수지)', summary:'4채널 CS 운영 + 개선 과제' },
   ]},
   { cat:'📝 FAQ', color:'#10B981', desc:'자주 묻는 질문 / 예상 질문 대응', items:[
     { file:'소스_FAQ_와디즈_ablr.md', title:'와디즈 ABLR FAQ', summary:'ablr 캠페인 FAQ (제품·투명얼음·배송)' },

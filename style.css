@@ -1114,7 +1114,7 @@ body {
   color: #fff;
   font-weight: 600;
 }
-.member-tab-btn[data-member="박지현"].active { background: #3B82F6; border-color: #3B82F6; }
+.member-tab-btn[data-member="이한수"].active { background: #3B82F6; border-color: #3B82F6; }
 .member-tab-btn[data-member="권나경"].active { background: #10B981; border-color: #10B981; }
 .member-tab-btn[data-member="권수지"].active { background: #F59E0B; border-color: #F59E0B; }
 .member-tab-btn[data-member="컨텐츠팀"].active { background: #8B5CF6; border-color: #8B5CF6; }
