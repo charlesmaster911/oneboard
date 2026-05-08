@@ -2115,6 +2115,26 @@ function bindSectionEvents() {
   document.getElementById('saveTask')?.addEventListener('click',handleSaveTask);
   document.getElementById('taskContent')?.addEventListener('keydown',e=>{ if(e.key==='Enter') handleSaveTask(); });
 
+  // CSV 백업 다운로드 (수동 즉시 백업)
+  document.getElementById('csvDownloadBtn')?.addEventListener('click', () => {
+    if (!teamTasks.length) { alert('내려받을 데이터가 없습니다.'); return; }
+    const rows = [['date','assignee','task','status','priority','memo','origin']];
+    teamTasks.forEach(t => {
+      rows.push([t.date, t.who, t.task, t.status, t.priority, t.memo||'', t._origin||'db']);
+    });
+    const csv = rows.map(r => r.map(c => {
+      const s = String(c||'').replace(/"/g,'""');
+      return /[,"\n]/.test(s) ? `"${s}"` : s;
+    }).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `oneboard-tasks-${toYMD(new Date())}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
   // Sheets PRESET → 백엔드 DB 영구 저장 (실제 import)
   document.getElementById('importSheetBtn')?.addEventListener('click', async () => {
     const btn = document.getElementById('importSheetBtn');

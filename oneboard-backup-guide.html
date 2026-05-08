@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>OneBoard 자동 백업 설정 가이드</title>
+<style>
+  body { font-family: -apple-system,'Pretendard','Apple SD Gothic Neo',sans-serif; max-width: 880px; margin: 40px auto; padding: 0 24px; color:#111827; line-height: 1.7; background:#F9FAFB; }
+  h1 { font-size: 28px; margin-bottom: 8px; }
+  h2 { font-size: 20px; margin-top: 32px; padding-bottom: 8px; border-bottom: 2px solid #3B82F6; }
+  h3 { font-size: 16px; margin-top: 24px; color: #1E3A8A; }
+  .lead { color:#4B5563; font-size: 15px; }
+  .step { background:#fff; border:1px solid #E5E7EB; border-radius: 12px; padding: 20px 24px; margin: 16px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .step-num { display:inline-block; width:28px; height:28px; background:#3B82F6; color:#fff; border-radius:50%; text-align:center; line-height:28px; font-weight:700; margin-right:8px; }
+  pre { background:#0F172A; color:#E2E8F0; padding:16px; border-radius:8px; overflow:auto; font-size:13px; line-height:1.6; }
+  code { background:#F3F4F6; padding:2px 6px; border-radius:4px; font-size:13px; color:#DC2626; }
+  .tip { background:#FEF3C7; border-left:4px solid #F59E0B; padding:12px 16px; margin:12px 0; border-radius:4px; font-size:14px; }
+  .danger { background:#FEE2E2; border-left:4px solid #DC2626; padding:12px 16px; margin:12px 0; border-radius:4px; font-size:14px; }
+  .success { background:#D1FAE5; border-left:4px solid #10B981; padding:12px 16px; margin:12px 0; border-radius:4px; font-size:14px; }
+  table { width:100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { border:1px solid #E5E7EB; padding: 8px 12px; text-align:left; font-size:14px; }
+  th { background:#F3F4F6; font-weight:600; }
+  .copy-btn { float:right; background:#3B82F6; color:#fff; border:none; padding:4px 12px; border-radius:6px; cursor:pointer; font-size:12px; }
+  .copy-btn:hover { background:#2563EB; }
+</style>
+</head>
+<body>
+
+<h1>📦 OneBoard → Google Sheet 자동 백업 가이드</h1>
+<p class="lead">매일 새벽 03:00, OneBoard의 모든 데이터(팀 업무·회의록)가 Google Sheet에 자동으로 백업됩니다. <strong>Apps Script 한 번만 설정</strong>하면 끝.</p>
+
+<div class="success">
+<strong>왜 백업?</strong> OneBoard PostgreSQL이 장애나 실수로 데이터가 사라져도, Google Sheet에 어제 자정까지의 데이터가 안전하게 보관됩니다. <strong>읽기 전용 백업</strong>이라 시트에서 직접 편집해도 OneBoard에 반영되진 않습니다 (단방향).
+</div>
+
+<h2>준비물</h2>
+<ul>
+  <li>Google 계정 (찰스 본인 계정)</li>
+  <li>OneBoard admin 토큰: <code>JEWELICE</code></li>
+  <li>5분 정도</li>
+</ul>
+
+<h2>단계 1 — 백업 받을 시트 만들기</h2>
+<div class="step">
+  <span class="step-num">1</span> Google Drive 접속 → 새 시트 생성<br>
+  <span class="step-num">2</span> 이름: <code>OneBoard 백업 (자동)</code><br>
+  <span class="step-num">3</span> 시트 탭 2개 만들기 — <code>tasks</code>, <code>minutes</code><br>
+  <span class="step-num">4</span> 시트 ID 확인 — URL에서 <code>/d/</code>와 <code>/edit</code> 사이 긴 문자열
+  <p class="tip">예: <code>https://docs.google.com/spreadsheets/d/<strong>1abc...XYZ</strong>/edit</code> → <code>1abc...XYZ</code>가 시트 ID</p>
+</div>
+
+<h2>단계 2 — Apps Script 설정</h2>
+<div class="step">
+  <span class="step-num">1</span> 시트에서 메뉴 → <strong>확장 프로그램 → Apps Script</strong><br>
+  <span class="step-num">2</span> 기본 코드 모두 지우고 아래 코드 붙여넣기:
+  <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('script-code').innerText); this.textContent='복사됨!'; setTimeout(()=>this.textContent='코드 복사',1500);">코드 복사</button>
+<pre id="script-code">// OneBoard → Google Sheet 자동 백업
+// 매일 새벽 03:00 KST 자동 실행 (트리거 설정 후)
+
+const ONEBOARD_API = 'https://oneboard-server.onrender.com/api/team/export';
+const ADMIN_TOKEN = 'JEWELICE';  // OneBoard 관리자 토큰
+
+function backup() {
+  try {
+    const res = UrlFetchApp.fetch(ONEBOARD_API, {
+      method: 'get',
+      headers: { 'X-Admin-Token': ADMIN_TOKEN },
+      muteHttpExceptions: true,
+    });
+    if (res.getResponseCode() !== 200) {
+      Logger.log('백업 실패: HTTP ' + res.getResponseCode() + ' — ' + res.getContentText());
+      return;
+    }
+    const data = JSON.parse(res.getContentText());
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    // ── tasks 시트 덮어쓰기 ──
+    let tasksSheet = ss.getSheetByName('tasks');
+    if (!tasksSheet) tasksSheet = ss.insertSheet('tasks');
+    tasksSheet.clear();
+    tasksSheet.appendRow(['date','assignee','task','status','priority','memo','created_at','updated_at']);
+    if (data.tasks && data.tasks.length) {
+      const rows = data.tasks.map(t => [
+        t.date, t.assignee, t.task, t.status, t.priority,
+        t.memo || '', t.created_at, t.updated_at
+      ]);
+      tasksSheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+    }
+
+    // ── minutes 시트 덮어쓰기 ──
+    let minutesSheet = ss.getSheetByName('minutes');
+    if (!minutesSheet) minutesSheet = ss.insertSheet('minutes');
+    minutesSheet.clear();
+    minutesSheet.appendRow(['date','title','attendees','status','directives','directive_states','content','created_at']);
+    if (data.minutes && data.minutes.length) {
+      const rows = data.minutes.map(m => [
+        m.date, m.title, m.attendees,
+        m.status,
+        m.directives || '',
+        JSON.stringify(m.directive_states || []),
+        m.content || '',
+        m.created_at
+      ]);
+      minutesSheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+    }
+
+    // ── 메타 정보 (A1 셀) ──
+    let metaSheet = ss.getSheetByName('_meta');
+    if (!metaSheet) metaSheet = ss.insertSheet('_meta');
+    metaSheet.clear();
+    metaSheet.appendRow(['exportedAt', 'tasks_count', 'minutes_count']);
+    metaSheet.appendRow([data.exportedAt, (data.tasks||[]).length, (data.minutes||[]).length]);
+
+    Logger.log('✅ 백업 완료: tasks ' + (data.tasks||[]).length + ', minutes ' + (data.minutes||[]).length);
+  } catch (err) {
+    Logger.log('⚠ 백업 오류: ' + err.message);
+  }
+}</pre>
+  <span class="step-num">3</span> 상단 저장 (💾) 후 함수 선택 칸에서 <code>backup</code> 선택 → <strong>실행</strong> 한 번 (권한 승인 필요)<br>
+  <span class="step-num">4</span> 첫 실행에서 권한 승인 화면 뜨면 → "고급" → "신뢰할 수 있음" → 진행
+</div>
+
+<h2>단계 3 — 매일 03:00 자동 실행 트리거</h2>
+<div class="step">
+  <span class="step-num">1</span> Apps Script 좌측 메뉴 → <strong>트리거</strong> (시계 아이콘 ⏰)<br>
+  <span class="step-num">2</span> 우하단 <strong>+ 트리거 추가</strong><br>
+  <span class="step-num">3</span> 다음과 같이 설정:
+  <table>
+    <tr><th>항목</th><th>값</th></tr>
+    <tr><td>실행할 함수</td><td><code>backup</code></td></tr>
+    <tr><td>이벤트 소스</td><td>시간 기반</td></tr>
+    <tr><td>트리거 유형</td><td>일별 타이머</td></tr>
+    <tr><td>시간</td><td>오전 3시 ~ 4시</td></tr>
+    <tr><td>실패 알림</td><td>매일 (이메일)</td></tr>
+  </table>
+  <span class="step-num">4</span> 저장 — 끝!
+</div>
+
+<h2>확인</h2>
+<div class="success">
+  <strong>다음 날 새벽 3시 이후</strong> Google Sheet 열어서 <code>tasks</code>·<code>minutes</code> 탭에 데이터 박혀 있으면 정상.<br>
+  <code>_meta</code> 탭에서 마지막 백업 시간 확인 가능.
+</div>
+
+<h2>수동 즉시 백업</h2>
+<p>OneBoard 화면 하단 <strong>📤 CSV 백업</strong> 버튼 클릭 — 현재 화면의 모든 task를 CSV 파일로 즉시 다운로드.</p>
+<p>또는 Apps Script 에디터에서 <code>backup</code> 함수 직접 실행 → Google Sheet에 즉시 백업.</p>
+
+<h2>문제 해결</h2>
+<table>
+  <tr><th>증상</th><th>원인 / 조치</th></tr>
+  <tr><td>HTTP 401 / 403</td><td>ADMIN_TOKEN 오타. 정확히 <code>JEWELICE</code> 인지 확인</td></tr>
+  <tr><td>HTTP 500</td><td>Render 백엔드 일시 장애. 다음 실행 대기 또는 수동 재실행</td></tr>
+  <tr><td>tasks/minutes 비어있음</td><td>OneBoard에 아직 DB 저장된 데이터가 없음. PRESET ghost(점선) 항목은 export 안 됨 — "영구 저장" 한 번 클릭</td></tr>
+  <tr><td>권한 오류</td><td>Apps Script 첫 실행 시 권한 승인 필수. 다시 실행 → "고급" → 진행</td></tr>
+</table>
+
+<div class="danger">
+  <strong>주의</strong> 이 시트는 <strong>읽기 전용 백업</strong>입니다. 시트에서 데이터 수정해도 OneBoard에 반영되지 않습니다. 입력은 OneBoard에서만 하세요.
+</div>
+
+<p style="text-align:center;margin-top:48px;color:#9CA3AF;font-size:13px">OneBoard v2.1 · Charles × CHEONGYE · 2026-05</p>
+
+</body>
+</html>

@@ -324,10 +324,12 @@
 
       </div><!-- /memberCalView -->
 
-      <!-- Sheets 과거 데이터 import 버튼 -->
+      <!-- 데이터 상태 + import + CSV 백업 -->
       <div class="import-bar" id="importBar">
         <span class="import-bar-text">📥 시트 데이터 (점선 표시) 백엔드에 영구 저장</span>
         <span id="dataStatusBadge" style="margin-left:auto;margin-right:8px">… 확인 중</span>
+        <button class="btn-secondary" id="csvDownloadBtn" style="font-size:12px;padding:6px 14px;margin-right:6px" title="현재 보이는 모든 task를 CSV로 다운로드 (수동 백업)">📤 CSV 백업</button>
+        <a href="oneboard-backup-guide.html" target="_blank" style="font-size:12px;color:#3B82F6;text-decoration:underline;margin-right:8px" title="Google Sheet로 자동 백업 설정 가이드">🔄 자동 백업 설정</a>
         <button class="btn-secondary" id="importSheetBtn" style="font-size:12px;padding:6px 14px">영구 저장</button>
       </div>
 
