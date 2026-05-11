@@ -90,54 +90,72 @@ async function refreshAuthUI() {
 
 const SHEET_ID = '11byYTuUleS-kq3idS4e0Mgt368FssfnrHchyalHPuRI';
 
-// 시트 gid (gid=0 하나에 모든 채널이 가로로 나열된 구조)
-const SHEET_GIDS = { main: 0 };
+// 시트 gid — 채널별 분리 시트
+const SHEET_GIDS = {
+  main:          0,           // 메인 (통합/자사몰/META/네이버 스마트스토어 등)
+  coupang_split: 2052767088,  // 쿠팡 한반도(듀오) + 네모칩(아블러)
+  kakao:         1562400814,  // 카카오모먼트 광고 + 메시지(알림톡) 매출
+  naver_ad:      364317310,   // 네이버 검색광고
+};
 
 /**
- * 실제 CSV 컬럼 레이아웃 (0-indexed, 검증 완료 2026-04-17):
+ * 채널별 CSV 컬럼 레이아웃 (0-indexed):
  *
+ * [gid=0 메인 시트]
  *  통합     col 1-8  : 날짜, 총매출, 총유입, 전환매출, 총광고비, 총ROAS, 전환ROAS, 광고비율
  *  자사몰   col 10-17: 날짜, 자사매출, 유입, 광고매출, 광고비, 자사ROAS, 광고ROAS, 광고비율
  *  META     col 19-23: 날짜, 광고매출, 광고비, ROAS, 광고비율  (유입 없음)
- *  쿠팡     col 31-37: 날짜, 전체매출, 유입, 광고매출, 광고비, ROAS, 광고비율
  *  네이버   col 39-45: 날짜, 전체매출, 유입, 광고매출, 광고비, ROAS, 광고비율
- *  유튜브   col 47-53: 날짜, 전체매출, 유입, 광고매출, 광고비, ROAS, 광고비율
- *  카카오   col 55-59: 날짜, 광고매출, 광고비, ROAS, 광고비율  (유입 없음)
- *  아블러   col 61-67: 날짜, 전체매출, 유입, 광고매출, 광고비, ROAS, 광고비율
  *
- *  검증: 자사몰(2,581,000)+쿠팡(932,460)+네이버(458,640)+유튜브(299,000)+아블러(122,000)
- *       = 4,393,100 = 통합 총매출 ✓ (2025-07-01 기준)
+ * [gid=2052767088 쿠팡 분리]
+ *  쿠팡_한반도(듀오)   col 1-12 : 날짜, 전체매출, 유입, 노출, 클릭, CPC, CTR, 전환(14일), 전환매출, 전환율, 광고비, ROAS
+ *  쿠팡_네모칩(아블러) col 14-25: (동일 12컬럼)
+ *
+ * [gid=1562400814 카카오]
+ *  카카오모먼트        col 1-12: 날짜, 전체매출, 유입, 노출, 클릭, CPC, CTR, 전환수, 전환매출, 전환율, 광고비, ROAS
+ *  카카오_매출(메시지) col 14-22: 날짜, 발송수, 열람, 클릭, CTR, 전환, 전환매출, 광고비, ROAS
+ *
+ * [gid=364317310 네이버 검색광고]
+ *  네이버_검색광고 col 1-12: 날짜, 전체매출, 유입, 노출, 클릭, CPC, CTR, 전환수, 전환매출, 전환율, 광고비, ROAS
  */
 const CHANNEL_COL_MAP = {
-  '통합':      { dateCol: 1,  salesCol: 2,  trafficCol: 3,  convCol: 4,  adCol: 5,  roasCol: 6,  adRatioCol: 8,  hasTraffic: true  },
-  '자사몰':    { dateCol: 10, salesCol: 11, trafficCol: 12, convCol: 13, adCol: 14, roasCol: 15, adRatioCol: 17, hasTraffic: true  },
-  'META':      { dateCol: 19, salesCol: 20, trafficCol: null,convCol: 20, adCol: 21, roasCol: 22, adRatioCol: 23, hasTraffic: false },
-  '쿠팡':      { dateCol: 31, salesCol: 32, trafficCol: 33, convCol: 34, adCol: 35, roasCol: 36, adRatioCol: 37, hasTraffic: true  },
-  '네이버':    { dateCol: 39, salesCol: 40, trafficCol: 41, convCol: 42, adCol: 43, roasCol: 44, adRatioCol: 45, hasTraffic: true  },
-  '유튜브쇼핑':{ dateCol: 47, salesCol: 48, trafficCol: 49, convCol: 50, adCol: 51, roasCol: 52, adRatioCol: 53, hasTraffic: true  },
-  '카카오모먼트':{ dateCol: 55, salesCol: 56, trafficCol: null,convCol: 56, adCol: 57, roasCol: 58, adRatioCol: 59, hasTraffic: false },
-  '아블러':    { dateCol: 61, salesCol: 62, trafficCol: 63, convCol: 64, adCol: 65, roasCol: 66, adRatioCol: 67, hasTraffic: true  },
+  // 메인 시트 (gid=0)
+  '통합':           { gid: 0,           dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 4,  adCol: 5,  roasCol: 6,  adRatioCol: 8,    hasTraffic: true  },
+  '자사몰':         { gid: 0,           dateCol: 10, salesCol: 11, trafficCol: 12,   convCol: 13, adCol: 14, roasCol: 15, adRatioCol: 17,   hasTraffic: true  },
+  'META':           { gid: 0,           dateCol: 19, salesCol: 20, trafficCol: null, convCol: 20, adCol: 21, roasCol: 22, adRatioCol: 23,   hasTraffic: false },
+  '네이버':         { gid: 0,           dateCol: 39, salesCol: 40, trafficCol: 41,   convCol: 42, adCol: 43, roasCol: 44, adRatioCol: 45,   hasTraffic: true  },
+  // 쿠팡 분리 시트 (gid=2052767088)
+  '쿠팡_한반도':    { gid: 2052767088,  dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 9,  adCol: 11, roasCol: 12, adRatioCol: null, hasTraffic: true  },
+  '쿠팡_네모칩':    { gid: 2052767088,  dateCol: 14, salesCol: 15, trafficCol: 16,   convCol: 22, adCol: 24, roasCol: 25, adRatioCol: null, hasTraffic: true  },
+  // 카카오 시트 (gid=1562400814)
+  '카카오모먼트':   { gid: 1562400814,  dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 9,  adCol: 11, roasCol: 12, adRatioCol: null, hasTraffic: true  },
+  '카카오_매출':    { gid: 1562400814,  dateCol: 14, salesCol: 20, trafficCol: 15,   convCol: 20, adCol: 21, roasCol: 22, adRatioCol: null, hasTraffic: true  },
+  // 네이버 검색광고 (gid=364317310)
+  '네이버_검색광고':{ gid: 364317310,   dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 9,  adCol: 11, roasCol: 12, adRatioCol: null, hasTraffic: true  },
 };
 
 // 채널별 색상
 const CHANNEL_COLORS = {
-  '자사몰':    '#3B82F6',
-  'META':      '#EC4899',
-  '쿠팡':      '#F59E0B',
-  '네이버':    '#10B981',
-  '유튜브쇼핑':'#EF4444',
-  '카카오모먼트':'#8B5CF6',
+  '자사몰':         '#3B82F6',
+  'META':           '#EC4899',
+  '쿠팡_한반도':    '#F59E0B',
+  '쿠팡_네모칩':    '#FB923C',
+  '네이버':         '#10B981',
+  '네이버_검색광고':'#34D399',
+  '카카오_매출':    '#FBBF24',
+  '카카오모먼트':   '#8B5CF6',
 };
 
 // 채널별 비중 목업 (API 연동 전)
 const CHANNEL_MOCK_SHARE = {
-  labels: ['자사몰', 'META', '쿠팡', '네이버', '유튜브', '카카오'],
-  data:   [38, 22, 20, 12, 5, 3],
-  colors: ['#3B82F6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6'],
+  labels: ['자사몰', 'META', '쿠팡(한반도)', '쿠팡(네모칩)', '네이버', '카카오'],
+  data:   [38, 22, 13, 9, 12, 6],
+  colors: ['#3B82F6', '#EC4899', '#F59E0B', '#FB923C', '#10B981', '#FBBF24'],
 };
 
 // 상태
-let rawCSV = null;          // 패치된 원본 CSV (채널 전환 시 재사용)
+let rawCSV = null;          // 메인 시트 원본 CSV (구버전 호환 — gid=0)
+let rawCSVByGid = {};       // gid별 원본 CSV 캐시 (다중 시트 탭 지원)
 let channelDataCache = {};  // 채널별 파싱 결과 캐시
 let allData = [];
 let filteredData = [];
@@ -197,21 +215,34 @@ function fmtDate(str) {
   return str ? str.slice(5) : ''; // MM-DD
 }
 
-// ─── Google Sheets CSV 패치 ──────────────────────────────────
+// ─── Google Sheets CSV 패치 (다중 gid 캐시) ──────────────────
 async function fetchSheetCSV(gid = 0) {
-  if (rawCSV) return rawCSV;
+  if (rawCSVByGid[gid]) return rawCSVByGid[gid];
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  rawCSV = await res.text();
-  return rawCSV;
+  if (!res.ok) throw new Error(`HTTP ${res.status} (gid=${gid})`);
+  const text = await res.text();
+  rawCSVByGid[gid] = text;
+  if (gid === 0) rawCSV = text; // 구버전 호환 (gid=0)
+  return text;
 }
 
-// 채널 데이터 로드 (캐시 활용)
-function loadChannelData(channel) {
+// 채널 데이터 로드 — 채널 매핑의 gid에 해당하는 시트 fetch + 파싱
+async function loadChannelData(channel) {
   if (channelDataCache[channel]) return channelDataCache[channel];
-  if (!rawCSV) return [];
-  const rows = parseSheetRows(rawCSV, channel);
+  const cols = CHANNEL_COL_MAP[channel];
+  if (!cols) return [];
+  const gid = (typeof cols.gid === 'number') ? cols.gid : 0;
+  let csv = rawCSVByGid[gid];
+  if (!csv) {
+    try {
+      csv = await fetchSheetCSV(gid);
+    } catch (e) {
+      console.warn(`[OneBoard] gid=${gid} fetch 실패:`, e.message);
+      return [];
+    }
+  }
+  const rows = parseSheetRows(csv, channel);
   channelDataCache[channel] = rows;
   return rows;
 }
@@ -715,30 +746,52 @@ function bindEvents() {
     });
   });
 
-  // 채널 탭 — 실데이터 전환
+  // 채널 탭 — 실데이터 전환 (다중 gid 비동기 로드)
   document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentChannel = btn.dataset.channel;
       const notice = document.getElementById('channelNotice');
 
-      if (rawCSV && CHANNEL_COL_MAP[currentChannel]) {
-        // 채널 데이터 전환
-        allData = loadChannelData(currentChannel);
-        notice.style.display = 'none';
-        updateDashboard();
-        // 유입 없는 채널 (META, 카카오) 처리
-        if (!CHANNEL_COL_MAP[currentChannel].hasTraffic) {
-          setText('val-traffic', '—');
-          const chgEl = document.getElementById('chg-traffic');
-          if (chgEl) { chgEl.textContent = '유입 미집계 채널'; chgEl.className = 'kpi-change neutral'; }
+      const cols = CHANNEL_COL_MAP[currentChannel];
+      if (!cols) {
+        if (notice) {
+          notice.style.display = 'block';
+          const spanEl = notice.querySelector('span');
+          if (spanEl) spanEl.textContent = `⚠️ ${currentChannel} 채널 연동 준비 중입니다.`;
+        }
+        return;
+      }
+
+      // 로딩 표시
+      const srcEl = document.getElementById('dataSource');
+      if (srcEl && cols.gid !== 0) srcEl.textContent = `로딩 중... (gid=${cols.gid})`;
+
+      try {
+        allData = await loadChannelData(currentChannel);
+      } catch (e) {
+        console.warn(`[OneBoard] ${currentChannel} 로드 실패:`, e.message);
+        allData = [];
+      }
+
+      if (allData.length === 0) {
+        // 데이터 없는 채널 — 안내 표시
+        if (notice) {
+          notice.style.display = 'block';
+          const spanEl = notice.querySelector('span');
+          if (spanEl) spanEl.textContent = `⚠️ ${currentChannel} 채널 데이터 미연동 — API 키 설정 후 사용 가능합니다.`;
         }
       } else {
-        // 매핑 미정 채널 — textContent로 XSS 방지
-        notice.style.display = 'block';
-        const spanEl = notice.querySelector('span');
-        if (spanEl) spanEl.textContent = `⚠️ ${currentChannel} 채널 연동 준비 중입니다.`;
+        if (notice) notice.style.display = 'none';
+      }
+      updateDashboard();
+
+      // 유입 없는 채널 처리 (현재 매핑상 META만 해당)
+      if (!cols.hasTraffic) {
+        setText('val-traffic', '—');
+        const chgEl = document.getElementById('chg-traffic');
+        if (chgEl) { chgEl.textContent = '유입 미집계 채널'; chgEl.className = 'kpi-change neutral'; }
       }
     });
   });
@@ -2996,12 +3049,16 @@ function bindManualEvents() {
 const SETTINGS_PASSWORD = 'JEWELICE';
 
 const CHANNEL_KEYS_DEF = [
-  { id:'cafe24', name:'🛒 카페24 (자사몰)', keys:['mall_id','client_id','client_secret','access_token','refresh_token'], doc:'developers.cafe24.com' },
-  { id:'smartstore', name:'🟢 네이버 스마트스토어', keys:['client_id','client_secret'], doc:'apicenter.commerce.naver.com' },
-  { id:'coupang', name:'🟡 쿠팡', keys:['access_key','secret_key','vendor_id'], doc:'wing.coupang.com' },
-  { id:'meta', name:'📘 META (페이스북/인스타)', keys:['app_id','app_secret','access_token','ad_account_id'], doc:'developers.facebook.com' },
-  { id:'naver_ad', name:'🟢 네이버 검색광고', keys:['api_key','secret_key','customer_id'], doc:'searchad.naver.com' },
-  { id:'kakao', name:'🟡 카카오모먼트', keys:['access_token','ad_account_id'], doc:'moment.kakao.com' },
+  // ── 매출 ──
+  { id:'cafe24',            name:'🛒 카페24 (자사몰)',          keys:['mall_id','client_id','client_secret','access_token','refresh_token'], doc:'developers.cafe24.com', group:'sales' },
+  { id:'smartstore',        name:'🟢 네이버 스마트스토어',      keys:['client_id','client_secret'],                                          doc:'apicenter.commerce.naver.com', group:'sales' },
+  { id:'coupang_hanbando',  name:'🛍️ 쿠팡 한반도 (듀오)',       keys:['access_key','secret_key','vendor_id'],                                doc:'wing.coupang.com', group:'sales' },
+  { id:'coupang_nemochip',  name:'🛍️ 쿠팡 네모칩 (아블러)',     keys:['access_key','secret_key','vendor_id'],                                doc:'wing.coupang.com', group:'sales' },
+  { id:'kakao_biz',         name:'💛 카카오 비즈메시지 (알림톡)', keys:['rest_api_key','sender_key'],                                          doc:'business.kakao.com', group:'sales' },
+  // ── 광고 ──
+  { id:'meta',              name:'📘 META (페이스북/인스타)',    keys:['app_id','app_secret','access_token','ad_account_id'],                 doc:'developers.facebook.com', group:'ads' },
+  { id:'naver_ad',          name:'🟢 네이버 검색광고',           keys:['api_key','secret_key','customer_id'],                                 doc:'searchad.naver.com', group:'ads' },
+  { id:'kakao',             name:'💛 카카오모먼트',              keys:['access_token','ad_account_id'],                                       doc:'moment.kakao.com', group:'ads' },
 ];
 
 function isSettingsUnlocked() {
@@ -3026,14 +3083,17 @@ async function adminFetch(path, opts = {}) {
   return res.json();
 }
 
-// CHANNEL_KEYS_DEF의 name ↔ server platform id 매핑
+// CHANNEL_KEYS_DEF의 id ↔ server platform id 매핑
+// (구버전 호환: 기존 'coupang' 백엔드 키는 'coupang_hanbando'로 alias)
 const CHANNEL_PLATFORM_MAP = {
-  cafe24: 'cafe24',
-  smartstore: 'naver_store',
-  coupang: 'coupang',
-  meta: 'meta',
-  naver_ad: 'naver_ads',
-  kakao: 'kakao',
+  cafe24:            'cafe24',
+  smartstore:        'naver_store',
+  coupang_hanbando:  'coupang',           // 기존 'coupang' 백엔드 그대로 (한반도가 primary)
+  coupang_nemochip:  'coupang_nemochip',  // 백엔드 신규 platform 필요
+  kakao_biz:         'kakao_biz',         // 백엔드 신규 platform 필요
+  meta:              'meta',
+  naver_ad:          'naver_ads',
+  kakao:             'kakao',
 };
 
 let channelStatusCache = {};
@@ -3055,14 +3115,23 @@ function renderChannelKeys() {
   const grid = document.getElementById('channelKeysGrid');
   if (!grid) return;
   grid.innerHTML = '';
+  let lastGroup = null;
   CHANNEL_KEYS_DEF.forEach(ch => {
+    // 매출/광고 그룹 헤더 (group이 바뀔 때 한 번 삽입)
+    if (ch.group && ch.group !== lastGroup) {
+      const groupLabel = document.createElement('div');
+      groupLabel.className = `channel-keys-group-header channel-keys-group-${ch.group}`;
+      groupLabel.textContent = ch.group === 'sales' ? '📈 매출 채널' : '📢 광고 채널';
+      grid.appendChild(groupLabel);
+      lastGroup = ch.group;
+    }
     const platformId = CHANNEL_PLATFORM_MAP[ch.id] || ch.id;
     const info = channelStatusCache[platformId] || { status:'pending' };
     const st = info.status;
     const stLabel = st==='connected'?'🟢 연결됨':st==='error'?'🔴 오류':'⚪ 미연동';
     const lastSync = info.lastSync ? new Date(info.lastSync).toLocaleString('ko-KR') : null;
     const card = document.createElement('div');
-    card.className = 'channel-key-card';
+    card.className = `channel-key-card${ch.group ? ' channel-key-card-' + ch.group : ''}`;
     card.innerHTML = `
       <div class="channel-key-head">
         <div class="channel-key-name">${ch.name}</div>
