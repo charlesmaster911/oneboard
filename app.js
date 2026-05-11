@@ -15,6 +15,78 @@ const API_BASE = window.API_BASE || 'https://oneboard-server.onrender.com/api';
 function getToken() {
   return localStorage.getItem('oneboard_token') || '';
 }
+function setToken(t) {
+  if (t) localStorage.setItem('oneboard_token', t);
+  else localStorage.removeItem('oneboard_token');
+}
+
+// ─── 워크스페이스 로그인 (팀 데이터 동기화) ───────────────
+async function authLogin(email, password) {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  setToken(data.token);
+  return data;
+}
+
+async function authRegister(email, password, name, workspaceName) {
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, name, workspace_name: workspaceName }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  setToken(data.token);
+  return data;
+}
+
+async function authMe() {
+  if (!getToken()) return null;
+  try {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      return null;
+    }
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+function authLogout() {
+  setToken(null);
+}
+
+async function refreshAuthUI() {
+  const statusEl = document.getElementById('authStatus');
+  const loginForm = document.getElementById('authLoginForm');
+  const loggedIn = document.getElementById('authLoggedIn');
+  if (!statusEl) return;
+  const me = await authMe();
+  if (me) {
+    statusEl.textContent = '🟢 로그인됨 — 백엔드 영구 저장 활성';
+    statusEl.style.color = '#065F46';
+    if (loginForm) loginForm.style.display = 'none';
+    if (loggedIn) loggedIn.style.display = '';
+    const userLabel = document.getElementById('authUserLabel');
+    const wsLabel = document.getElementById('authWorkspaceLabel');
+    if (userLabel) userLabel.textContent = `${me.name || ''} (${me.email || ''})`;
+    if (wsLabel) wsLabel.textContent = me.workspace_name || '—';
+  } else {
+    statusEl.textContent = '🔴 미로그인 — 로컬 임시저장만 가능 (팀원 입력이 동기화되지 않음)';
+    statusEl.style.color = '#991B1B';
+    if (loginForm) loginForm.style.display = '';
+    if (loggedIn) loggedIn.style.display = 'none';
+  }
+}
 
 const SHEET_ID = '11byYTuUleS-kq3idS4e0Mgt368FssfnrHchyalHPuRI';
 
@@ -3062,6 +3134,7 @@ function collectSettingsPrefs() {
 async function openSettingsBody() {
   document.getElementById('settingsGate').style.display = 'none';
   document.getElementById('settingsBody').style.display = '';
+  refreshAuthUI();
   renderChannelKeys();
   renderTeamMgmtList();
   populateSettingsInputs();
@@ -3134,6 +3207,68 @@ function bindSettingsEvents() {
   unlock?.addEventListener('click', tryUnlock);
   pw?.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock(); });
   document.getElementById('settingsLockBtn')?.addEventListener('click', lockSettings);
+
+  // ── 워크스페이스 로그인 (팀 데이터 동기화) ──
+  const authErrShow = (msg) => {
+    const err = document.getElementById('authErr');
+    if (err) { err.textContent = msg; err.style.display = ''; }
+  };
+  const authErrHide = () => {
+    const err = document.getElementById('authErr');
+    if (err) err.style.display = 'none';
+  };
+
+  document.getElementById('authLoginBtn')?.addEventListener('click', async () => {
+    const email = document.getElementById('authEmail')?.value.trim();
+    const password = document.getElementById('authPassword')?.value;
+    if (!email || !password) return authErrShow('이메일·비밀번호를 입력하세요.');
+    authErrHide();
+    const btn = document.getElementById('authLoginBtn');
+    btn.disabled = true; btn.textContent = '로그인 중...';
+    try {
+      await authLogin(email, password);
+      await refreshAuthUI();
+      alert('✅ 로그인 성공. 백엔드 데이터를 불러오기 위해 페이지를 새로고침합니다.');
+      location.reload();
+    } catch (e) {
+      authErrShow(`❌ ${e.message}`);
+    } finally {
+      btn.disabled = false; btn.textContent = '🔐 로그인';
+    }
+  });
+
+  document.getElementById('authPassword')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('authLoginBtn')?.click();
+  });
+
+  document.getElementById('authRegisterBtn')?.addEventListener('click', async () => {
+    const email = document.getElementById('authEmail')?.value.trim();
+    const password = document.getElementById('authPassword')?.value;
+    if (!email || !password) return authErrShow('이메일·비밀번호를 입력한 후 등록을 눌러주세요.');
+    if (password.length < 6) return authErrShow('비밀번호는 6자 이상 권장합니다.');
+    const name = prompt('관리자 이름 (예: Charles)');
+    if (!name) return;
+    const workspaceName = prompt('워크스페이스 이름 (예: 쥬얼아이스)');
+    if (!workspaceName) return;
+    if (!confirm(`다음 정보로 새 워크스페이스를 만듭니다:\n\n이메일: ${email}\n관리자 이름: ${name}\n워크스페이스: ${workspaceName}\n\n계속할까요?`)) return;
+    authErrHide();
+    try {
+      await authRegister(email, password, name, workspaceName);
+      await refreshAuthUI();
+      alert(`✅ 워크스페이스 "${workspaceName}" 등록 완료.\n\n팀원들에게 다음을 공유하세요:\n• 이메일: ${email}\n• 비밀번호: (방금 입력하신 값)\n\n페이지를 새로고침합니다.`);
+      location.reload();
+    } catch (e) {
+      authErrShow(`❌ ${e.message}`);
+    }
+  });
+
+  document.getElementById('authLogoutBtn')?.addEventListener('click', () => {
+    if (!confirm('로그아웃하시겠습니까?\n이후 입력은 로컬 임시저장만 됩니다 (팀원과 동기화 안 됨).')) return;
+    authLogout();
+    refreshAuthUI();
+    alert('로그아웃 완료. 페이지를 새로고침합니다.');
+    location.reload();
+  });
 
   // 키 입력 모달 이벤트
   document.getElementById('credModalClose')?.addEventListener('click', closeCredModal);
