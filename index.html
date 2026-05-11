@@ -368,13 +368,15 @@
               <label class="form-label">날짜</label>
               <input type="date" class="form-input" id="taskDate">
             </div>
-            <div class="form-group">
+            <div class="form-group" id="taskAssigneeGroup">
               <label class="form-label">담당자</label>
+              <!-- 자동 모드: 라벨 + 변경 버튼 / 수동 모드: select -->
+              <div id="taskAssigneeAuto" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:#F3F4F6;border:1px solid #E5E7EB;border-radius:8px;">
+                <span id="taskAssigneeLabel" style="font-weight:600;color:#111827"></span>
+                <button type="button" id="taskAssigneeChange" style="font-size:12px;color:#3B82F6;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0">변경</button>
+              </div>
               <select class="form-input" id="taskAssignee">
-                <option value="이한수">이한수 (차장)</option>
-                <option value="권나경">권나경 (과장)</option>
-                <option value="권수지">권수지 (대리)</option>
-                <option value="컨텐츠팀">컨텐츠팀</option>
+                <!-- populateAssigneeOptions()가 동적으로 채움 (loadTeamMembers 기반) -->
               </select>
             </div>
             <div class="form-group">
@@ -405,6 +407,7 @@
             </div>
           </div>
           <div class="modal-footer">
+            <button class="btn-danger" id="deleteTask" style="display:none;margin-right:auto" title="이 업무 삭제">🗑 삭제</button>
             <button class="btn-secondary" id="cancelTask">취소</button>
             <button class="btn-primary" id="saveTask">저장</button>
           </div>

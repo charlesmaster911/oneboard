@@ -856,11 +856,25 @@ document.addEventListener('DOMContentLoaded', init);
 // ═══════════════════════════════════════════════════════════════
 
 const TEAM_MEMBERS = [
+  { id: '찰스', name: '찰스', role: '대표 기획운영', color: '#EF4444', bg: '#FEF2F2' },
   { id: '이한수', name: '이한수', role: '차장', color: '#3B82F6', bg: '#EFF6FF' },
   { id: '권나경', name: '권나경', role: '과장', color: '#10B981', bg: '#F0FDF4' },
   { id: '권수지', name: '권수지', role: '대리', color: '#F59E0B', bg: '#FFFBEB' },
   { id: '컨텐츠팀', name: '컨텐츠팀', role: '콘텐츠', color: '#8B5CF6', bg: '#F5F3FF' },
 ];
+
+// localStorage `ob_team_members`에 '찰스' 없으면 자동 prepend (기존 사용자 마이그레이션)
+(function migrateTeamMembersCharles() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('ob_team_members') || 'null');
+    if (Array.isArray(saved) && saved.length && !saved.some(m => m && m.id === '찰스')) {
+      const next = [{ id: '찰스', name: '찰스', role: '대표 기획운영', color: '#EF4444', bg: '#FEF2F2' }, ...saved];
+      localStorage.setItem('ob_team_members', JSON.stringify(next));
+      console.log('[migrate] 찰스 멤버 자동 추가 (localStorage prepend)');
+    }
+  } catch {}
+})();
+
 const DAYS_KO = ['일','월','화','수','목','금','토'];
 
 // ── 상태 ──────────────────────────────────────────────────────
@@ -1423,13 +1437,14 @@ function renderMonthCalendar() {
       el.textContent = `${t.who.slice(0,2)} ${t.task}`;
       el.title = `${t.who}: ${t.task} (${t.status})`;
       el.addEventListener('click', e=>{ e.stopPropagation(); openTaskEditModal(t); });
-      // 삭제 버튼
+      // 삭제 버튼 (구글 캘린더 패턴: 항목 hover 시 ✕ 노출)
       const delBtn = document.createElement('span');
       delBtn.textContent = '✕';
-      delBtn.style.cssText = 'float:right;cursor:pointer;opacity:0;transition:opacity .1s';
-      delBtn.addEventListener('mouseenter', ()=>delBtn.style.opacity='1');
-      delBtn.addEventListener('mouseleave', ()=>delBtn.style.opacity='0');
-      delBtn.addEventListener('click', async e=>{ e.stopPropagation(); if(confirm('삭제?')) await deleteTask(t.id); });
+      delBtn.title = '삭제';
+      delBtn.style.cssText = 'float:right;cursor:pointer;opacity:0;transition:opacity .12s;padding:0 4px;font-weight:600';
+      el.addEventListener('mouseenter', ()=>delBtn.style.opacity='1');
+      el.addEventListener('mouseleave', ()=>delBtn.style.opacity='0');
+      delBtn.addEventListener('click', async e=>{ e.stopPropagation(); if(confirm('이 업무를 삭제하시겠습니까?')) await deleteTask(t.id); });
       el.appendChild(delBtn);
       cell.appendChild(el);
     });
@@ -1537,10 +1552,11 @@ function renderWeekCalendar() {
 
       const delBtn = document.createElement('span');
       delBtn.textContent = '✕';
-      delBtn.style.cssText = 'float:right;cursor:pointer;opacity:0;transition:opacity .1s';
-      delBtn.addEventListener('mouseenter', () => delBtn.style.opacity='1');
-      delBtn.addEventListener('mouseleave', () => delBtn.style.opacity='0');
-      delBtn.addEventListener('click', async e => { e.stopPropagation(); if (confirm('삭제?')) await deleteTask(t.id); });
+      delBtn.title = '삭제';
+      delBtn.style.cssText = 'float:right;cursor:pointer;opacity:0;transition:opacity .12s;padding:0 4px;font-weight:600';
+      el.addEventListener('mouseenter', () => delBtn.style.opacity='1');
+      el.addEventListener('mouseleave', () => delBtn.style.opacity='0');
+      delBtn.addEventListener('click', async e => { e.stopPropagation(); if (confirm('이 업무를 삭제하시겠습니까?')) await deleteTask(t.id); });
       el.appendChild(delBtn);
       cell.appendChild(el);
     });
@@ -1983,7 +1999,12 @@ function openQuickAdd(date, anchorEl) {
   closeQuickAdd();
   const ymd = typeof date === 'string' ? date : toYMD(date);
   const dateObj = typeof date === 'string' ? new Date(date+'T00:00:00') : date;
-  const autoAssignee = currentMemberTab !== '통합' ? currentMemberTab : (TEAM_MEMBERS[0]?.id || '');
+  // 자동 담당자: 멤버 탭이면 그 사람 (select 숨김), '통합'이면 dropdown 노출
+  const isAutoMode = currentMemberTab !== '통합';
+  const memberList = loadTeamMembers();
+  const autoAssignee = isAutoMode ? currentMemberTab : (memberList[0]?.id || '');
+  const autoMember = memberList.find(m => m.id === autoAssignee);
+  const autoLabel = autoMember ? (autoMember.role ? `${autoMember.name} (${autoMember.role})` : autoMember.name) : autoAssignee;
 
   const pop = document.createElement('div');
   pop.className = 'quick-add-popover';
@@ -1994,9 +2015,17 @@ function openQuickAdd(date, anchorEl) {
     </div>
     <input class="quick-add-input" type="text" placeholder="업무 내용 (Enter 저장 · Esc 취소)" maxlength="120">
     <div class="quick-add-row">
-      <select class="quick-add-assignee" title="담당자">
-        ${TEAM_MEMBERS.map(m => `<option value="${escapeAttr(m.id)}" ${m.id===autoAssignee?'selected':''}>${escapeAttr(m.name)} ${escapeAttr(m.role||'')}</option>`).join('')}
-      </select>
+      ${isAutoMode ? `
+        <div class="quick-add-assignee-auto" style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#F3F4F6;border:1px solid #E5E7EB;border-radius:6px;font-size:13px;flex:1">
+          <span style="font-weight:600;color:#111827">${escapeAttr(autoLabel)}</span>
+          <button type="button" class="quick-add-assignee-change" style="font-size:11px;color:#3B82F6;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;margin-left:auto">변경</button>
+        </div>
+        <input type="hidden" class="quick-add-assignee" value="${escapeAttr(autoAssignee)}">
+      ` : `
+        <select class="quick-add-assignee" title="담당자">
+          ${memberList.map(m => `<option value="${escapeAttr(m.id)}" ${m.id===autoAssignee?'selected':''}>${escapeAttr(m.name)} ${escapeAttr(m.role||'')}</option>`).join('')}
+        </select>
+      `}
       <select class="quick-add-priority" title="우선순위">
         <option value="낮음">낮음</option>
         <option value="보통" selected>보통</option>
@@ -2049,6 +2078,23 @@ function openQuickAdd(date, anchorEl) {
     if (e.key === 'Enter') { e.preventDefault(); saveQuick(); }
   });
 
+  // 자동 모드 → 수동 select 전환 ("변경" 버튼)
+  pop.querySelector('.quick-add-assignee-change')?.addEventListener('click', () => {
+    const autoBox = pop.querySelector('.quick-add-assignee-auto');
+    const hidden = pop.querySelector('input.quick-add-assignee');
+    if (!autoBox || !hidden) return;
+    const currentVal = hidden.value;
+    const sel = document.createElement('select');
+    sel.className = 'quick-add-assignee';
+    sel.title = '담당자';
+    sel.innerHTML = memberList.map(m =>
+      `<option value="${escapeAttr(m.id)}" ${m.id===currentVal?'selected':''}>${escapeAttr(m.name)} ${escapeAttr(m.role||'')}</option>`
+    ).join('');
+    autoBox.replaceWith(sel);
+    hidden.remove();
+    sel.focus();
+  });
+
   async function saveQuick() {
     const text = input.value.trim();
     if (!text) {
@@ -2080,17 +2126,62 @@ function openQuickAdd(date, anchorEl) {
 }
 
 // ── 업무 입력 모달 ────────────────────────────────────────────
+
+// 담당자 select option 동적 fill — loadTeamMembers() + 과거 task의 missing who 보조
+function populateAssigneeOptions(currentValue) {
+  const sel = document.getElementById('taskAssignee');
+  if (!sel) return;
+  const members = loadTeamMembers();
+  const ids = new Set(members.map(m=>m.id));
+  const extras = [];
+  if (currentValue && !ids.has(currentValue)) extras.push({ id:currentValue, name:currentValue, role:'(과거)' });
+  // 과거 task에 있던 비활성 담당자 보강 (preset 데이터 호환)
+  for (const legacy of ['박지현']) {
+    if (!ids.has(legacy)) extras.push({ id:legacy, name:legacy, role:'(과거)' });
+  }
+  const all = [...members, ...extras];
+  sel.innerHTML = all.map(m => {
+    const label = m.role ? `${m.name} (${m.role})` : m.name;
+    return `<option value="${m.id}">${label}</option>`;
+  }).join('');
+  if (currentValue) sel.value = currentValue;
+}
+
+// 담당자 영역을 "자동 모드(라벨 + 변경 버튼)" vs "수동 모드(select)" 토글
+function setAssigneeAutoMode(who) {
+  const sel = document.getElementById('taskAssignee');
+  const auto = document.getElementById('taskAssigneeAuto');
+  const lbl = document.getElementById('taskAssigneeLabel');
+  if (!sel || !auto || !lbl) return;
+  if (who) {
+    const m = loadTeamMembers().find(x => x.id === who);
+    const display = m ? (m.role ? `${m.name} (${m.role})` : m.name) : who;
+    lbl.textContent = display;
+    auto.style.display = 'flex';
+    sel.style.display = 'none';
+    sel.value = who; // form 제출 시 사용
+  } else {
+    auto.style.display = 'none';
+    sel.style.display = '';
+  }
+}
+
 function openTaskModal(date, assignee) {
   editingTaskId = null;
   const modal = document.getElementById('taskModal');
   const el = id => document.getElementById(id);
   if (el('taskDate')) el('taskDate').value = date||toYMD(new Date());
-  // 현재 탭이 특정 팀원이면 자동 세팅
+
+  // 자동 담당자 결정: 인자 우선 → 현재 멤버 탭 (통합 아닐 때) → null(수동)
   const autoAssignee = assignee || (currentMemberTab !== '통합' ? currentMemberTab : null);
-  if (autoAssignee && el('taskAssignee')) el('taskAssignee').value = autoAssignee;
+  populateAssigneeOptions(autoAssignee);
+  setAssigneeAutoMode(autoAssignee);  // autoAssignee 있으면 자동 모드, 없으면 수동
+
   el('taskContent').value=''; el('taskMemo').value='';
   el('taskStatus').value='예정'; el('taskPriority').value='보통';
   el('saveTask').textContent='저장';
+  const delBtn = el('deleteTask');
+  if (delBtn) delBtn.style.display = 'none';
   if (modal) modal.style.display='flex';
   setTimeout(()=>el('taskContent')?.focus(),50);
 }
@@ -2099,19 +2190,45 @@ function openTaskEditModal(task) {
   editingTaskId = task.id;
   const el = id => document.getElementById(id);
   el('taskDate').value=task.date;
-  el('taskAssignee').value=task.who;
+  populateAssigneeOptions(task.who);
+  // 편집 모드: task.who로 자동 표시. 사용자가 "변경" 누르면 수동 전환 가능
+  setAssigneeAutoMode(task.who);
   el('taskContent').value=task.task;
   el('taskStatus').value=task.status;
   el('taskPriority').value=task.priority;
   el('taskMemo').value=task.memo||'';
   el('saveTask').textContent='수정';
+  const delBtn = el('deleteTask');
+  if (delBtn) delBtn.style.display = 'inline-block';
   document.getElementById('taskModal').style.display='flex';
 }
 
 function closeTaskModal() {
   const modal = document.getElementById('taskModal');
   if (modal) modal.style.display='none';
+  const delBtn = document.getElementById('deleteTask');
+  if (delBtn) delBtn.style.display = 'none';
+  // 자동 모드 초기화
+  const auto = document.getElementById('taskAssigneeAuto');
+  const sel = document.getElementById('taskAssignee');
+  if (auto) auto.style.display = 'none';
+  if (sel) sel.style.display = '';
   editingTaskId=null;
+}
+
+async function handleDeleteTaskFromModal() {
+  if (!editingTaskId) return;
+  if (!confirm('이 업무를 삭제하시겠습니까?')) return;
+  const id = editingTaskId;
+  const btn = document.getElementById('deleteTask');
+  if (btn) { btn.disabled = true; btn.textContent = '삭제 중...'; }
+  try {
+    await deleteTask(id);
+    closeTaskModal();
+    switchCalView(calView);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🗑 삭제'; }
+  }
 }
 
 async function handleSaveTask() {
@@ -2481,6 +2598,14 @@ function bindSectionEvents() {
   document.getElementById('cancelTask')?.addEventListener('click',closeTaskModal);
   document.getElementById('taskModal')?.addEventListener('click',e=>{ if(e.target===document.getElementById('taskModal')) closeTaskModal(); });
   document.getElementById('saveTask')?.addEventListener('click',handleSaveTask);
+  document.getElementById('deleteTask')?.addEventListener('click', handleDeleteTaskFromModal);
+  // 담당자 자동 모드의 "변경" 버튼 → 수동 모드(select)로 전환
+  document.getElementById('taskAssigneeChange')?.addEventListener('click', () => {
+    const auto = document.getElementById('taskAssigneeAuto');
+    const sel = document.getElementById('taskAssignee');
+    if (auto) auto.style.display = 'none';
+    if (sel) { sel.style.display = ''; sel.focus(); }
+  });
   document.getElementById('taskContent')?.addEventListener('keydown',e=>{ if(e.key==='Enter') handleSaveTask(); });
 
   // CSV 백업 다운로드 (수동 즉시 백업)
