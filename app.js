@@ -803,6 +803,7 @@ document.addEventListener('DOMContentLoaded', init);
 // ═══════════════════════════════════════════════════════════════
 
 const TEAM_MEMBERS = [
+  { id: '찰스', name: '찰스', role: '대표 기획운영', color: '#EF4444', bg: '#FEF2F2' },
   { id: '이한수', name: '이한수', role: '차장', color: '#3B82F6', bg: '#EFF6FF' },
   { id: '권나경', name: '권나경', role: '과장', color: '#10B981', bg: '#F0FDF4' },
   { id: '권수지', name: '권수지', role: '대리', color: '#F59E0B', bg: '#FFFBEB' },
@@ -1370,13 +1371,14 @@ function renderMonthCalendar() {
       el.textContent = `${t.who.slice(0,2)} ${t.task}`;
       el.title = `${t.who}: ${t.task} (${t.status})`;
       el.addEventListener('click', e=>{ e.stopPropagation(); openTaskEditModal(t); });
-      // 삭제 버튼
+      // 삭제 버튼 (구글 캘린더 패턴: 항목 hover 시 ✕ 노출)
       const delBtn = document.createElement('span');
       delBtn.textContent = '✕';
-      delBtn.style.cssText = 'float:right;cursor:pointer;opacity:0;transition:opacity .1s';
-      delBtn.addEventListener('mouseenter', ()=>delBtn.style.opacity='1');
-      delBtn.addEventListener('mouseleave', ()=>delBtn.style.opacity='0');
-      delBtn.addEventListener('click', async e=>{ e.stopPropagation(); if(confirm('삭제?')) await deleteTask(t.id); });
+      delBtn.title = '삭제';
+      delBtn.style.cssText = 'float:right;cursor:pointer;opacity:0;transition:opacity .12s;padding:0 4px;font-weight:600';
+      el.addEventListener('mouseenter', ()=>delBtn.style.opacity='1');
+      el.addEventListener('mouseleave', ()=>delBtn.style.opacity='0');
+      delBtn.addEventListener('click', async e=>{ e.stopPropagation(); if(confirm('이 업무를 삭제하시겠습니까?')) await deleteTask(t.id); });
       el.appendChild(delBtn);
       cell.appendChild(el);
     });
@@ -1484,10 +1486,11 @@ function renderWeekCalendar() {
 
       const delBtn = document.createElement('span');
       delBtn.textContent = '✕';
-      delBtn.style.cssText = 'float:right;cursor:pointer;opacity:0;transition:opacity .1s';
-      delBtn.addEventListener('mouseenter', () => delBtn.style.opacity='1');
-      delBtn.addEventListener('mouseleave', () => delBtn.style.opacity='0');
-      delBtn.addEventListener('click', async e => { e.stopPropagation(); if (confirm('삭제?')) await deleteTask(t.id); });
+      delBtn.title = '삭제';
+      delBtn.style.cssText = 'float:right;cursor:pointer;opacity:0;transition:opacity .12s;padding:0 4px;font-weight:600';
+      el.addEventListener('mouseenter', () => delBtn.style.opacity='1');
+      el.addEventListener('mouseleave', () => delBtn.style.opacity='0');
+      delBtn.addEventListener('click', async e => { e.stopPropagation(); if (confirm('이 업무를 삭제하시겠습니까?')) await deleteTask(t.id); });
       el.appendChild(delBtn);
       cell.appendChild(el);
     });
@@ -2027,6 +2030,27 @@ function openQuickAdd(date, anchorEl) {
 }
 
 // ── 업무 입력 모달 ────────────────────────────────────────────
+// 모달 담당자 select 동적 채우기 — loadTeamMembers() 결과 + 누락된 팀원(과거 task의 who) 보강
+function populateAssigneeOptions(currentValue) {
+  const sel = document.getElementById('taskAssignee');
+  if (!sel) return;
+  const members = loadTeamMembers();
+  // 과거 task에 있던 who가 현 멤버 리스트에 없으면 끝에 보조 옵션으로 추가 (편집 시 빈값 방지)
+  const ids = new Set(members.map(m=>m.id));
+  const extras = [];
+  if (currentValue && !ids.has(currentValue)) extras.push({ id:currentValue, name:currentValue, role:'(과거)' });
+  // 자주 등장하지만 현 멤버가 아닐 수 있는 과거 담당자 보강 (preset task 호환)
+  for (const legacy of ['박지현']) {
+    if (!ids.has(legacy)) extras.push({ id:legacy, name:legacy, role:'(과거)' });
+  }
+  const all = [...members, ...extras];
+  sel.innerHTML = all.map(m => {
+    const label = m.role ? `${m.name} (${m.role})` : m.name;
+    return `<option value="${m.id}">${label}</option>`;
+  }).join('');
+  if (currentValue) sel.value = currentValue;
+}
+
 function openTaskModal(date, assignee) {
   editingTaskId = null;
   const modal = document.getElementById('taskModal');
@@ -2034,10 +2058,12 @@ function openTaskModal(date, assignee) {
   if (el('taskDate')) el('taskDate').value = date||toYMD(new Date());
   // 현재 탭이 특정 팀원이면 자동 세팅
   const autoAssignee = assignee || (currentMemberTab !== '통합' ? currentMemberTab : null);
-  if (autoAssignee && el('taskAssignee')) el('taskAssignee').value = autoAssignee;
+  populateAssigneeOptions(autoAssignee);
   el('taskContent').value=''; el('taskMemo').value='';
   el('taskStatus').value='예정'; el('taskPriority').value='보통';
   el('saveTask').textContent='저장';
+  const delBtn = el('deleteTask');
+  if (delBtn) delBtn.style.display = 'none';
   if (modal) modal.style.display='flex';
   setTimeout(()=>el('taskContent')?.focus(),50);
 }
@@ -2046,19 +2072,38 @@ function openTaskEditModal(task) {
   editingTaskId = task.id;
   const el = id => document.getElementById(id);
   el('taskDate').value=task.date;
-  el('taskAssignee').value=task.who;
+  populateAssigneeOptions(task.who);
   el('taskContent').value=task.task;
   el('taskStatus').value=task.status;
   el('taskPriority').value=task.priority;
   el('taskMemo').value=task.memo||'';
   el('saveTask').textContent='수정';
+  const delBtn = el('deleteTask');
+  if (delBtn) delBtn.style.display = 'inline-block';
   document.getElementById('taskModal').style.display='flex';
 }
 
 function closeTaskModal() {
   const modal = document.getElementById('taskModal');
   if (modal) modal.style.display='none';
+  const delBtn = document.getElementById('deleteTask');
+  if (delBtn) delBtn.style.display = 'none';
   editingTaskId=null;
+}
+
+async function handleDeleteTaskFromModal() {
+  if (!editingTaskId) return;
+  if (!confirm('이 업무를 삭제하시겠습니까?')) return;
+  const id = editingTaskId;
+  const btn = document.getElementById('deleteTask');
+  if (btn) { btn.disabled = true; btn.textContent = '삭제 중...'; }
+  try {
+    await deleteTask(id);
+    closeTaskModal();
+    switchCalView(calView);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🗑 삭제'; }
+  }
 }
 
 async function handleSaveTask() {
@@ -2428,6 +2473,7 @@ function bindSectionEvents() {
   document.getElementById('cancelTask')?.addEventListener('click',closeTaskModal);
   document.getElementById('taskModal')?.addEventListener('click',e=>{ if(e.target===document.getElementById('taskModal')) closeTaskModal(); });
   document.getElementById('saveTask')?.addEventListener('click',handleSaveTask);
+  document.getElementById('deleteTask')?.addEventListener('click', handleDeleteTaskFromModal);
   document.getElementById('taskContent')?.addEventListener('keydown',e=>{ if(e.key==='Enter') handleSaveTask(); });
 
   // CSV 백업 다운로드 (수동 즉시 백업)
