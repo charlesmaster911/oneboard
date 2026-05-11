@@ -126,19 +126,23 @@
         </div>
       </section>
 
-      <!-- Channel Tabs -->
+      <!-- Channel Tabs (매출 5 + 광고 3 + 통합 1 = 9) -->
       <div class="channel-tabs">
         <button class="tab-btn active" data-channel="통합">📊 통합</button>
+        <span class="channel-group-label sales-label">📈 매출</span>
         <button class="tab-btn" data-channel="자사몰">🏪 자사몰</button>
-        <button class="tab-btn" data-channel="META">📘 META</button>
-        <button class="tab-btn" data-channel="쿠팡">🛍️ 쿠팡</button>
         <button class="tab-btn" data-channel="네이버">🟢 네이버</button>
-        <button class="tab-btn" data-channel="유튜브쇼핑">▶ 유튜브</button>
-        <button class="tab-btn" data-channel="카카오모먼트">💛 카카오</button>
-        <button class="tab-btn" data-channel="아블러">🧊 아블러</button>
+        <button class="tab-btn" data-channel="쿠팡_한반도">🛍️ 쿠팡(한반도·듀오)</button>
+        <button class="tab-btn" data-channel="쿠팡_네모칩">🛍️ 쿠팡(네모칩·아블러)</button>
+        <button class="tab-btn" data-channel="카카오_매출">💛 카카오(메시지)</button>
+        <span class="channel-group-divider"></span>
+        <span class="channel-group-label ads-label">📢 광고</span>
+        <button class="tab-btn" data-channel="META">📘 META</button>
+        <button class="tab-btn" data-channel="네이버_검색광고">🟢 네이버 검색광고</button>
+        <button class="tab-btn" data-channel="카카오모먼트">💛 카카오모먼트</button>
       </div>
       <div class="channel-notice" id="channelNotice" style="display:none">
-        <span>⚠️ 채널별 데이터는 추후 Google Sheets 탭 연동 예정입니다.</span>
+        <span>⚠️ 현재 Google Sheets 임시 연동, API 직접 호출로 단계 전환 예정입니다.</span>
       </div>
 
       <!-- Main Sales Chart -->

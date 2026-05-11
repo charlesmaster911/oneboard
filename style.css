@@ -2046,3 +2046,43 @@ body {
 .channel-key-actions .btn-primary,
 .channel-key-actions .btn-secondary,
 .channel-key-actions .btn-danger { font-size: 12px; padding: 6px 12px; }
+
+/* ─── 채널 탭 그룹 라벨 (매출 / 광고) ──────────────────────── */
+.channel-tabs { flex-wrap: wrap; align-items: center; gap: 6px; }
+.channel-group-label {
+  display: inline-flex; align-items: center;
+  padding: 4px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
+  margin: 0 4px 0 8px;
+}
+.channel-group-label.sales-label {
+  background: #ECFDF5; color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+.channel-group-label.ads-label {
+  background: #FFF7ED; color: #9A3412;
+  border: 1px solid #FED7AA;
+}
+.channel-group-divider {
+  display: inline-block; width: 1px; height: 22px;
+  background: #E5E7EB; margin: 0 4px;
+}
+
+/* ─── 채널 키 카드 그룹 헤더 (설정 섹션) ──────────────────── */
+.channel-keys-group-header {
+  grid-column: 1 / -1;
+  padding: 12px 4px 6px;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.3px;
+  color: var(--text-1);
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 4px;
+}
+.channel-keys-group-header.channel-keys-group-sales {
+  color: #065F46; border-bottom-color: #A7F3D0;
+}
+.channel-keys-group-header.channel-keys-group-ads {
+  color: #9A3412; border-bottom-color: #FED7AA;
+  margin-top: 12px;
+}
+.channel-key-card.channel-key-card-sales { border-left: 3px solid #10B981; }
+.channel-key-card.channel-key-card-ads { border-left: 3px solid #F59E0B; }
