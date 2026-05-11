@@ -1138,7 +1138,13 @@ async function createMinutes(payload) {
 }
 
 // ── 날짜 유틸 ────────────────────────────────────────────────
-function toYMD(d) { return d.toISOString().slice(0,10); }
+function toYMD(d) {
+  // 로컬 시간 기준 YYYY-MM-DD (toISOString은 UTC 변환되어 KST에서 1일 어긋남)
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
 function isToday(d) { return toYMD(d)===toYMD(new Date()); }
 function isSameMonth(d, ref) { return d.getFullYear()===ref.getFullYear() && d.getMonth()===ref.getMonth(); }
 function getMemberStyle(who) {
@@ -1247,7 +1253,7 @@ function renderMonthCalendar() {
   });
 
   grid.replaceChildren(fragment);
-  grid.style.gridTemplateColumns = 'repeat(7,1fr)';
+  grid.style.gridTemplateColumns = 'repeat(7, minmax(0, 1fr))';
 
   const labelEl = document.getElementById('calWeekLabel');
   if (labelEl) {
@@ -1349,7 +1355,7 @@ function renderWeekCalendar() {
   });
 
   grid.replaceChildren(fragment);
-  grid.style.gridTemplateColumns = 'repeat(7,1fr)';
+  grid.style.gridTemplateColumns = 'repeat(7, minmax(0, 1fr))';
 
   const labelEl = document.getElementById('calWeekLabel');
   if (labelEl) {
@@ -1660,7 +1666,7 @@ function renderIntegratedCalendar() {
   });
 
   grid.replaceChildren(fragment);
-  grid.style.gridTemplateColumns = 'repeat(7,1fr)';
+  grid.style.gridTemplateColumns = 'repeat(7, minmax(0, 1fr))';
 
   const lbl = document.getElementById('intCalLabel');
   if (lbl) lbl.textContent = `${intCalMonth.getFullYear()}년 ${intCalMonth.getMonth()+1}월`;

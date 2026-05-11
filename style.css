@@ -906,7 +906,7 @@ body {
 }
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 .cal-col-header {
   background: #F8FAFC;
@@ -1501,9 +1501,11 @@ body {
   border-bottom: 1px solid var(--border);
   padding: 6px 8px 8px;
   min-height: 110px;
+  min-width: 0; /* 자식 nowrap이 그리드 셀을 늘리지 않게 */
   vertical-align: top;
   background: var(--surface);
   position: relative;
+  overflow: hidden;
 }
 .cal-month-cell.other-month {
   background: #FAFBFC;
