@@ -736,7 +736,7 @@ const TEAM_MEMBERS = [
   { id: '권수지', name: '권수지', role: '대리', color: '#F59E0B', bg: '#FFFBEB' },
   { id: '컨텐츠팀', name: '컨텐츠팀', role: '콘텐츠', color: '#8B5CF6', bg: '#F5F3FF' },
 ];
-const DAYS_KO = ['월','화','수','목','금','토','일'];
+const DAYS_KO = ['일','월','화','수','목','금','토'];
 
 // ── 상태 ──────────────────────────────────────────────────────
 let calMonth = new Date(2026, 2, 1); // 기본값: 2026년 3월
@@ -1150,10 +1150,10 @@ function getMonthCalDates(monthDate) {
   const year = monthDate.getFullYear(), month = monthDate.getMonth();
   const first = new Date(year, month, 1);
   const last  = new Date(year, month+1, 0);
-  // 월요일 시작
-  const startDow = first.getDay()===0 ? 6 : first.getDay()-1;
+  // 일요일 시작 (Google Calendar 방식)
+  const startDow = first.getDay(); // 일=0, 월=1, ..., 토=6
   const start = new Date(first); start.setDate(first.getDate()-startDow);
-  const endDow = last.getDay()===0 ? 0 : 7-last.getDay();
+  const endDow = 6 - last.getDay(); // 토요일까지 채움
   const end = new Date(last); end.setDate(last.getDate()+endDow);
   const dates = [];
   for (let d=new Date(start); d<=end; d.setDate(d.getDate()+1)) dates.push(new Date(d));
@@ -1166,10 +1166,10 @@ function renderMonthCalendar() {
   const dates = getMonthCalDates(calMonth);
   const fragment = document.createDocumentFragment();
 
-  // 요일 헤더
-  DAYS_KO.forEach(day => {
+  // 요일 헤더 (일=빨강, 토=파랑)
+  DAYS_KO.forEach((day, i) => {
     const th = document.createElement('div');
-    th.className = 'cal-col-header';
+    th.className = 'cal-col-header' + (i===0?' sun':'') + (i===6?' sat':'');
     th.style.cssText = 'border-right:1px solid var(--border);padding:8px 10px;text-align:center';
     const dn = document.createElement('div');
     dn.className = 'cal-day-name';
@@ -1184,9 +1184,14 @@ function renderMonthCalendar() {
     const ymd = toYMD(d);
     const dayTasks = visibleTasks.filter(t=>t.date===ymd);
     const inMonth = isSameMonth(d, calMonth);
+    const dow = d.getDay();
 
     const cell = document.createElement('div');
-    cell.className = 'cal-month-cell' + (isToday(d)?' today':'') + (inMonth?'':' other-month');
+    cell.className = 'cal-month-cell'
+      + (isToday(d)?' today':'')
+      + (inMonth?'':' other-month')
+      + (dow===0?' sun':'')
+      + (dow===6?' sat':'');
 
     const dayNum = document.createElement('div');
     dayNum.className = 'cal-month-day-num';
@@ -1255,7 +1260,7 @@ function fmtKo(d) { return d.toLocaleDateString('ko-KR',{month:'long',day:'numer
 
 function getWeekStart(d) {
   const dt = new Date(d);
-  const dow = dt.getDay() === 0 ? 6 : dt.getDay() - 1; // 월=0
+  const dow = dt.getDay(); // 일=0 시작 (Google Calendar 방식)
   dt.setDate(dt.getDate() - dow);
   dt.setHours(0,0,0,0);
   return dt;
@@ -1273,10 +1278,10 @@ function renderWeekCalendar() {
 
   const fragment = document.createDocumentFragment();
 
-  // 요일 헤더
+  // 요일 헤더 (일=빨강, 토=파랑)
   DAYS_KO.forEach((day, i) => {
     const th = document.createElement('div');
-    th.className = 'cal-col-header';
+    th.className = 'cal-col-header' + (i===0?' sun':'') + (i===6?' sat':'');
     th.style.cssText = 'border-right:1px solid var(--border);padding:8px 10px;text-align:center';
     const dn = document.createElement('div');
     dn.className = 'cal-day-name';
@@ -1292,9 +1297,13 @@ function renderWeekCalendar() {
   dates.forEach(d => {
     const ymd = toYMD(d);
     const dayTasks = visibleTasks.filter(t => t.date === ymd);
+    const dow = d.getDay();
 
     const cell = document.createElement('div');
-    cell.className = 'cal-month-cell cal-week-cell' + (isToday(d) ? ' today' : '');
+    cell.className = 'cal-month-cell cal-week-cell'
+      + (isToday(d) ? ' today' : '')
+      + (dow===0?' sun':'')
+      + (dow===6?' sat':'');
 
     const dayNum = document.createElement('div');
     dayNum.className = 'cal-month-day-num';
@@ -1588,10 +1597,10 @@ function renderIntegratedCalendar() {
   const dates = getMonthCalDates(intCalMonth);
   const fragment = document.createDocumentFragment();
 
-  // 요일 헤더
-  DAYS_KO.forEach(day => {
+  // 요일 헤더 (일=빨강, 토=파랑)
+  DAYS_KO.forEach((day, i) => {
     const th = document.createElement('div');
-    th.className = 'cal-col-header';
+    th.className = 'cal-col-header' + (i===0?' sun':'') + (i===6?' sat':'');
     th.style.cssText = 'border-right:1px solid var(--border);padding:6px 10px;text-align:center';
     th.innerHTML = `<div class="cal-day-name">${day}</div>`;
     fragment.appendChild(th);
@@ -1601,9 +1610,14 @@ function renderIntegratedCalendar() {
     const ymd = toYMD(d);
     const dayTasks = teamTasks.filter(t => t.date === ymd);
     const inMonth = isSameMonth(d, intCalMonth);
+    const dow = d.getDay(); // 0=일, 6=토
 
     const cell = document.createElement('div');
-    cell.className = 'cal-month-cell int3-cal-cell' + (isToday(d)?' today':'') + (inMonth?'':' other-month');
+    cell.className = 'cal-month-cell int3-cal-cell'
+      + (isToday(d)?' today':'')
+      + (inMonth?'':' other-month')
+      + (dow===0?' sun':'')
+      + (dow===6?' sat':'');
 
     const dayNum = document.createElement('div');
     dayNum.className = 'cal-month-day-num';

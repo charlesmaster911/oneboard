@@ -906,7 +906,7 @@ body {
 }
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(7, 1fr);
 }
 .cal-col-header {
   background: #F8FAFC;
@@ -1032,7 +1032,7 @@ body {
 .cal-empty { padding: 40px; text-align: center; color: var(--text-3); font-size: 13px; }
 
 @media (max-width: 800px) {
-  .cal-grid { grid-template-columns: repeat(5, minmax(120px, 1fr)); overflow-x: auto; }
+  .cal-grid { grid-template-columns: repeat(7, minmax(90px, 1fr)); overflow-x: auto; }
   .cal-week-wrap { overflow-x: auto; }
 }
 
@@ -1275,12 +1275,12 @@ body {
 ═══════════════════════════════════════ */
 .int3-grid {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 300px;
+  grid-template-columns: 280px minmax(560px, 1fr) 300px;
   gap: 16px;
   align-items: start;
 }
 @media (max-width: 1280px) {
-  .int3-grid { grid-template-columns: 240px minmax(0, 1fr) 260px; gap: 12px; }
+  .int3-grid { grid-template-columns: 240px minmax(480px, 1fr) 260px; gap: 12px; }
 }
 @media (max-width: 1024px) {
   .int3-grid { grid-template-columns: 1fr; }
@@ -1586,6 +1586,27 @@ body {
   border-right: 1px solid var(--border);
   padding: 8px 10px;
   text-align: center;
+}
+
+/* ── 요일별 색상 (Google Calendar 방식) ──────────────────── */
+.cal-col-header.sun .cal-day-name { color: #DC2626; }
+.cal-col-header.sat .cal-day-name { color: #2563EB; }
+.cal-month-cell.sun { background: #FFFAFA; }
+.cal-month-cell.sat { background: #F8FAFF; }
+.cal-month-cell.sun .cal-month-day-num { color: #DC2626; }
+.cal-month-cell.sat .cal-month-day-num { color: #2563EB; }
+.cal-month-cell.sun.other-month { background: #FDF6F6; }
+.cal-month-cell.sat.other-month { background: #F6F8FD; }
+.cal-month-cell.sun.other-month .cal-month-day-num { color: #FCA5A5; }
+.cal-month-cell.sat.other-month .cal-month-day-num { color: #93C5FD; }
+.cal-month-cell.today.sun .cal-month-day-num,
+.cal-month-cell.today.sat .cal-month-day-num { color: #fff; background: #3B82F6; }
+
+/* 셀 안 task 텍스트 짤림 방지 (1줄 클램프 + 말줄임) */
+.cal-month-task {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── 알림 벨 ─────────────────────────────────────────── */
