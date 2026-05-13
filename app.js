@@ -863,14 +863,24 @@ const TEAM_MEMBERS = [
   { id: '컨텐츠팀', name: '컨텐츠팀', role: '콘텐츠', color: '#8B5CF6', bg: '#F5F3FF' },
 ];
 
-// localStorage `ob_team_members`에 '찰스' 없으면 자동 prepend (기존 사용자 마이그레이션)
+// localStorage `ob_team_members` 마이그레이션:
+//  1) 찰스 중복이 있으면 마지막(=뒤엣것)만 보존
+//  2) 찰스가 아예 없는 옛 사용자만 prepend
 (function migrateTeamMembersCharles() {
   try {
     const saved = JSON.parse(localStorage.getItem('ob_team_members') || 'null');
-    if (Array.isArray(saved) && saved.length && !saved.some(m => m && m.id === '찰스')) {
-      const next = [{ id: '찰스', name: '찰스', role: '대표 기획운영', color: '#EF4444', bg: '#FEF2F2' }, ...saved];
-      localStorage.setItem('ob_team_members', JSON.stringify(next));
-      console.log('[migrate] 찰스 멤버 자동 추가 (localStorage prepend)');
+    if (!Array.isArray(saved) || !saved.length) return;
+
+    const lastCharlesIdx = saved.map(m => (m && m.id) || '').lastIndexOf('찰스');
+    let dedup = saved.filter((m, i) => !(m && m.id === '찰스' && i !== lastCharlesIdx));
+
+    if (!dedup.some(m => m && m.id === '찰스')) {
+      dedup = [{ id: '찰스', name: '찰스', role: '대표 기획운영', color: '#EF4444', bg: '#FEF2F2' }, ...dedup];
+    }
+
+    if (dedup.length !== saved.length) {
+      localStorage.setItem('ob_team_members', JSON.stringify(dedup));
+      console.log('[migrate] 찰스 멤버 중복 제거 (마지막 항목 보존)');
     }
   } catch {}
 })();
@@ -2135,10 +2145,8 @@ function populateAssigneeOptions(currentValue) {
   const ids = new Set(members.map(m=>m.id));
   const extras = [];
   if (currentValue && !ids.has(currentValue)) extras.push({ id:currentValue, name:currentValue, role:'(과거)' });
-  // 과거 task에 있던 비활성 담당자 보강 (preset 데이터 호환)
-  for (const legacy of ['박지현']) {
-    if (!ids.has(legacy)) extras.push({ id:legacy, name:legacy, role:'(과거)' });
-  }
+  // (2026-05-13 찰스 요청) 하드코딩 legacy 자동 추가 제거 — 신규 업무 모달에서 항상 표시되던 박지현 (과거) 삭제.
+  // 옛 task 편집 시 task.who 보존은 바로 위 currentValue 분기가 그대로 처리.
   const all = [...members, ...extras];
   sel.innerHTML = all.map(m => {
     const label = m.role ? `${m.name} (${m.role})` : m.name;
