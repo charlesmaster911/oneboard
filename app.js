@@ -199,16 +199,49 @@ function parsePct(str) {
 }
 
 // ─── 포맷터 ─────────────────────────────────────────────────
+// fmtKRW: 축약 제거 — 전체 숫자 그대로 표시 (₩1,900,000 형식)
 function fmtKRW(n) {
-  if (n >= 100000000) return `₩${(n / 100000000).toFixed(2)}억`;
-  if (n >= 10000000)  return `₩${(n / 10000000).toFixed(1)}천만`;
-  if (n >= 1000000)   return `₩${(n / 1000000).toFixed(1)}M`;
-  return `₩${n.toLocaleString('ko-KR')}`;
+  return `₩${Math.round(Number(n) || 0).toLocaleString('ko-KR')}`;
 }
 
+// ─── 13채널 표준 정의 (2026-05-13 v4) ─────────────────
+// daily_metrics.platform 값과 1:1 매칭. 미매핑은 'etc:<원본>'으로 들어와 "기타"로 합산.
+const REVENUE_CHANNELS = [
+  { platform: 'cafe24',           label: '🛒 자사몰',           color: '#3B82F6' },
+  { platform: 'youtube_shop',     label: '📺 유튜브 쇼핑',      color: '#EF4444' },
+  { platform: 'naver_store',      label: '🟢 스마트스토어',     color: '#10B981' },
+  { platform: 'coupang',          label: '🛍️ 쿠팡',             color: '#F59E0B' },
+  { platform: 'coupang_abler',    label: '🛍️ 쿠팡(아블러)',     color: '#FB923C' },
+  { platform: 'kakao_talk_store', label: '💛 카카오(톡스토어)', color: '#FBBF24' },
+  { platform: 'kakao_gift',       label: '💛 카카오(선물하기)', color: '#FCD34D' },
+  { platform: 'wadiz',            label: '🟣 와디즈',           color: '#8B5CF6' },
+  { platform: 'newtem',           label: '🟠 뉴템',             color: '#F97316' },
+  { platform: 'today_house',      label: '🏠 오늘의집',         color: '#14B8A6' },
+  { platform: 'oasis',            label: '🥗 오아시스',         color: '#84CC16' },
+  { platform: 'toss',             label: '🔵 토스',             color: '#0EA5E9' },
+  { platform: 'etc',              label: '📦 기타',             color: '#9CA3AF' },
+];
+const REVENUE_PLATFORMS = REVENUE_CHANNELS.map(c => c.platform);
+
+function getChannelLabel(platform) {
+  if (!platform) return '❓';
+  if (platform.startsWith('etc:')) return `📦 기타 (${platform.slice(4)})`;
+  const ch = REVENUE_CHANNELS.find(c => c.platform === platform);
+  return ch ? ch.label : `❓ ${platform}`;
+}
+function getChannelColor(platform) {
+  if (platform.startsWith('etc:')) return '#9CA3AF';
+  const ch = REVENUE_CHANNELS.find(c => c.platform === platform);
+  return ch ? ch.color : '#9CA3AF';
+}
+
+// 채널별 일자 매트릭스 데이터 (date -> {platform -> {sales, ad_spend, raw}})
+let matrixData = {};   // { '2026-05-13': { 'cafe24': {sales: 12345, ad_spend: 0, raw: {...}}, ... } }
+let matrixDates = [];  // 정렬된 날짜 배열
+
+// fmtNum: 축약 제거 — 전체 숫자 그대로
 function fmtNum(n) {
-  if (n >= 10000) return `${(n / 10000).toFixed(1)}만`;
-  return n.toLocaleString('ko-KR');
+  return Math.round(Number(n) || 0).toLocaleString('ko-KR');
 }
 
 function fmtDate(str) {
@@ -346,6 +379,221 @@ async function fetchAPIDailyData(days = 30) {
   } catch {
     return null;
   }
+}
+
+// ─── 13채널 매트릭스 fetch (daily_metrics 정본) ──────────────
+async function fetchChannelMatrix(days = 30) {
+  const token = getToken();
+  if (!token) return null;
+
+  const to   = new Date().toISOString().slice(0, 10);
+  const from = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
+
+  try {
+    const res = await fetch(`${API_BASE}/data/daily-by-platform?from=${from}&to=${to}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.rows || [];
+  } catch {
+    return null;
+  }
+}
+
+// 평면 row 배열 → date×platform 매트릭스 구조로 변환
+function buildMatrix(rows) {
+  const matrix = {};
+  const datesSet = new Set();
+  for (const r of (rows || [])) {
+    const date = r.date;
+    datesSet.add(date);
+    if (!matrix[date]) matrix[date] = {};
+    // etc:* 원본명을 'etc'로 합산하되 raw 보존
+    const platformRaw = r.platform || 'unknown';
+    const platform = platformRaw.startsWith('etc:') ? 'etc' : platformRaw;
+    const sales = parseInt(r.total_sales || 0);
+    const adSpend = parseInt(r.ad_spend || 0);
+    if (!matrix[date][platform]) {
+      matrix[date][platform] = { sales: 0, ad_spend: 0, conversion_sales: 0, orders: 0, sources: [] };
+    }
+    matrix[date][platform].sales            += sales;
+    matrix[date][platform].ad_spend         += adSpend;
+    matrix[date][platform].conversion_sales += parseInt(r.conversion_sales || 0);
+    matrix[date][platform].orders           += parseInt(r.conversions || 0);
+    matrix[date][platform].sources.push({
+      platform_raw: platformRaw,
+      sales, ad_spend: adSpend,
+      roas: r.roas, ctr: r.ctr, cpc: r.cpc,
+    });
+  }
+  return { matrix, dates: Array.from(datesSet).sort().reverse() };
+}
+
+// 13채널 매트릭스 표 렌더
+function renderChannelMatrix() {
+  const head = document.getElementById('channelMatrixHead');
+  const body = document.getElementById('channelMatrixBody');
+  if (!head || !body) return;
+
+  // 헤더: 날짜 + 13채널 + 합계
+  head.innerHTML = `
+    <tr>
+      <th style="position:sticky;left:0;background:#F9FAFB;z-index:1">날짜</th>
+      ${REVENUE_CHANNELS.map(c => `<th style="text-align:right;color:${c.color}">${c.label}</th>`).join('')}
+      <th style="text-align:right;background:#EDE9FE;color:#6B46C1">합계</th>
+    </tr>
+  `;
+
+  body.innerHTML = '';
+  if (!matrixDates.length) {
+    body.innerHTML = '<tr><td colspan="15" class="loading-row">데이터 없음 — 매출이 들어오면 자동 표시됩니다</td></tr>';
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (const date of matrixDates) {
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', () => openDayDetailModal(date));
+    tr.addEventListener('mouseenter', () => { tr.style.background = '#F3F4F6'; });
+    tr.addEventListener('mouseleave', () => { tr.style.background = ''; });
+
+    // 날짜 셀
+    const tdDate = document.createElement('td');
+    tdDate.textContent = date;
+    tdDate.style.cssText = 'position:sticky;left:0;background:#FFF;font-weight:600;z-index:1';
+    tr.appendChild(tdDate);
+
+    const dayData = matrixData[date] || {};
+    let dayTotal = 0;
+
+    for (const ch of REVENUE_CHANNELS) {
+      const cell = dayData[ch.platform] || { sales: 0 };
+      const td = document.createElement('td');
+      td.style.textAlign = 'right';
+      td.textContent = cell.sales > 0 ? fmtKRW(cell.sales) : '-';
+      if (cell.sales > 0) td.style.color = ch.color;
+      tr.appendChild(td);
+      dayTotal += cell.sales;
+    }
+
+    const tdTotal = document.createElement('td');
+    tdTotal.style.cssText = 'text-align:right;background:#EDE9FE;color:#6B46C1;font-weight:700';
+    tdTotal.textContent = dayTotal > 0 ? fmtKRW(dayTotal) : '-';
+    tr.appendChild(tdTotal);
+
+    fragment.appendChild(tr);
+  }
+  body.appendChild(fragment);
+}
+
+// 일자 상세 모달
+function openDayDetailModal(date) {
+  const modal = document.getElementById('dayDetailModal');
+  const title = document.getElementById('dayDetailTitle');
+  const body  = document.getElementById('dayDetailBody');
+  if (!modal || !title || !body) return;
+
+  title.textContent = `📅 ${date} 채널별 매출·광고 상세`;
+
+  const dayData = matrixData[date] || {};
+  const channels = Object.keys(dayData).sort((a, b) => (dayData[b].sales || 0) - (dayData[a].sales || 0));
+
+  if (channels.length === 0) {
+    body.innerHTML = '<div class="loading-row">이 날짜에 들어온 데이터가 없습니다.</div>';
+    modal.style.display = 'flex';
+    return;
+  }
+
+  let totalSales = 0, totalAd = 0;
+  const rows = channels.map(p => {
+    const c = dayData[p];
+    totalSales += c.sales;
+    totalAd    += c.ad_spend;
+    const roas = c.ad_spend > 0 ? Math.round(c.sales / c.ad_spend * 100) : null;
+    const sourceList = (c.sources || [])
+      .filter(s => s.platform_raw.startsWith('etc:'))
+      .map(s => s.platform_raw.slice(4))
+      .filter(Boolean);
+    const etcNote = (p === 'etc' && sourceList.length > 0)
+      ? `<div style="font-size:11px;color:#6B7280;margin-top:2px">원본: ${sourceList.join(', ')}</div>`
+      : '';
+    return `
+      <tr>
+        <td style="padding:10px;font-weight:600">${getChannelLabel(p)}${etcNote}</td>
+        <td style="padding:10px;text-align:right">${fmtKRW(c.sales)}</td>
+        <td style="padding:10px;text-align:right;color:#6B7280">${c.ad_spend > 0 ? fmtKRW(c.ad_spend) : '-'}</td>
+        <td style="padding:10px;text-align:right">${roas != null ? roas + '%' : '-'}</td>
+        <td style="padding:10px;text-align:right;color:#6B7280">${c.orders > 0 ? c.orders.toLocaleString('ko-KR') + '건' : '-'}</td>
+      </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead style="background:#F3F4F6">
+        <tr>
+          <th style="padding:10px;text-align:left">채널</th>
+          <th style="padding:10px;text-align:right">매출</th>
+          <th style="padding:10px;text-align:right">광고비</th>
+          <th style="padding:10px;text-align:right">ROAS</th>
+          <th style="padding:10px;text-align:right">주문수</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot style="background:#EDE9FE;font-weight:700">
+        <tr>
+          <td style="padding:10px">합계</td>
+          <td style="padding:10px;text-align:right">${fmtKRW(totalSales)}</td>
+          <td style="padding:10px;text-align:right">${totalAd > 0 ? fmtKRW(totalAd) : '-'}</td>
+          <td style="padding:10px;text-align:right">${totalAd > 0 ? Math.round(totalSales / totalAd * 100) + '%' : '-'}</td>
+          <td style="padding:10px"></td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+  modal.style.display = 'flex';
+}
+
+function closeDayDetailModal() {
+  const modal = document.getElementById('dayDetailModal');
+  if (modal) modal.style.display = 'none';
+}
+window.closeDayDetailModal = closeDayDetailModal;
+
+// 매트릭스 CSV 내보내기
+function exportChannelMatrixCSV() {
+  const headers = ['날짜', ...REVENUE_CHANNELS.map(c => c.label.replace(/^[^\s]+\s/, '')), '합계'];
+  const rows = matrixDates.map(date => {
+    const d = matrixData[date] || {};
+    let total = 0;
+    const row = [date, ...REVENUE_CHANNELS.map(ch => {
+      const s = (d[ch.platform] || { sales: 0 }).sales;
+      total += s;
+      return s;
+    }), total];
+    return row;
+  });
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), {
+    href: url,
+    download: `oneboard_channel_matrix_${new Date().toISOString().slice(0, 10)}.csv`,
+  });
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// 매트릭스 로드 + 렌더 (외부에서 호출)
+async function loadChannelMatrix(days) {
+  const rows = await fetchChannelMatrix(days || currentRange || 30);
+  const built = buildMatrix(rows || []);
+  matrixData  = built.matrix;
+  matrixDates = built.dates;
+  renderChannelMatrix();
+  const srcEl = document.getElementById('matrixSource');
+  if (srcEl) srcEl.textContent = (rows && rows.length > 0) ? 'daily_metrics ✅' : '데이터 없음';
 }
 
 // ─── 목업 데이터 (시트 연동 실패 시) ─────────────────────────
@@ -727,6 +975,9 @@ function updateDashboard() {
   renderChannelChart();
   renderTable(filteredData);
 
+  // 13채널 매트릭스 (daily_metrics 정본 — 비동기 fire-and-forget)
+  loadChannelMatrix(currentRange).catch(e => console.warn('[matrix] 로드 실패:', e.message));
+
   // 최근 날짜 표시
   if (filteredData.length) {
     const latest = filteredData[filteredData.length - 1].date;
@@ -799,6 +1050,14 @@ function bindEvents() {
   // CSV 내보내기
   document.getElementById('exportBtn')?.addEventListener('click', () => {
     exportCSV(filteredData);
+  });
+
+  // 채널 매트릭스 CSV
+  document.getElementById('matrixExportBtn')?.addEventListener('click', exportChannelMatrixCSV);
+
+  // 일자 상세 모달 닫기 (오버레이 클릭)
+  document.getElementById('dayDetailModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'dayDetailModal') closeDayDetailModal();
   });
 }
 
