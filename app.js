@@ -3195,6 +3195,8 @@ function bindManualEvents() {
 const SETTINGS_PASSWORD = 'JEWELICE';
 
 const CHANNEL_KEYS_DEF = [
+  // ── 멀티채널 자동연동 (이지어드민) ──
+  { id:'ezadmin',           name:'🚀 이지어드민 멀티채널 자동연동', keys:['company_code','api_key','seller_id'], doc:'ezadmin.co.kr/api/intro.html · 동의서 제출 후 발급', group:'master', desc:'한 번 설정으로 쿠팡·네이버·G마켓·11번가 매출이 매일 06:30 자동 수집됩니다. 보안코드 발급 전에는 CSV 업로드로 임시 처리 가능.' },
   // ── 매출 ──
   { id:'cafe24',            name:'🛒 카페24 (자사몰)',          keys:['mall_id','client_id','client_secret','access_token','refresh_token'], doc:'developers.cafe24.com', group:'sales' },
   { id:'smartstore',        name:'🟢 네이버 스마트스토어',      keys:['client_id','client_secret'],                                          doc:'apicenter.commerce.naver.com', group:'sales' },
@@ -3232,6 +3234,7 @@ async function adminFetch(path, opts = {}) {
 // CHANNEL_KEYS_DEF의 id ↔ server platform id 매핑
 // (구버전 호환: 기존 'coupang' 백엔드 키는 'coupang_hanbando'로 alias)
 const CHANNEL_PLATFORM_MAP = {
+  ezadmin:           'ezadmin',
   cafe24:            'cafe24',
   smartstore:        'naver_store',
   coupang_hanbando:  'coupang',           // 기존 'coupang' 백엔드 그대로 (한반도가 primary)
@@ -3267,7 +3270,10 @@ function renderChannelKeys() {
     if (ch.group && ch.group !== lastGroup) {
       const groupLabel = document.createElement('div');
       groupLabel.className = `channel-keys-group-header channel-keys-group-${ch.group}`;
-      groupLabel.textContent = ch.group === 'sales' ? '📈 매출 채널' : '📢 광고 채널';
+      groupLabel.textContent =
+        ch.group === 'master' ? '🚀 멀티채널 자동연동 (권장)' :
+        ch.group === 'sales'  ? '📈 매출 채널' :
+                                '📢 광고 채널';
       grid.appendChild(groupLabel);
       lastGroup = ch.group;
     }
@@ -3283,12 +3289,14 @@ function renderChannelKeys() {
         <div class="channel-key-name">${ch.name}</div>
         <div class="channel-key-status">${stLabel}</div>
       </div>
+      ${ch.desc ? `<div class="channel-key-doc" style="color:#6B46C1;font-weight:600;margin:4px 0">${ch.desc}</div>` : ''}
       <div class="channel-key-keys">필요 키: ${ch.keys.join(' · ')}</div>
       <div class="channel-key-doc">발급: ${ch.doc}</div>
       ${lastSync ? `<div class="channel-key-doc" style="color:#10B981">최근 저장: ${lastSync}</div>` : ''}
       <div class="channel-key-actions">
         <button class="btn-primary" data-ch="${ch.id}" data-act="enter">🔑 키 입력</button>
         ${ch.id==='cafe24' ? '<button class="btn-secondary" data-ch="cafe24" data-act="oauth">🔗 OAuth 인증 시작</button>' : ''}
+        ${ch.id==='ezadmin' ? '<button class="btn-secondary" data-ch="ezadmin" data-act="csv_upload">📁 CSV 업로드 (임시)</button>' : ''}
         ${st==='connected' ? `<button class="btn-danger" data-ch="${ch.id}" data-act="delete">삭제</button>` : ''}
       </div>
     `;
@@ -3307,6 +3315,8 @@ async function handleChannelAction(ch, act) {
     if (!confirm('카페24 OAuth 인증을 시작합니다.\n먼저 mall_id, client_id, client_secret 3개가 저장되어 있어야 합니다.\n\n계속하시겠습니까?')) return;
     const token = encodeURIComponent(getAdminToken());
     window.location.href = `${API_BASE}/admin/oauth/cafe24/start?admin_token=${token}`;
+  } else if (act === 'csv_upload') {
+    await uploadEzadminCsv();
   } else if (act === 'delete') {
     if (!confirm(`${ch.name} 연동을 삭제할까요?`)) return;
     try {
@@ -3317,6 +3327,45 @@ async function handleChannelAction(ch, act) {
       alert(`삭제 실패: ${e.message}`);
     }
   }
+}
+
+// ── 이지어드민 CSV 업로드 (보안코드 발급 전 3일 fallback) ──────
+async function uploadEzadminCsv() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.csv,text/csv';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    document.body.removeChild(input);
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('파일이 너무 큽니다 (최대 5MB).');
+      return;
+    }
+    try {
+      const text = await file.text(); // UTF-8 기본
+      const res = await adminFetch('/admin/ezadmin/csv', {
+        method: 'POST',
+        body: JSON.stringify({ csv: text }),
+      });
+      const byPlatform = Object.entries(res.by_platform || {})
+        .map(([p, sum]) => `${p}: ${Number(sum).toLocaleString()}원`)
+        .join('\n');
+      alert(`✅ CSV 업로드 완료
+저장: ${res.inserted}건 / 건너뜀: ${res.skipped}건
+인식 채널: ${(res.channels_seen || []).join(', ') || '없음'}
+
+매출 합계:
+${byPlatform || '(없음)'}`);
+      await fetchChannelStatus();
+      renderChannelKeys();
+    } catch (e) {
+      alert(`❌ 업로드 실패: ${e.message}`);
+    }
+  });
+  input.click();
 }
 
 function openCredModal(ch, platformId) {
