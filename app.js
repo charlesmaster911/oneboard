@@ -863,24 +863,33 @@ const TEAM_MEMBERS = [
   { id: '컨텐츠팀', name: '컨텐츠팀', role: '콘텐츠', color: '#8B5CF6', bg: '#F5F3FF' },
 ];
 
-// localStorage `ob_team_members` 마이그레이션:
-//  1) 찰스 중복이 있으면 마지막(=뒤엣것)만 보존
-//  2) 찰스가 아예 없는 옛 사용자만 prepend
+// localStorage `ob_team_members` 마이그레이션 (2026-05-13 찰스 결정 — 옵션 B, 표기 1번):
+//  (a) 별개 ID로 추가된 "찰스 대표" 멤버 제거
+//  (b) 찰스 중복이 있으면 마지막(=뒤엣것)만 보존
+//  (c) 찰스가 아예 없는 옛 사용자만 prepend
+//  최종 형태는 id='찰스', name='찰스', role='대표 기획운영' 하나로 통일.
 (function migrateTeamMembersCharles() {
   try {
     const saved = JSON.parse(localStorage.getItem('ob_team_members') || 'null');
     if (!Array.isArray(saved) || !saved.length) return;
 
-    const lastCharlesIdx = saved.map(m => (m && m.id) || '').lastIndexOf('찰스');
-    let dedup = saved.filter((m, i) => !(m && m.id === '찰스' && i !== lastCharlesIdx));
+    let dedup = saved.slice();
 
+    // (a) 수동으로 추가된 "찰스 대표" 별개 멤버 제거
+    dedup = dedup.filter(m => !(m && m.id === '찰스 대표'));
+
+    // (b) id='찰스' 중복 시 마지막만 보존
+    const lastCharlesIdx = dedup.map(m => (m && m.id) || '').lastIndexOf('찰스');
+    dedup = dedup.filter((m, i) => !(m && m.id === '찰스' && i !== lastCharlesIdx));
+
+    // (c) 찰스가 한 번도 없는 옛 사용자 케이스만 prepend
     if (!dedup.some(m => m && m.id === '찰스')) {
       dedup = [{ id: '찰스', name: '찰스', role: '대표 기획운영', color: '#EF4444', bg: '#FEF2F2' }, ...dedup];
     }
 
     if (dedup.length !== saved.length) {
       localStorage.setItem('ob_team_members', JSON.stringify(dedup));
-      console.log('[migrate] 찰스 멤버 중복 제거 (마지막 항목 보존)');
+      console.log('[migrate] 찰스 멤버 정리 — 별개 "찰스 대표" 제거 + 중복 dedup');
     }
   } catch {}
 })();
@@ -2258,6 +2267,10 @@ async function handleSaveTask() {
     }
     closeTaskModal();
     switchCalView(calView);
+    // 통합 탭 좌측 우선순위·미완료 패널 즉시 반영 (2026-05-13 찰스 요청)
+    if (currentMemberTab === '통합' && typeof renderIntegratedView === 'function') {
+      renderIntegratedView();
+    }
   } finally {
     if (btn) { btn.textContent=editingTaskId?'수정':'저장'; btn.disabled=false; }
   }
