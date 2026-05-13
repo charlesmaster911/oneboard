@@ -219,6 +219,41 @@
         </div>
       </section>
 
+      <!-- 채널별 일자 매트릭스 (13채널 + 기타) -->
+      <section class="chart-card" id="channelMatrixSection" style="margin-top:24px">
+        <div class="chart-header">
+          <div class="chart-title">📊 채널별 일자 매출 (클릭 시 상세)</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="data-source-badge" id="matrixSource">daily_metrics</span>
+            <button class="export-btn" id="matrixExportBtn">CSV 내보내기</button>
+          </div>
+        </div>
+        <div class="table-wrap" style="overflow-x:auto">
+          <table class="data-table" id="channelMatrixTable">
+            <thead id="channelMatrixHead"></thead>
+            <tbody id="channelMatrixBody">
+              <tr><td colspan="15" class="loading-row">데이터 로딩 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="font-size:12px;color:#6B7280;margin-top:8px">
+          ※ 매출이 들어오지 않은 채널·일자는 ₩0으로 표시. 미매핑 채널은 "기타" 컬럼에 합산되며 클릭 시 원본명 확인 가능.
+        </div>
+      </section>
+
+      <!-- 일자 상세 모달 -->
+      <div id="dayDetailModal" class="cred-modal-overlay" style="display:none">
+        <div class="cred-modal" style="max-width:760px">
+          <div class="cred-modal-head">
+            <div class="cred-modal-title" id="dayDetailTitle">📅 2026-05-13 채널별 상세</div>
+            <button class="cred-modal-close" onclick="closeDayDetailModal()">✕</button>
+          </div>
+          <div class="cred-modal-body" id="dayDetailBody">
+            <div class="loading-row">로딩 중...</div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /section-sales -->
 
     <!-- ═══════════════════════════════════════
