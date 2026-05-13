@@ -3195,8 +3195,8 @@ function bindManualEvents() {
 const SETTINGS_PASSWORD = 'JEWELICE';
 
 const CHANNEL_KEYS_DEF = [
-  // ── 멀티채널 자동연동 (이지어드민) ──
-  { id:'ezadmin',           name:'🚀 이지어드민 멀티채널 자동연동', keys:['company_code','api_key','seller_id'], doc:'ezadmin.co.kr/api/intro.html · 동의서 제출 후 발급', group:'master', desc:'한 번 설정으로 쿠팡·네이버·G마켓·11번가 매출이 매일 06:30 자동 수집됩니다. 보안코드 발급 전에는 CSV 업로드로 임시 처리 가능.' },
+  // ── Drive 자동 머지 안내 (마스터 카드) ──
+  { id:'drive_sync',        name:'📂 매일 수동 입력 — Google Drive 자동 머지', keys:['ezadmin: 보류'], doc:'권수지 대리 폴더 → oneboard-daily-upload/', group:'master', desc:'매일 오전 권수지 대리가 쿠팡·META 등 자동 안 되는 채널을 Drive 폴더에 박으면 서버가 9:30부터 30분마다 자동 가져가 매출·광고에 머지합니다. OneBoard 화면에서 별도 클릭 작업 없음.' },
   // ── 매출 ──
   { id:'cafe24',            name:'🛒 카페24 (자사몰)',          keys:['mall_id','client_id','client_secret','access_token','refresh_token'], doc:'developers.cafe24.com', group:'sales' },
   { id:'smartstore',        name:'🟢 네이버 스마트스토어',      keys:['client_id','client_secret'],                                          doc:'apicenter.commerce.naver.com', group:'sales' },
@@ -3234,7 +3234,7 @@ async function adminFetch(path, opts = {}) {
 // CHANNEL_KEYS_DEF의 id ↔ server platform id 매핑
 // (구버전 호환: 기존 'coupang' 백엔드 키는 'coupang_hanbando'로 alias)
 const CHANNEL_PLATFORM_MAP = {
-  ezadmin:           'ezadmin',
+  drive_sync:        'drive_sync',  // 가상 ID — 백엔드 platform_credentials와 무관, UI 안내용
   cafe24:            'cafe24',
   smartstore:        'naver_store',
   coupang_hanbando:  'coupang',           // 기존 'coupang' 백엔드 그대로 (한반도가 primary)
@@ -3271,9 +3271,9 @@ function renderChannelKeys() {
       const groupLabel = document.createElement('div');
       groupLabel.className = `channel-keys-group-header channel-keys-group-${ch.group}`;
       groupLabel.textContent =
-        ch.group === 'master' ? '🚀 멀티채널 자동연동 (권장)' :
-        ch.group === 'sales'  ? '📈 매출 채널' :
-                                '📢 광고 채널';
+        ch.group === 'master' ? '📂 매일 수동 입력 — Drive 자동 머지' :
+        ch.group === 'sales'  ? '📈 매출 채널 (자동 API 연동)' :
+                                '📢 광고 채널 (자동 API 연동)';
       grid.appendChild(groupLabel);
       lastGroup = ch.group;
     }
@@ -3284,6 +3284,24 @@ function renderChannelKeys() {
     const lastSync = info.lastSync ? new Date(info.lastSync).toLocaleString('ko-KR') : null;
     const card = document.createElement('div');
     card.className = `channel-key-card${ch.group ? ' channel-key-card-' + ch.group : ''}`;
+    // Drive sync 마스터 카드는 키 입력·삭제 버튼 없이 안내만
+    if (ch.id === 'drive_sync') {
+      card.innerHTML = `
+        <div class="channel-key-head">
+          <div class="channel-key-name">${ch.name}</div>
+          <div class="channel-key-status" style="background:#EDE9FE;color:#6B46C1">⚙️ 자동 동작 중</div>
+        </div>
+        <div class="channel-key-doc" style="color:#6B46C1;font-weight:600;margin:6px 0;line-height:1.6">${ch.desc}</div>
+        <div class="channel-key-doc" style="background:#F3F4F6;padding:8px 10px;border-radius:6px;margin-top:6px">
+          📁 폴더: <strong>${ch.doc}</strong><br>
+          ⏰ 폴링: 09:30 시작 · 매 30분 (~22:30)<br>
+          📋 파일명: <code>sales_채널_YYYY-MM-DD.csv</code> · <code>ads_채널_YYYY-MM-DD.csv</code>
+        </div>
+      `;
+      grid.appendChild(card);
+      return;
+    }
+
     card.innerHTML = `
       <div class="channel-key-head">
         <div class="channel-key-name">${ch.name}</div>
@@ -3296,7 +3314,6 @@ function renderChannelKeys() {
       <div class="channel-key-actions">
         <button class="btn-primary" data-ch="${ch.id}" data-act="enter">🔑 키 입력</button>
         ${ch.id==='cafe24' ? '<button class="btn-secondary" data-ch="cafe24" data-act="oauth">🔗 OAuth 인증 시작</button>' : ''}
-        ${ch.id==='ezadmin' ? '<button class="btn-secondary" data-ch="ezadmin" data-act="csv_upload">📁 CSV 업로드 (임시)</button>' : ''}
         ${st==='connected' ? `<button class="btn-danger" data-ch="${ch.id}" data-act="delete">삭제</button>` : ''}
       </div>
     `;
@@ -3315,8 +3332,6 @@ async function handleChannelAction(ch, act) {
     if (!confirm('카페24 OAuth 인증을 시작합니다.\n먼저 mall_id, client_id, client_secret 3개가 저장되어 있어야 합니다.\n\n계속하시겠습니까?')) return;
     const token = encodeURIComponent(getAdminToken());
     window.location.href = `${API_BASE}/admin/oauth/cafe24/start?admin_token=${token}`;
-  } else if (act === 'csv_upload') {
-    await uploadEzadminCsv();
   } else if (act === 'delete') {
     if (!confirm(`${ch.name} 연동을 삭제할까요?`)) return;
     try {
@@ -3329,44 +3344,8 @@ async function handleChannelAction(ch, act) {
   }
 }
 
-// ── 이지어드민 CSV 업로드 (보안코드 발급 전 3일 fallback) ──────
-async function uploadEzadminCsv() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.csv,text/csv';
-  input.style.display = 'none';
-  document.body.appendChild(input);
-  input.addEventListener('change', async () => {
-    const file = input.files?.[0];
-    document.body.removeChild(input);
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert('파일이 너무 큽니다 (최대 5MB).');
-      return;
-    }
-    try {
-      const text = await file.text(); // UTF-8 기본
-      const res = await adminFetch('/admin/ezadmin/csv', {
-        method: 'POST',
-        body: JSON.stringify({ csv: text }),
-      });
-      const byPlatform = Object.entries(res.by_platform || {})
-        .map(([p, sum]) => `${p}: ${Number(sum).toLocaleString()}원`)
-        .join('\n');
-      alert(`✅ CSV 업로드 완료
-저장: ${res.inserted}건 / 건너뜀: ${res.skipped}건
-인식 채널: ${(res.channels_seen || []).join(', ') || '없음'}
-
-매출 합계:
-${byPlatform || '(없음)'}`);
-      await fetchChannelStatus();
-      renderChannelKeys();
-    } catch (e) {
-      alert(`❌ 업로드 실패: ${e.message}`);
-    }
-  });
-  input.click();
-}
+// uploadEzadminCsv 함수는 2026-05-13 Drive 자동 머지 도입으로 제거됨.
+// 권수지 대리는 OneBoard UI에서 업로드하지 않고 Google Drive 폴더에 직접 박음.
 
 function openCredModal(ch, platformId) {
   const modal = document.getElementById('credModal');
