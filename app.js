@@ -2978,39 +2978,6 @@ function bindSectionEvents() {
     URL.revokeObjectURL(url);
   });
 
-  // Sheets PRESET → 백엔드 DB 영구 저장 (실제 import)
-  document.getElementById('importSheetBtn')?.addEventListener('click', async () => {
-    const btn = document.getElementById('importSheetBtn');
-    if (!btn) return;
-    if (dataSourceStatus !== 'db') {
-      alert('백엔드 연결이 끊긴 상태입니다. 연결 후 다시 시도해 주세요.');
-      return;
-    }
-    const ghosts = teamTasks.filter(t => t._origin === 'preset_ghost');
-    if (!ghosts.length) {
-      alert('✅ 모든 시트 데이터가 이미 백엔드에 저장되어 있습니다.');
-      return;
-    }
-    if (!confirm(`시트 데이터 ${ghosts.length}건을 백엔드에 영구 저장합니다.\n저장 후엔 OneBoard에서 자유롭게 수정·삭제 가능합니다. 계속할까요?`)) return;
-    btn.disabled = true; btn.textContent = '저장 중…';
-    try {
-      const payload = ghosts.map(t => ({
-        date: t.date, assignee: t.who, task: t.task,
-        status: t.status, priority: t.priority, memo: t.memo || ''
-      }));
-      const result = await apiFetch('/team/import-sheet', {
-        method: 'POST',
-        body: JSON.stringify({ tasks: payload })
-      });
-      alert(`✅ ${result.imported || ghosts.length}건 백엔드에 영구 저장되었습니다.\n이제 OneBoard에서 자유롭게 수정·삭제 가능합니다.`);
-      await loadTeamTasks();
-    } catch (err) {
-      alert('저장 실패: ' + (err?.message || err));
-    } finally {
-      btn.disabled = false; btn.textContent = '영구 저장';
-    }
-  });
-
   bindMinutesEvents();
 }
 
