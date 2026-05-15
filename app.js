@@ -2203,7 +2203,11 @@ async function renderTeamSection() {
   teamTasks = await fetchTeamTasks(from, to);
   refreshStatusBadge();
   // 백엔드 연결됐는데 localStorage에 옛날 입력 남아있으면 1회 자동 이전
-  if (dataSourceStatus === 'db') await migrateLocalToBackend();
+  if (dataSourceStatus === 'db') {
+    await migrateLocalToBackend();
+    await migrateMonthlyLocalToBackend();
+    await migrateWeeklyLocalToBackend();
+  }
   switchMemberTab(currentMemberTab);
 }
 
@@ -2256,6 +2260,72 @@ function showMigrationToast(count) {
   toast.textContent = `✅ 이전 임시저장 ${count}건 백엔드 영구 저장 완료`;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 5000);
+}
+
+// ── 월간 주관업무 localStorage → 백엔드 1회 이전 (원본 키 보존) ─
+async function migrateMonthlyLocalToBackend() {
+  if (localStorage.getItem('ob_monthly_migrated') === '1') return;
+  let all;
+  try { all = JSON.parse(localStorage.getItem('ob_team_monthly') || '{}'); }
+  catch { all = {}; }
+  const payload = [];
+  for (const [memberId, byYm] of Object.entries(all)) {
+    for (const [ym, rows] of Object.entries(byYm||{})) {
+      (rows||[]).forEach((r, i) => {
+        if (!r) return;
+        const hasContent = (r.task||'').trim() || (r.platform||'').trim() || (r.automation||'').trim();
+        if (!hasContent) return;
+        payload.push({
+          member_id: memberId, ym,
+          task: r.task||'', platform: r.platform||'', automation: r.automation||'',
+          sort_order: i,
+        });
+      });
+    }
+  }
+  if (!payload.length) { localStorage.setItem('ob_monthly_migrated', '1'); return; }
+  try {
+    const r = await apiFetch('/team/monthly/import', {
+      method: 'POST', body: JSON.stringify({ rows: payload })
+    });
+    localStorage.setItem('ob_monthly_migrated', '1');
+    console.log(`[migrate] 월간 주관업무 ${r.imported||0}건 백엔드 이전 완료`);
+  } catch (err) {
+    console.warn('[migrate] 월간 이전 실패 — 다음 로그인 재시도:', err.message);
+  }
+}
+
+// ── 주간 업무 localStorage → 백엔드 1회 이전 (원본 키 보존) ───
+async function migrateWeeklyLocalToBackend() {
+  if (localStorage.getItem('ob_weekly_migrated') === '1') return;
+  let all;
+  try { all = JSON.parse(localStorage.getItem('ob_team_weekly') || '{}'); }
+  catch { all = {}; }
+  const payload = [];
+  for (const [memberId, byYm] of Object.entries(all)) {
+    for (const [ym, slots] of Object.entries(byYm||{})) {
+      for (const [slot, items] of Object.entries(slots||{})) {
+        if (!WEEK_SLOTS.includes(slot)) continue;
+        (items||[]).forEach((it, i) => {
+          if (!it || !(it.text||'').trim()) return;
+          payload.push({
+            member_id: memberId, ym, slot,
+            text: it.text||'', done: !!it.done, sort_order: i,
+          });
+        });
+      }
+    }
+  }
+  if (!payload.length) { localStorage.setItem('ob_weekly_migrated', '1'); return; }
+  try {
+    const r = await apiFetch('/team/weekly/import', {
+      method: 'POST', body: JSON.stringify({ rows: payload })
+    });
+    localStorage.setItem('ob_weekly_migrated', '1');
+    console.log(`[migrate] 주간 업무 ${r.imported||0}건 백엔드 이전 완료`);
+  } catch (err) {
+    console.warn('[migrate] 주간 이전 실패 — 다음 로그인 재시도:', err.message);
+  }
 }
 
 // ── Quick Add Popover (Google Calendar 식 인라인 입력) ──────
@@ -3019,12 +3089,13 @@ function renderMemberTabs() {
     del.title = '삭제';
     del.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!confirm(`"${m.name} ${m.role||''}" 탭을 삭제할까요?\n(해당 팀원의 월간/주간 데이터도 함께 삭제됩니다)`)) return;
+      if (!confirm(`"${m.name} ${m.role||''}" 탭을 삭제할까요?\n(해당 팀원의 월간/주간 로컬 데이터도 함께 삭제됩니다. 서버 DB 데이터는 보존)`)) return;
       const next = loadTeamMembers().filter(x => x.id !== m.id);
       saveTeamMembers(next);
-      // 월간·주간 데이터 정리
-      const mo = loadMonthlyAll(); delete mo[m.id]; saveMonthlyAll(mo);
-      const wk = loadWeeklyAll(); delete wk[m.id]; saveWeeklyAll(wk);
+      // 월간·주간 — 로컬 잔여 + 메모리 캐시 정리 (서버 DB 데이터는 보존)
+      const mo = loadMonthlyLocalAll(); delete mo[m.id]; saveMonthlyLocalAll(mo);
+      const wk = loadWeeklyLocalAll(); delete wk[m.id]; saveWeeklyLocalAll(wk);
+      delete _monthlyCache[m.id]; delete _weeklyCache[m.id];
       if (currentMemberTab === m.id) currentMemberTab = '통합';
       renderMemberTabs();
       renderTeamMgmtList();
@@ -3059,6 +3130,8 @@ function addTeamMember(name, role) {
 }
 
 // ── 월간 주관업무 ────────────────────────────────────────────
+// 2026-05-15: localStorage → 서버 DB(/team/monthly, /team/weekly) 마이그레이션.
+// 팀 캘린더(/team/tasks)와 동일하게 workspace_id 스코프 — 팀원 전체 공유.
 let monthlyViewYM = ymNow();
 let weeklyViewYM = ymNow();
 
@@ -3071,31 +3144,114 @@ function shiftYM(ym, delta) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
 }
 
-function loadMonthlyAll() {
+// 캐시·모드: 멤버·월 단위. fetchMonthly/fetchWeekly가 첫 호출 시 채움.
+const _monthlyCache = {};   // { memberId: { ym: rows[] } }
+const _weeklyCache  = {};   // { memberId: { ym: { slot: items[] } } }
+const _monthlyMode  = {};   // { 'memberId|ym': 'db' | 'local' }
+const _weeklyMode   = {};
+const mkPlanKey = (memberId, ym) => `${memberId}|${ym}`;
+
+// localStorage fallback — 오프라인 / 백엔드 실패 시
+function loadMonthlyLocalAll() {
   try { return JSON.parse(localStorage.getItem('ob_team_monthly') || '{}'); } catch { return {}; }
 }
-function saveMonthlyAll(data) { localStorage.setItem('ob_team_monthly', JSON.stringify(data)); }
-
-function getMonthlyFor(memberId, ym) {
-  const all = loadMonthlyAll();
+function saveMonthlyLocalAll(data) {
+  try { localStorage.setItem('ob_team_monthly', JSON.stringify(data)); } catch {}
+}
+function getMonthlyLocal(memberId, ym) {
+  const all = loadMonthlyLocalAll();
   return (all[memberId]?.[ym]) || [];
 }
-function setMonthlyFor(memberId, ym, rows) {
-  const all = loadMonthlyAll();
+function setMonthlyLocal(memberId, ym, rows) {
+  const all = loadMonthlyLocalAll();
   if (!all[memberId]) all[memberId] = {};
   all[memberId][ym] = rows;
-  saveMonthlyAll(all);
+  saveMonthlyLocalAll(all);
 }
 
-function renderMonthlyPanel(memberId) {
+async function fetchMonthly(memberId, ym) {
+  if (_monthlyCache[memberId]?.[ym]) return _monthlyCache[memberId][ym];
+  const key = mkPlanKey(memberId, ym);
+  try {
+    const data = await apiFetch(`/team/monthly?member_id=${encodeURIComponent(memberId)}&ym=${ym}`);
+    const rows = (data.rows || []).map(r => ({
+      id: r.id, task: r.task||'', platform: r.platform||'', automation: r.automation||'', sort_order: r.sort_order||0,
+    }));
+    (_monthlyCache[memberId] ??= {})[ym] = rows;
+    _monthlyMode[key] = 'db';
+    return rows;
+  } catch {
+    const rows = getMonthlyLocal(memberId, ym).map((r, i) => ({
+      id: r.id || `local-m-${memberId}-${ym}-${i}-${Date.now()}`,
+      task: r.task||'', platform: r.platform||'', automation: r.automation||'', sort_order: i,
+    }));
+    (_monthlyCache[memberId] ??= {})[ym] = rows;
+    _monthlyMode[key] = 'local';
+    return rows;
+  }
+}
+
+function getMonthlyFor(memberId, ym) { return _monthlyCache[memberId]?.[ym] || []; }
+
+async function addMonthlyRow(memberId, ym) {
+  const key = mkPlanKey(memberId, ym);
+  const rows = _monthlyCache[memberId]?.[ym] || [];
+  const payload = { task: '', platform: '', automation: '', sort_order: rows.length };
+  if (_monthlyMode[key] === 'db') {
+    try {
+      const data = await apiFetch('/team/monthly', {
+        method: 'POST', body: JSON.stringify({ member_id: memberId, ym, ...payload })
+      });
+      rows.push({ id: data.row.id, ...payload });
+      (_monthlyCache[memberId] ??= {})[ym] = rows;
+      return;
+    } catch { _monthlyMode[key] = 'local'; }
+  }
+  rows.push({ id: `local-m-${Date.now()}`, ...payload });
+  (_monthlyCache[memberId] ??= {})[ym] = rows;
+  setMonthlyLocal(memberId, ym, rows);
+}
+
+async function updateMonthlyRow(memberId, ym, idx, field, value) {
+  const key = mkPlanKey(memberId, ym);
+  const rows = _monthlyCache[memberId]?.[ym] || [];
+  const row = rows[idx];
+  if (!row) return;
+  row[field] = value;
+  if (_monthlyMode[key] === 'db' && !String(row.id).startsWith('local-')) {
+    try {
+      await apiFetch(`/team/monthly/${row.id}`, {
+        method: 'PATCH', body: JSON.stringify({ [field]: value })
+      });
+      return;
+    } catch { _monthlyMode[key] = 'local'; }
+  }
+  setMonthlyLocal(memberId, ym, rows);
+}
+
+async function deleteMonthlyRow(memberId, ym, idx) {
+  const key = mkPlanKey(memberId, ym);
+  const rows = _monthlyCache[memberId]?.[ym] || [];
+  const row = rows[idx];
+  if (!row) return;
+  if (_monthlyMode[key] === 'db' && !String(row.id).startsWith('local-')) {
+    try { await apiFetch(`/team/monthly/${row.id}`, { method: 'DELETE' }); }
+    catch { _monthlyMode[key] = 'local'; }
+  }
+  rows.splice(idx, 1);
+  if (_monthlyMode[key] === 'local') setMonthlyLocal(memberId, ym, rows);
+}
+
+async function renderMonthlyPanel(memberId) {
   const block = document.getElementById('monthlyBlock');
   if (!block) return;
   const label = document.getElementById('monthlyMonthLabel');
   if (label) label.textContent = monthlyViewYM;
   const body = document.getElementById('monthlyBody');
   if (!body) return;
+  body.innerHTML = '<tr><td colspan="4" class="tier-empty">로딩 중…</td></tr>';
+  const rows = await fetchMonthly(memberId, monthlyViewYM);
   body.innerHTML = '';
-  const rows = getMonthlyFor(memberId, monthlyViewYM);
   if (!rows.length) {
     body.innerHTML = '<tr><td colspan="4" class="tier-empty">아직 업무가 없습니다. [+ 행 추가]로 시작하세요.</td></tr>';
     return;
@@ -3110,15 +3266,11 @@ function renderMonthlyPanel(memberId) {
     `;
     tr.querySelectorAll('.tier-input').forEach(inp => {
       inp.addEventListener('change', () => {
-        const list = getMonthlyFor(memberId, monthlyViewYM);
-        list[idx][inp.dataset.f] = inp.value;
-        setMonthlyFor(memberId, monthlyViewYM, list);
+        updateMonthlyRow(memberId, monthlyViewYM, idx, inp.dataset.f, inp.value);
       });
     });
-    tr.querySelector('.tier-del').addEventListener('click', () => {
-      const list = getMonthlyFor(memberId, monthlyViewYM);
-      list.splice(idx, 1);
-      setMonthlyFor(memberId, monthlyViewYM, list);
+    tr.querySelector('.tier-del').addEventListener('click', async () => {
+      await deleteMonthlyRow(memberId, monthlyViewYM, idx);
       renderMonthlyPanel(memberId);
     });
     body.appendChild(tr);
@@ -3130,29 +3282,112 @@ function escapeAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/</g,'&
 // ── 주간 업무 (1주차~5주차 + 상시) ──────────────────────────
 const WEEK_SLOTS = ['1주차','2주차','3주차','4주차','5주차','상시'];
 
-function loadWeeklyAll() {
+function loadWeeklyLocalAll() {
   try { return JSON.parse(localStorage.getItem('ob_team_weekly') || '{}'); } catch { return {}; }
 }
-function saveWeeklyAll(data) { localStorage.setItem('ob_team_weekly', JSON.stringify(data)); }
-function getWeeklyFor(memberId, ym) {
-  const all = loadWeeklyAll();
+function saveWeeklyLocalAll(data) {
+  try { localStorage.setItem('ob_team_weekly', JSON.stringify(data)); } catch {}
+}
+function getWeeklyLocal(memberId, ym) {
+  const all = loadWeeklyLocalAll();
   const m = all[memberId]?.[ym];
   if (m) return m;
   return Object.fromEntries(WEEK_SLOTS.map(s => [s, []]));
 }
-function setWeeklyFor(memberId, ym, data) {
-  const all = loadWeeklyAll();
+function setWeeklyLocal(memberId, ym, data) {
+  const all = loadWeeklyLocalAll();
   if (!all[memberId]) all[memberId] = {};
   all[memberId][ym] = data;
-  saveWeeklyAll(all);
+  saveWeeklyLocalAll(all);
 }
 
-function renderWeeklyPanel(memberId) {
+async function fetchWeekly(memberId, ym) {
+  if (_weeklyCache[memberId]?.[ym]) return _weeklyCache[memberId][ym];
+  const key = mkPlanKey(memberId, ym);
+  try {
+    const data = await apiFetch(`/team/weekly?member_id=${encodeURIComponent(memberId)}&ym=${ym}`);
+    const slotsMap = Object.fromEntries(WEEK_SLOTS.map(s => [s, []]));
+    (data.rows || []).forEach(r => {
+      if (!slotsMap[r.slot]) slotsMap[r.slot] = [];
+      slotsMap[r.slot].push({ id: r.id, text: r.text||'', done: !!r.done, sort_order: r.sort_order||0 });
+    });
+    (_weeklyCache[memberId] ??= {})[ym] = slotsMap;
+    _weeklyMode[key] = 'db';
+    return slotsMap;
+  } catch {
+    const local = getWeeklyLocal(memberId, ym);
+    const slotsMap = {};
+    WEEK_SLOTS.forEach(s => {
+      slotsMap[s] = (local[s] || []).map((it, i) => ({
+        id: it.id || `local-w-${memberId}-${ym}-${s}-${i}-${Date.now()}`,
+        text: it.text||'', done: !!it.done, sort_order: i,
+      }));
+    });
+    (_weeklyCache[memberId] ??= {})[ym] = slotsMap;
+    _weeklyMode[key] = 'local';
+    return slotsMap;
+  }
+}
+
+function getWeeklyFor(memberId, ym) {
+  return _weeklyCache[memberId]?.[ym] || Object.fromEntries(WEEK_SLOTS.map(s => [s, []]));
+}
+
+async function addWeeklyItem(memberId, ym, slot) {
+  const key = mkPlanKey(memberId, ym);
+  const data = _weeklyCache[memberId]?.[ym] || Object.fromEntries(WEEK_SLOTS.map(s => [s, []]));
+  data[slot] = data[slot] || [];
+  const payload = { text: '새 항목', done: false, sort_order: data[slot].length };
+  if (_weeklyMode[key] === 'db') {
+    try {
+      const r = await apiFetch('/team/weekly', {
+        method: 'POST', body: JSON.stringify({ member_id: memberId, ym, slot, ...payload })
+      });
+      data[slot].push({ id: r.row.id, ...payload });
+      (_weeklyCache[memberId] ??= {})[ym] = data;
+      return;
+    } catch { _weeklyMode[key] = 'local'; }
+  }
+  data[slot].push({ id: `local-w-${Date.now()}`, ...payload });
+  (_weeklyCache[memberId] ??= {})[ym] = data;
+  setWeeklyLocal(memberId, ym, data);
+}
+
+async function updateWeeklyItem(memberId, ym, slot, idx, patch) {
+  const key = mkPlanKey(memberId, ym);
+  const data = _weeklyCache[memberId]?.[ym];
+  if (!data || !data[slot] || !data[slot][idx]) return;
+  Object.assign(data[slot][idx], patch);
+  const id = data[slot][idx].id;
+  if (_weeklyMode[key] === 'db' && !String(id).startsWith('local-')) {
+    try {
+      await apiFetch(`/team/weekly/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
+      return;
+    } catch { _weeklyMode[key] = 'local'; }
+  }
+  setWeeklyLocal(memberId, ym, data);
+}
+
+async function deleteWeeklyItem(memberId, ym, slot, idx) {
+  const key = mkPlanKey(memberId, ym);
+  const data = _weeklyCache[memberId]?.[ym];
+  if (!data || !data[slot] || !data[slot][idx]) return;
+  const id = data[slot][idx].id;
+  if (_weeklyMode[key] === 'db' && !String(id).startsWith('local-')) {
+    try { await apiFetch(`/team/weekly/${id}`, { method: 'DELETE' }); }
+    catch { _weeklyMode[key] = 'local'; }
+  }
+  data[slot].splice(idx, 1);
+  if (_weeklyMode[key] === 'local') setWeeklyLocal(memberId, ym, data);
+}
+
+async function renderWeeklyPanel(memberId) {
   const grid = document.getElementById('weeklyGrid');
   if (!grid) return;
   const label = document.getElementById('weeklyMonthLabel');
   if (label) label.textContent = weeklyViewYM;
-  const data = getWeeklyFor(memberId, weeklyViewYM);
+  grid.innerHTML = '<div class="tier-empty" style="padding:12px;">로딩 중…</div>';
+  const data = await fetchWeekly(memberId, weeklyViewYM);
   grid.innerHTML = '';
   WEEK_SLOTS.forEach(slot => {
     const col = document.createElement('div');
@@ -3173,29 +3408,20 @@ function renderWeeklyPanel(memberId) {
         <span class="weekly-item-del" title="삭제">✕</span>
       `;
       row.querySelector('input').addEventListener('change', (e) => {
-        const d = getWeeklyFor(memberId, weeklyViewYM);
-        d[slot][idx].done = e.target.checked;
-        setWeeklyFor(memberId, weeklyViewYM, d);
+        updateWeeklyItem(memberId, weeklyViewYM, slot, idx, { done: e.target.checked });
         row.classList.toggle('done', e.target.checked);
       });
       row.querySelector('.weekly-item-text').addEventListener('blur', (e) => {
-        const d = getWeeklyFor(memberId, weeklyViewYM);
-        d[slot][idx].text = e.target.textContent.trim();
-        setWeeklyFor(memberId, weeklyViewYM, d);
+        updateWeeklyItem(memberId, weeklyViewYM, slot, idx, { text: e.target.textContent.trim() });
       });
-      row.querySelector('.weekly-item-del').addEventListener('click', () => {
-        const d = getWeeklyFor(memberId, weeklyViewYM);
-        d[slot].splice(idx, 1);
-        setWeeklyFor(memberId, weeklyViewYM, d);
+      row.querySelector('.weekly-item-del').addEventListener('click', async () => {
+        await deleteWeeklyItem(memberId, weeklyViewYM, slot, idx);
         renderWeeklyPanel(memberId);
       });
       body.appendChild(row);
     });
-    col.querySelector('.weekly-add').addEventListener('click', () => {
-      const d = getWeeklyFor(memberId, weeklyViewYM);
-      d[slot] = d[slot] || [];
-      d[slot].push({ text:'새 항목', done:false });
-      setWeeklyFor(memberId, weeklyViewYM, d);
+    col.querySelector('.weekly-add').addEventListener('click', async () => {
+      await addWeeklyItem(memberId, weeklyViewYM, slot);
       renderWeeklyPanel(memberId);
     });
     grid.appendChild(col);
@@ -3211,11 +3437,9 @@ function bindMonthlyWeeklyEvents() {
     monthlyViewYM = shiftYM(monthlyViewYM, 1);
     if (currentMemberTab !== '통합') renderMonthlyPanel(currentMemberTab);
   });
-  document.getElementById('monthlyAddRow')?.addEventListener('click', () => {
+  document.getElementById('monthlyAddRow')?.addEventListener('click', async () => {
     if (currentMemberTab === '통합') return;
-    const list = getMonthlyFor(currentMemberTab, monthlyViewYM);
-    list.push({ task:'', platform:'', automation:'' });
-    setMonthlyFor(currentMemberTab, monthlyViewYM, list);
+    await addMonthlyRow(currentMemberTab, monthlyViewYM);
     renderMonthlyPanel(currentMemberTab);
   });
   document.getElementById('weeklyPrev')?.addEventListener('click', () => {
@@ -3680,11 +3904,12 @@ function renderTeamMgmtList() {
       <button class="btn-danger" data-id="${escapeAttr(m.id)}">삭제</button>
     `;
     row.querySelector('.btn-danger').addEventListener('click', () => {
-      if (!confirm(`${m.name} 탭을 삭제할까요? (월간/주간 데이터 함께 삭제)`)) return;
+      if (!confirm(`${m.name} 탭을 삭제할까요? (월간/주간 로컬 데이터 함께 삭제 · 서버 DB 데이터는 보존)`)) return;
       const next = loadTeamMembers().filter(x => x.id !== m.id);
       saveTeamMembers(next);
-      const mo = loadMonthlyAll(); delete mo[m.id]; saveMonthlyAll(mo);
-      const wk = loadWeeklyAll(); delete wk[m.id]; saveWeeklyAll(wk);
+      const mo = loadMonthlyLocalAll(); delete mo[m.id]; saveMonthlyLocalAll(mo);
+      const wk = loadWeeklyLocalAll(); delete wk[m.id]; saveWeeklyLocalAll(wk);
+      delete _monthlyCache[m.id]; delete _weeklyCache[m.id];
       if (currentMemberTab === m.id) currentMemberTab = '통합';
       renderMemberTabs();
       renderTeamMgmtList();
@@ -3905,8 +4130,8 @@ function bindSettingsEvents() {
     const dump = {
       prefs: loadSettingsPrefs(),
       members: loadTeamMembers(),
-      monthly: loadMonthlyAll(),
-      weekly: loadWeeklyAll(),
+      monthly: loadMonthlyLocalAll(),  // 로컬 잔여만 — 서버 DB 데이터는 별도 백업
+      weekly: loadWeeklyLocalAll(),
       exportedAt: new Date().toISOString(),
     };
     const blob = new Blob([JSON.stringify(dump, null, 2)], { type:'application/json' });
@@ -3925,8 +4150,8 @@ function bindSettingsEvents() {
       const data = JSON.parse(text);
       if (data.prefs) saveSettingsPrefs(data.prefs);
       if (data.members) saveTeamMembers(data.members);
-      if (data.monthly) saveMonthlyAll(data.monthly);
-      if (data.weekly) saveWeeklyAll(data.weekly);
+      if (data.monthly) saveMonthlyLocalAll(data.monthly);
+      if (data.weekly) saveWeeklyLocalAll(data.weekly);
       alert('✅ 설정을 가져왔습니다. 새로고침 권장.');
       renderMemberTabs();
       renderTeamMgmtList();
