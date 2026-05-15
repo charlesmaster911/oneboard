@@ -2699,6 +2699,14 @@ function showMinutesDoc(m) {
     viewer.appendChild(att);
   }
 
+  // 📌 요약 박스 (있을 때만)
+  if (m.summary && m.summary.trim()) {
+    const sb = document.createElement('div'); sb.className = 'minutes-summary-block';
+    const st = document.createElement('div'); st.className = 'minutes-summary-title'; st.textContent = '📌 요약';
+    const sp = document.createElement('p'); sp.className = 'minutes-summary-text'; sp.textContent = m.summary.trim();
+    sb.appendChild(st); sb.appendChild(sp); viewer.appendChild(sb);
+  }
+
   const directives=m.directives?m.directives.trim().split('\n').filter(Boolean):[];
   if (directives.length) {
     const block=document.createElement('div'); block.className='minutes-directive-block';
@@ -2742,9 +2750,47 @@ function showMinutesDoc(m) {
   if (m.content) {
     const cb=document.createElement('div'); cb.className='minutes-content-block';
     const h3=document.createElement('h3'); h3.textContent='논의 내용';
-    const p=document.createElement('p'); p.textContent=m.content;
-    cb.appendChild(h3); cb.appendChild(p); viewer.appendChild(cb);
+    cb.appendChild(h3);
+    renderDiscussionContent(cb, m.content);
+    viewer.appendChild(cb);
   }
+}
+
+// 논의 내용을 "숫자. " 패턴 기반으로 항목 분리해서 가독성 ↑
+// XSS 안전: textContent만 사용, innerHTML 금지
+function renderDiscussionContent(container, raw) {
+  const text = String(raw || '').trim();
+  if (!text) return;
+
+  // 1) "숫자. " 직전에 줄바꿈 강제 삽입 (한 덩어리 텍스트 대응)
+  //    이미 줄바꿈이 있으면 그대로
+  const normalized = text.replace(/([^\n])\s*(?=\d+\.\s)/g, '$1\n');
+
+  // 2) "숫자. " 시작 패턴을 기준으로 split
+  const parts = normalized.split(/\n(?=\d+\.\s)/);
+
+  parts.forEach(part => {
+    const piece = part.trim();
+    if (!piece) return;
+
+    const m = piece.match(/^(\d+)\.\s+([\s\S]*)$/);
+    const row = document.createElement('div');
+    if (m) {
+      row.className = 'discussion-item';
+      const num = document.createElement('span');
+      num.className = 'discussion-num';
+      num.textContent = `${m[1]}.`;
+      const body = document.createElement('span');
+      body.className = 'discussion-text';
+      body.textContent = m[2].trim();
+      row.appendChild(num);
+      row.appendChild(body);
+    } else {
+      row.className = 'discussion-intro';
+      row.textContent = piece;
+    }
+    container.appendChild(row);
+  });
 }
 
 // 목록 카드의 배지·카운터만 갱신 (활성 상태 유지)
@@ -2860,13 +2906,14 @@ function bindMinutesEvents() {
     if (!title) { alert('회의 제목을 입력하세요'); return; }
     const saveBtn = document.getElementById('saveMinutes');
     saveBtn.disabled = true;
-    saveBtn.textContent = 'AI 분석 중...';
+    saveBtn.textContent = '저장 중…';
     const dateInput = document.getElementById('minutesDate')?.value;
     const meetingDate = dateInput || toYMD(new Date());
     const result = await createMinutes({ date: meetingDate, title,
       attendees: document.getElementById('minutesAttendees')?.value.trim() || '',
-      directives:document.getElementById('minutesDirectives')?.value.trim()||'',
-      content:document.getElementById('minutesContent')?.value.trim()||'' });
+      summary:   document.getElementById('minutesSummary')?.value.trim()    || '',
+      directives:document.getElementById('minutesDirectives')?.value.trim() || '',
+      content:   document.getElementById('minutesContent')?.value.trim()    || '' });
     saveBtn.disabled = false;
     saveBtn.textContent = '저장';
     closeModal();

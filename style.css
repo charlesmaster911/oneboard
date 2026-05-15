@@ -676,7 +676,72 @@ body {
   flex-shrink: 0;
 }
 .minutes-content-block { font-size: 14px; color: var(--text-2); line-height: 1.7; }
-.minutes-content-block h3 { font-size: 14px; font-weight: 700; color: var(--text-1); margin: 16px 0 6px; }
+.minutes-content-block h3 { font-size: 14px; font-weight: 700; color: var(--text-1); margin: 16px 0 10px; }
+
+/* 📌 요약 박스 (지시사항 박스 위에 표시) */
+.minutes-summary-block {
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-left: 4px solid #3B82F6;
+  border-radius: var(--r-sm);
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+.minutes-summary-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1D4ED8;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 8px;
+}
+.minutes-summary-text {
+  font-size: 14px;
+  color: var(--text-1);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+/* 논의 내용 — 숫자 항목 분리 */
+.discussion-intro {
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.7;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+}
+.discussion-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  font-size: 14px;
+  color: var(--text-1);
+  line-height: 1.7;
+  border-bottom: 1px solid #E5E7EB;
+}
+.discussion-item:last-child { border-bottom: none; }
+.discussion-num {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  background: #F1F5F9;
+  color: #475569;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.discussion-text {
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 /* ── Modal ── */
 .modal-overlay {

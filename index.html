@@ -495,12 +495,16 @@
               <input type="text" class="form-input" id="minutesAttendees" placeholder="예) 찰스 이한수 권나경 권수지">
             </div>
             <div class="form-group">
-              <label class="form-label">지시사항 (줄바꿈으로 구분 — 각 항목이 체크박스로 추적됩니다)</label>
+              <label class="form-label">📌 요약 (회의 핵심 3~5줄 — 상단에 박스로 표시됩니다)</label>
+              <textarea class="form-textarea" id="minutesSummary" rows="3" placeholder="예) 이번 주 META 광고 효율 점검. 쿠팡 로켓그로스 품절 대응. 신규 콘텐츠 캘린더 확정."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">✅ 지시사항 (줄바꿈으로 구분 — 각 항목이 체크박스로 추적됩니다)</label>
               <textarea class="form-textarea" id="minutesDirectives" rows="4" placeholder="1. 이번 주 META 광고 예산 20% 증가&#10;2. 쿠팡 상품 리뷰 대응 완료&#10;3. 콘텐츠 캘린더 다음 달 분 작성"></textarea>
             </div>
             <div class="form-group">
-              <label class="form-label">주요 논의 내용</label>
-              <textarea class="form-textarea" id="minutesContent" rows="4" placeholder="회의에서 논의된 주요 내용을 입력하세요"></textarea>
+              <label class="form-label">📝 주요 논의 내용 (번호 1. 2. 3. … 으로 항목을 나누면 자동으로 줄 분리되어 보입니다)</label>
+              <textarea class="form-textarea" id="minutesContent" rows="6" placeholder="1. 신임 팀장 환영 — 출근 시간 및 적응 기간 논의&#10;2. 업무 툴 및 시스템 자동화 — 잔디·Gemini·Onboard 연동&#10;3. 부서별 주간 업무 계획 — 마케팅·물류·운영 별 점검"></textarea>
             </div>
           </div>
           <div class="modal-footer">
