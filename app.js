@@ -3443,26 +3443,23 @@ async function renderWeeklyPanel(memberId) {
 }
 
 function bindMonthlyWeeklyEvents() {
-  document.getElementById('monthlyPrev')?.addEventListener('click', () => {
-    monthlyViewYM = shiftYM(monthlyViewYM, -1);
-    if (currentMemberTab !== '통합') renderMonthlyPanel(currentMemberTab);
-  });
-  document.getElementById('monthlyNext')?.addEventListener('click', () => {
-    monthlyViewYM = shiftYM(monthlyViewYM, 1);
-    if (currentMemberTab !== '통합') renderMonthlyPanel(currentMemberTab);
-  });
+  const bindNav = (btnId, kind, delta) => {
+    document.getElementById(btnId)?.addEventListener('click', () => {
+      if (kind === 'monthly') monthlyViewYM = shiftYM(monthlyViewYM, delta);
+      else                    weeklyViewYM  = shiftYM(weeklyViewYM,  delta);
+      if (currentMemberTab === '통합') return;
+      (kind === 'monthly' ? renderMonthlyPanel : renderWeeklyPanel)(currentMemberTab);
+    });
+  };
+  bindNav('monthlyPrev', 'monthly', -1);
+  bindNav('monthlyNext', 'monthly',  1);
+  bindNav('weeklyPrev',  'weekly',  -1);
+  bindNav('weeklyNext',  'weekly',   1);
+
   document.getElementById('monthlyAddRow')?.addEventListener('click', async () => {
     if (currentMemberTab === '통합') return;
     await addMonthlyRow(currentMemberTab, monthlyViewYM);
     renderMonthlyPanel(currentMemberTab);
-  });
-  document.getElementById('weeklyPrev')?.addEventListener('click', () => {
-    weeklyViewYM = shiftYM(weeklyViewYM, -1);
-    if (currentMemberTab !== '통합') renderWeeklyPanel(currentMemberTab);
-  });
-  document.getElementById('weeklyNext')?.addEventListener('click', () => {
-    weeklyViewYM = shiftYM(weeklyViewYM, 1);
-    if (currentMemberTab !== '통합') renderWeeklyPanel(currentMemberTab);
   });
 }
 
