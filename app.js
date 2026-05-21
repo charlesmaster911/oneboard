@@ -1482,6 +1482,8 @@ async function fetchTeamTasks(from, to) {
       cells.push(cur);
       return cells;
     });
+    // 중복 제거: (date|who|task) 키 기준 첫 행만 유지 (Sheet 직접 입력 시 발생할 수 있는 중복 방지)
+    const seen = new Set();
     sheetTasks = rows
       .filter(r => r[0] && r[1] && r[2]) // date, who, task 필수
       .map((r, i) => ({
@@ -1493,7 +1495,13 @@ async function fetchTeamTasks(from, to) {
         priority: r[4]?.trim() || '보통',
         memo: r[5]?.trim() || '',
         _origin: 'sheet',
-      }));
+      }))
+      .filter(t => {
+        const key = `${t.date}|${t.who}|${t.task}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     dataSourceStatus = 'sheets';
   } catch (e) {
     console.warn('[OneBoard] 팀 업무 Sheets fetch 실패:', e.message);
