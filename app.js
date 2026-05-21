@@ -96,6 +96,33 @@ const SHEET_TEAM_TASKS_ID = '1uktRhUEvxQCodwGxSSR9LXlVlfUFpESyfktUUTTZ7EQ';
 const SHEET_TEAM_TASKS_GID = 0;
 const SHEET_TEAM_TASKS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_TEAM_TASKS_ID}/edit#gid=${SHEET_TEAM_TASKS_GID}`;
 
+// 양방향 동기화 — Google Apps Script Web App (#OB-DRIVE-001 후속)
+// URL은 Charles 배포 후 교체. window.APPS_SCRIPT_URL로 override 가능.
+const APPS_SCRIPT_URL = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbyP_LxhfcmOPCHOz8YfIL1uVlNgTiSKMWYAlU7qXJLeD9I7JSoGKrRer9py0ljtpRTo/exec';
+const APPS_SCRIPT_TOKEN = 'JEWELICE_OB_2026_xK7m9pQ2';
+
+async function syncToSheet(action, body) {
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('PLACEHOLDER')) {
+    return { ok: false, reason: 'apps_script_not_deployed' };
+  }
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // CORS preflight 회피
+      body: JSON.stringify({ token: APPS_SCRIPT_TOKEN, action, ...body }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return data;
+  } catch (e) {
+    console.warn('[OneBoard] Apps Script sync 실패:', e.message);
+    return { ok: false, reason: e.message };
+  }
+}
+
+function teamTaskKey(t) {
+  return `${t.date}|${t.who}|${t.task}`;
+}
+
 // 시트 gid — 채널별 분리 시트
 const SHEET_GIDS = {
   main:          0,           // 메인 (통합/자사몰/META/네이버 스마트스토어 등)
@@ -1511,30 +1538,49 @@ function refreshStatusBadge() {
   }
 }
 
-// 2026-05-21 OneBoard 백엔드 폐기 → 입력은 Google Sheets에 직접.
-// localStorage fallback은 유지 (개인 임시 메모용).
+// 2026-05-21 OneBoard 양방향 동기화 (#OB-DRIVE-001) — Apps Script Web App 경유
+// 성공: Sheets에 row 추가/수정/삭제 → CSV 캐시 무효화 → 다음 fetch 자동 반영
+// 실패: localStorage fallback (이 브라우저에만 임시 저장)
 async function createTask(payload) {
+  const sync = await syncToSheet('create', payload);
+  if (sync.ok) {
+    rawCSVByGid = {}; // CSV 캐시 무효화 → 다음 fetchTeamTasks 호출 시 Sheets에서 새로 가져옴
+    return { id: `sheet-pending-${Date.now()}`, ...payload, _origin: 'sheet' };
+  }
+  // Apps Script 미배포 또는 실패 → localStorage fallback
   const local = loadLocalTasks();
   const t = { id:`local-${Date.now()}`, ...payload };
   local.push(t);
   saveLocalTasks(local);
-  // Sheets 직접 입력 안내 (한 번만 표시)
-  if (!sessionStorage.getItem('oneboard_sheets_notice_shown')) {
-    sessionStorage.setItem('oneboard_sheets_notice_shown', '1');
+  if (sync.reason === 'apps_script_not_deployed' && !sessionStorage.getItem('oneboard_apps_script_notice_shown')) {
+    sessionStorage.setItem('oneboard_apps_script_notice_shown', '1');
     setTimeout(() => alert(
-      '✏️ 팀 업무는 Google Sheets에서 직접 입력하시면 모든 팀원이 함께 봅니다.\n\n' +
-      '여기 OneBoard에서 입력하신 내용은 이 브라우저에만 임시 저장됩니다.\n\n' +
-      `📊 Sheets 열기: ${SHEET_TEAM_TASKS_URL}`
+      '⚠️ Apps Script 양방향 동기화가 아직 배포되지 않았습니다.\n\n' +
+      '입력하신 내용은 이 브라우저에만 임시 저장됩니다.\n' +
+      'Sheets에 직접 입력하시려면 아래 링크를 사용하세요:\n\n' +
+      SHEET_TEAM_TASKS_URL
     ), 100);
   }
   return t;
 }
 
 async function updateTask(id, patch) {
+  // sheet/preset/sheet-pending 항목 → Apps Script로 patch 전송 (key 기반)
+  if (id.startsWith('sheet-') || id.startsWith('preset-')) {
+    const src = teamTasks.find(t => t.id === id);
+    if (src) {
+      const key = teamTaskKey(src);
+      const sync = await syncToSheet('update', { key, patch });
+      if (sync.ok) {
+        rawCSVByGid = {};
+        return;
+      }
+    }
+  }
+  // local 또는 sync 실패 → localStorage
   const local = loadLocalTasks();
   const idx = local.findIndex(t => t.id===id);
   if (idx>=0) { local[idx]={...local[idx],...patch}; saveLocalTasks(local); return; }
-  // sheet/preset task → add updated version to local
   if (id.startsWith('sheet-') || id.startsWith('preset-')) {
     const src = id.startsWith('sheet-')
       ? teamTasks.find(t => t.id === id)
@@ -1549,11 +1595,24 @@ async function updateTask(id, patch) {
 }
 
 async function deleteTask(id) {
+  // sheet 항목 → Apps Script로 delete (key 기반)
+  if (id.startsWith('sheet-')) {
+    const src = teamTasks.find(t => t.id === id);
+    if (src) {
+      const sync = await syncToSheet('delete', { key: teamTaskKey(src) });
+      if (sync.ok) {
+        rawCSVByGid = {};
+        teamTasks = teamTasks.filter(t=>t.id!==id);
+        renderMonthCalendar();
+        return;
+      }
+    }
+  }
   if (id.startsWith('local-')) {
     const local = loadLocalTasks().filter(t=>t.id!==id);
     saveLocalTasks(local);
   }
-  // sheet/preset 항목은 Sheets에서 직접 삭제해야 함 (화면에서만 숨김)
+  // preset 항목은 그냥 화면에서 숨김
   teamTasks = teamTasks.filter(t=>t.id!==id);
   renderMonthCalendar();
 }
