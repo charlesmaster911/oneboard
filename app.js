@@ -101,6 +101,35 @@ const SHEET_TEAM_TASKS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_TEA
 const APPS_SCRIPT_URL = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbyP_LxhfcmOPCHOz8YfIL1uVlNgTiSKMWYAlU7qXJLeD9I7JSoGKrRer9py0ljtpRTo/exec';
 const APPS_SCRIPT_TOKEN = 'JEWELICE_OB_2026_xK7m9pQ2';
 
+// 회의록 시트 (2026-05-21 추가 — OneBoard 백엔드 폐기 후 동적 fetch)
+const SHEET_MINUTES_ID = '13yy1MtUhXNg4MEG6qL9lJogIDNdouXqQzv8mkUp2Kkk';
+const SHEET_MINUTES_GID = 1125757148;
+const SHEET_MINUTES_URL = `https://docs.google.com/spreadsheets/d/${SHEET_MINUTES_ID}/edit#gid=${SHEET_MINUTES_GID}`;
+
+// CSV 멀티라인 파서 (회의록 시트는 한 셀에 markdown 보고서 박힘)
+function parseCSVMultiline(text) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuote) {
+      if (ch === '"' && text[i+1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') inQuote = false;
+      else cell += ch;
+    } else {
+      if (ch === '"') inQuote = true;
+      else if (ch === ',') { row.push(cell); cell = ''; }
+      else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+      else if (ch === '\r') {}
+      else cell += ch;
+    }
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+
 async function syncToSheet(action, body) {
   if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('PLACEHOLDER')) {
     return { ok: false, reason: 'apps_script_not_deployed' };
@@ -1662,33 +1691,51 @@ function autoStatusFromStates(m) {
 
 async function fetchMinutes() {
   let raw;
-  let dbList = [];
-  let dbAvailable = false;
+  let sheetList = [];
+  // 2026-05-21 #OB-DRIVE-001 — 회의록도 동적 fetch (sheet 13yy1MtUh gid=1125757148)
   try {
-    const data = await apiFetch('/team/minutes');
-    dbList = data.minutes.map(m => ({
-      id: m.id,
-      date: m.date?.slice(0,10),
-      title: m.title,
-      directives: m.directives,
-      content: m.content,
-      attendees: m.attendees,
-      status: m.status || '진행',
-      directive_states: Array.isArray(m.directive_states) ? m.directive_states : [],
-      _origin: 'db',
-    }));
-    dbAvailable = true;
-  } catch {
-    dbAvailable = false;
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_MINUTES_ID}/export?format=csv&gid=${SHEET_MINUTES_GID}`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const csv = await res.text();
+      const rows = parseCSVMultiline(csv);
+      for (const r of rows) {
+        // date 컬럼: "2026.05.15(금)" 형식만 회의록 row로 인식
+        const dateRaw = (r[0] || '').trim();
+        if (!/^\d{4}\.\d{2}\.\d{2}/.test(dateRaw)) continue;
+        const content = (r[1] || '').trim();
+        if (!content) continue;
+        // "2026.05.15(금)" → "2026-05-15"
+        const dateIso = dateRaw.slice(0, 10).replace(/\./g, '-');
+        // title = content 첫 줄 (60자)
+        const firstLine = content.split('\n')[0].trim();
+        const title = firstLine.slice(0, 60) || '회의록';
+        // attendees = col 2 (있으면)
+        const attendees = (r[2] || '').trim();
+        sheetList.push({
+          id: `sheet-min-${dateIso}-${title.slice(0, 20).replace(/\s+/g, '_')}`,
+          date: dateIso,
+          title,
+          content,
+          attendees,
+          directives: '',
+          status: '진행',
+          directive_states: [],
+          _origin: 'sheet',
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('[OneBoard] 회의록 시트 fetch 실패:', e.message);
   }
-  // PRESET + local + DB 머지 — date+title 키 기준 DB 우선
+  // sheet + PRESET + local 머지 — date+title(40자) 키 기준 sheet 우선
   const local = loadMinutesLocal();
   const presetList = [...MINUTES_PRESET, ...local].map(m => ({ ...m, _origin: m._origin || 'preset' }));
   const keyOf = (m) => `${m.date}::${(m.title || '').slice(0, 40)}`;
-  const dbKeys = new Set(dbList.map(keyOf));
-  const merged = [...dbList];
+  const sheetKeys = new Set(sheetList.map(keyOf));
+  const merged = [...sheetList];
   for (const p of presetList) {
-    if (!dbKeys.has(keyOf(p))) merged.push(p);
+    if (!sheetKeys.has(keyOf(p))) merged.push(p);
   }
   merged.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   raw = merged;
@@ -1708,35 +1755,28 @@ async function fetchMinutes() {
 }
 
 async function patchMinute(id, patch, origin) {
-  // DB 회의록 → API PATCH, preset/local → localStorage
-  if (origin === 'db') {
-    try {
-      await apiFetch(`/team/minutes/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(patch),
-      });
-      return true;
-    } catch (err) {
-      console.warn('[minutes] PATCH 실패, localStorage fallback', err);
-      setMinuteStateLocal(id, patch);
-      return false;
-    }
-  }
+  // 2026-05-21 백엔드 폐기 → 모두 localStorage 상태로 (sheet/preset/local 동일)
+  // Sheet 회의록 자체 수정은 권수지·이한수가 시트에 직접 (양방향 sync는 별도 Apps Script 필요)
   setMinuteStateLocal(id, patch);
   return true;
 }
 
 async function createMinutes(payload) {
-  try {
-    const data = await apiFetch('/team/minutes', { method:'POST', body:JSON.stringify(payload) });
-    return { minutes: data.minutes, autoCount: data.auto_tasks_count || 0, autoTasks: data.auto_tasks || [] };
-  } catch {
-    const list = loadMinutesLocal();
-    const m = { id:`local-${Date.now()}`, ...payload };
-    list.unshift(m);
-    saveMinutesLocal(list);
-    return { minutes: m, autoCount: 0, autoTasks: [] };
+  // 백엔드 폐기 → localStorage. 회의록 본문은 시트에서 직접 작성하시는 게 권장.
+  const list = loadMinutesLocal();
+  const m = { id:`local-${Date.now()}`, ...payload };
+  list.unshift(m);
+  saveMinutesLocal(list);
+  // 첫 회 안내
+  if (!sessionStorage.getItem('oneboard_minutes_notice_shown')) {
+    sessionStorage.setItem('oneboard_minutes_notice_shown', '1');
+    setTimeout(() => alert(
+      '✏️ 회의록 본문은 Google Sheets에 직접 작성하시면 OneBoard 화면에 자동 반영됩니다.\n\n' +
+      '여기 OneBoard에서 작성하신 회의록은 이 브라우저에만 임시 저장됩니다.\n\n' +
+      `📋 회의록 시트 열기: ${SHEET_MINUTES_URL}`
+    ), 100);
   }
+  return { minutes: m, autoCount: 0, autoTasks: [] };
 }
 
 // ── 날짜 유틸 ────────────────────────────────────────────────
