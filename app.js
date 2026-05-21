@@ -90,6 +90,12 @@ async function refreshAuthUI() {
 
 const SHEET_ID = '11byYTuUleS-kq3idS4e0Mgt368FssfnrHchyalHPuRI';
 
+// 팀 업무 매뉴얼 시트 (2026-05-21 OneBoard 백엔드 폐기 → Google Drive 100% 전환)
+// 컬럼: date, who, task, status, priority, memo
+const SHEET_TEAM_TASKS_ID = '1uktRhUEvxQCodwGxSSR9LXlVlfUFpESyfktUUTTZ7EQ';
+const SHEET_TEAM_TASKS_GID = 0;
+const SHEET_TEAM_TASKS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_TEAM_TASKS_ID}/edit#gid=${SHEET_TEAM_TASKS_GID}`;
+
 // 시트 gid — 채널별 분리 시트
 const SHEET_GIDS = {
   main:          0,           // 메인 (통합/자사몰/META/네이버 스마트스토어 등)
@@ -1426,34 +1432,61 @@ async function apiFetch(path, opts = {}) {
 // 저장 상태 추적 (헤더 배지에 표시)
 let dataSourceStatus = 'unknown'; // 'db' | 'local' | 'unknown'
 
+// 2026-05-21 OneBoard 백엔드 폐기 (#OB-SUSPEND-001 / #OB-DRIVE-001) →
+// 팀 업무 데이터 소스를 Google Sheets로 전환. 백엔드 호출 제거.
 async function fetchTeamTasks(from, to) {
-  let dbTasks = null;
+  let sheetTasks = null;
   try {
-    const data = await apiFetch(`/team/tasks?from=${from}&to=${to}`);
-    dbTasks = data.tasks.map(t => ({
-      id: t.id, date: t.date?.slice(0,10), who: t.assignee,
-      task: t.task, status: t.status, priority: t.priority, memo: t.memo||'',
-      _origin: 'db',
-    }));
-    dataSourceStatus = 'db';
-  } catch {
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_TEAM_TASKS_ID}/export?format=csv&gid=${SHEET_TEAM_TASKS_GID}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const csv = await res.text();
+    const lines = csv.trim().split('\n').filter(l => l);
+    const rows = lines.slice(1).map(line => {
+      // CSV 단순 파싱 (쉼표 분리 + 따옴표 처리)
+      const cells = [];
+      let cur = '', inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { inQ = !inQ; continue; }
+        if (ch === ',' && !inQ) { cells.push(cur); cur = ''; continue; }
+        cur += ch;
+      }
+      cells.push(cur);
+      return cells;
+    });
+    sheetTasks = rows
+      .filter(r => r[0] && r[1] && r[2]) // date, who, task 필수
+      .map((r, i) => ({
+        id: `sheet-${i}`,
+        date: r[0].trim(),
+        who: r[1].trim(),
+        task: r[2].trim(),
+        status: r[3]?.trim() || '대기',
+        priority: r[4]?.trim() || '보통',
+        memo: r[5]?.trim() || '',
+        _origin: 'sheet',
+      }));
+    dataSourceStatus = 'sheets';
+  } catch (e) {
+    console.warn('[OneBoard] 팀 업무 Sheets fetch 실패:', e.message);
     dataSourceStatus = 'local';
   }
 
-  // DB 성공: DB tasks + (DB에 없는) PRESET ghost + localStorage 잔여
-  if (dbTasks) {
-    const dbKeys = new Set(dbTasks.map(t => `${t.date}|${t.who}|${t.task}`));
+  // Sheets 성공: Sheets tasks + (Sheets에 없는) PRESET ghost + localStorage 잔여
+  if (sheetTasks) {
+    const sheetKeys = new Set(sheetTasks.map(t => `${t.date}|${t.who}|${t.task}`));
     const presetGhost = SHEET_TASKS_PRESET
-      .filter(t => !dbKeys.has(`${t.date}|${t.who}|${t.task}`))
+      .filter(t => !sheetKeys.has(`${t.date}|${t.who}|${t.task}`))
       .map((t,i) => ({ id:`preset-${i}`, ...t, memo:'', _origin:'preset_ghost' }));
     const local = loadLocalTasks()
       .map(t => ({ ...t, _origin: 'local' }))
-      .filter(t => !dbKeys.has(`${t.date}|${t.who}|${t.task}`));
-    const merged = [...dbTasks, ...presetGhost, ...local];
+      .filter(t => !sheetKeys.has(`${t.date}|${t.who}|${t.task}`));
+    const merged = [...sheetTasks, ...presetGhost, ...local];
     return merged.filter(t => (!from||t.date>=from) && (!to||t.date<=to));
   }
 
-  // DB 실패: PRESET + localStorage
+  // Sheets 실패: PRESET + localStorage
   const local = loadLocalTasks().map(t => ({ ...t, _origin: 'local' }));
   const preset = SHEET_TASKS_PRESET.map((t,i) => ({ id:`preset-${i}`, ...t, memo:'', _origin:'preset_ghost' }));
   const all = [...preset, ...local];
@@ -1463,13 +1496,14 @@ async function fetchTeamTasks(from, to) {
 function refreshStatusBadge() {
   const el = document.getElementById('dataStatusBadge');
   if (!el) return;
-  if (dataSourceStatus === 'db') {
-    el.textContent = '💾 백엔드 저장 중';
-    el.title = '입력하시는 모든 데이터가 Render PostgreSQL에 영구 저장됩니다.';
-    el.style.cssText = 'background:#D1FAE5;color:#065F46;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;';
+  if (dataSourceStatus === 'sheets') {
+    el.textContent = '📊 Google Sheets 동기화';
+    el.title = `팀 업무 데이터는 Google Sheets에서 직접 관리됩니다.\n입력은 Sheets에서: ${SHEET_TEAM_TASKS_URL}`;
+    el.style.cssText = 'background:#DBEAFE;color:#1E40AF;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;cursor:pointer;';
+    el.onclick = () => window.open(SHEET_TEAM_TASKS_URL, '_blank');
   } else if (dataSourceStatus === 'local') {
-    el.textContent = '⚠ 로컬 임시저장 (백엔드 연결 끊김)';
-    el.title = '백엔드 연결 실패 — 데이터가 이 브라우저에만 저장됩니다.';
+    el.textContent = '⚠ 로컬 임시저장 (Sheets 연결 실패)';
+    el.title = 'Google Sheets fetch 실패 — 데이터가 이 브라우저에만 저장됩니다.';
     el.style.cssText = 'background:#FEE2E2;color:#991B1B;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;';
   } else {
     el.textContent = '… 확인 중';
@@ -1477,34 +1511,36 @@ function refreshStatusBadge() {
   }
 }
 
+// 2026-05-21 OneBoard 백엔드 폐기 → 입력은 Google Sheets에 직접.
+// localStorage fallback은 유지 (개인 임시 메모용).
 async function createTask(payload) {
-  try {
-    const data = await apiFetch('/team/tasks', { method:'POST', body: JSON.stringify({
-      date:payload.date, assignee:payload.who, task:payload.task,
-      status:payload.status, priority:payload.priority, memo:payload.memo,
-    })});
-    return { id:data.task.id, date:data.task.date?.slice(0,10), who:data.task.assignee,
-      task:data.task.task, status:data.task.status, priority:data.task.priority, memo:data.task.memo||'' };
-  } catch {
-    const local = loadLocalTasks();
-    const t = { id:`local-${Date.now()}`, ...payload };
-    local.push(t);
-    saveLocalTasks(local);
-    return t;
+  const local = loadLocalTasks();
+  const t = { id:`local-${Date.now()}`, ...payload };
+  local.push(t);
+  saveLocalTasks(local);
+  // Sheets 직접 입력 안내 (한 번만 표시)
+  if (!sessionStorage.getItem('oneboard_sheets_notice_shown')) {
+    sessionStorage.setItem('oneboard_sheets_notice_shown', '1');
+    setTimeout(() => alert(
+      '✏️ 팀 업무는 Google Sheets에서 직접 입력하시면 모든 팀원이 함께 봅니다.\n\n' +
+      '여기 OneBoard에서 입력하신 내용은 이 브라우저에만 임시 저장됩니다.\n\n' +
+      `📊 Sheets 열기: ${SHEET_TEAM_TASKS_URL}`
+    ), 100);
   }
+  return t;
 }
 
 async function updateTask(id, patch) {
-  try {
-    await apiFetch(`/team/tasks/${id}`, { method:'PATCH', body:JSON.stringify(patch) });
-  } catch {
-    const local = loadLocalTasks();
-    const idx = local.findIndex(t => t.id===id);
-    if (idx>=0) { local[idx]={...local[idx],...patch}; saveLocalTasks(local); }
-    // preset task → add updated version to local
-    const preset = SHEET_TASKS_PRESET.find((_,i)=>`preset-${i}`===id);
-    if (preset) {
-      const updated = {...preset, id:`local-${Date.now()}`, ...patch};
+  const local = loadLocalTasks();
+  const idx = local.findIndex(t => t.id===id);
+  if (idx>=0) { local[idx]={...local[idx],...patch}; saveLocalTasks(local); return; }
+  // sheet/preset task → add updated version to local
+  if (id.startsWith('sheet-') || id.startsWith('preset-')) {
+    const src = id.startsWith('sheet-')
+      ? teamTasks.find(t => t.id === id)
+      : SHEET_TASKS_PRESET.find((_,i)=>`preset-${i}`===id);
+    if (src) {
+      const updated = {...src, id:`local-${Date.now()}`, ...patch};
       const newLocal = loadLocalTasks().filter(t=>t.id!==id);
       newLocal.push(updated);
       saveLocalTasks(newLocal);
@@ -1513,13 +1549,11 @@ async function updateTask(id, patch) {
 }
 
 async function deleteTask(id) {
-  if (!id.startsWith('preset-')) {
-    try { await apiFetch(`/team/tasks/${id}`, { method:'DELETE' }); }
-    catch {
-      const local = loadLocalTasks().filter(t=>t.id!==id);
-      saveLocalTasks(local);
-    }
+  if (id.startsWith('local-')) {
+    const local = loadLocalTasks().filter(t=>t.id!==id);
+    saveLocalTasks(local);
   }
+  // sheet/preset 항목은 Sheets에서 직접 삭제해야 함 (화면에서만 숨김)
   teamTasks = teamTasks.filter(t=>t.id!==id);
   renderMonthCalendar();
 }
