@@ -3789,19 +3789,10 @@ function bindManualEvents() {
 // ── 설정 ─────────────────────────────────────────────────────
 const SETTINGS_PASSWORD = 'JEWELICE';
 
+// 2026-05-21 #OB-DRIVE-001: 카페24·쿠팡·META·네이버광고·카카오 API 자동 연동 영구 폐기.
+// Drive 자동 머지 안내 1장만 유지. Charles "여기도 불필요한거 없애줘" 정합 단순화.
 const CHANNEL_KEYS_DEF = [
-  // ── Drive 자동 머지 안내 (마스터 카드) ──
-  { id:'drive_sync',        name:'📂 매일 수동 입력 — Google Drive 자동 머지', keys:['ezadmin: 보류'], doc:'권수지 대리 폴더 → oneboard-daily-upload/', group:'master', desc:'매일 오전 권수지 대리가 쿠팡·META 등 자동 안 되는 채널을 Drive 폴더에 박으면 서버가 9:30부터 30분마다 자동 가져가 매출·광고에 머지합니다. OneBoard 화면에서 별도 클릭 작업 없음.' },
-  // ── 매출 ──
-  { id:'cafe24',            name:'🛒 카페24 (자사몰)',          keys:['mall_id','client_id','client_secret','access_token','refresh_token'], doc:'developers.cafe24.com', group:'sales' },
-  { id:'smartstore',        name:'🟢 네이버 스마트스토어',      keys:['client_id','client_secret'],                                          doc:'apicenter.commerce.naver.com', group:'sales' },
-  { id:'coupang_hanbando',  name:'🛍️ 쿠팡 한반도 (듀오)',       keys:['access_key','secret_key','vendor_id'],                                doc:'wing.coupang.com', group:'sales' },
-  { id:'coupang_nemochip',  name:'🛍️ 쿠팡 네모칩 (아블러)',     keys:['access_key','secret_key','vendor_id'],                                doc:'wing.coupang.com', group:'sales' },
-  { id:'kakao_biz',         name:'💛 카카오 비즈메시지 (알림톡)', keys:['rest_api_key','sender_key'],                                          doc:'business.kakao.com', group:'sales' },
-  // ── 광고 ──
-  { id:'meta',              name:'📘 META (페이스북/인스타)',    keys:['app_id','app_secret','access_token','ad_account_id'],                 doc:'developers.facebook.com', group:'ads' },
-  { id:'naver_ad',          name:'🟢 네이버 검색광고',           keys:['api_key','secret_key','customer_id'],                                 doc:'searchad.naver.com', group:'ads' },
-  { id:'kakao',             name:'💛 카카오모먼트',              keys:['access_token','ad_account_id'],                                       doc:'moment.kakao.com', group:'ads' },
+  { id:'drive_sync',        name:'📂 매일 수동 입력 — Google Drive 자동 머지', keys:['—'], doc:'권수지 대리 폴더 → oneboard-daily-upload/', group:'master', desc:'매일 오전 권수지 대리가 쿠팡·META 등 자동 안 되는 채널을 Drive 폴더에 박으면 서버가 9:30부터 30분마다 자동 가져가 매출·광고에 머지합니다. OneBoard 화면에서 별도 클릭 작업 없음.' },
 ];
 
 function isSettingsUnlocked() {
