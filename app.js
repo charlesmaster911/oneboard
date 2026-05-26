@@ -1694,7 +1694,34 @@ function autoStatusFromStates(m) {
 async function fetchMinutes() {
   let raw;
   let sheetList = [];
-  // 2026-05-21 #OB-DRIVE-001 — 회의록도 동적 fetch (sheet 13yy1MtUh gid=1125757148)
+
+  // 2026-05-26 #OB-MW-001 후속 — 신규: OneBoard 팀 업무 매뉴얼 spreadsheet의 `minutes` 시트
+  // 컬럼: date | title | attendees | summary | directives | content | id
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_TEAM_TASKS_ID}/gviz/tq?tqx=out:csv&sheet=minutes`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const csv = await res.text();
+      const rows = parseSimpleCSV(csv);
+      for (const r of rows) {
+        if (!r[0] || !r[1]) continue;
+        sheetList.push({
+          id: r[6] || `min-sheet-${r[0]}-${r[1].slice(0,20)}`,
+          date: r[0],
+          title: r[1],
+          attendees: r[2] || '',
+          summary: r[3] || '',
+          directives: r[4] || '',
+          content: r[5] || '',
+          status: '진행',
+          directive_states: [],
+          _origin: 'sheet_v2',
+        });
+      }
+    }
+  } catch (e) { console.warn('[OneBoard] minutes 신규 시트 fetch 실패:', e.message); }
+
+  // 2026-05-21 #OB-DRIVE-001 — Legacy: 별도 spreadsheet (회의록 기존 데이터)
   try {
     // 2026-05-26 #OB-CSV-FIX-001 — export?format=csv 익명 GET이 HTTP 400 → GViz API로 교체
     const url = `https://docs.google.com/spreadsheets/d/${SHEET_MINUTES_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_MINUTES_GID}`;
@@ -1765,11 +1792,22 @@ async function patchMinute(id, patch, origin) {
 }
 
 async function createMinutes(payload) {
-  // 백엔드 폐기 → localStorage. 회의록 본문은 시트에서 직접 작성하시는 게 권장.
+  // 2026-05-26 #OB-MW-001 후속 — Google Sheets `minutes` 시트 양방향 sync
   const list = loadMinutesLocal();
-  const m = { id:`local-${Date.now()}`, ...payload };
+  const id = `min-${Date.now()}-${Math.floor(Math.random()*10000)}`;
+  const m = { id, ...payload };
   list.unshift(m);
   saveMinutesLocal(list);
+  // Sheets POST (실패 시 localStorage 잔존 — 다음 fetch에서 머지)
+  await syncToSheet('minutes_create', {
+    id,
+    date: payload.date || '',
+    title: payload.title || '',
+    attendees: payload.attendees || '',
+    summary: payload.summary || '',
+    directives: payload.directives || '',
+    content: payload.content || '',
+  });
   // 첫 회 안내
   if (!sessionStorage.getItem('oneboard_minutes_notice_shown')) {
     sessionStorage.setItem('oneboard_minutes_notice_shown', '1');
