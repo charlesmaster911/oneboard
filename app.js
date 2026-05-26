@@ -185,19 +185,23 @@ const SHEET_GIDS = {
 const CHANNEL_COL_MAP = {
   // 메인 시트 (gid=0)
   '통합':           { gid: 0,           dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 4,  adCol: 5,  roasCol: 6,  adRatioCol: 8,    hasTraffic: true  },
-  '자사몰':         { gid: 0,           dateCol: 10, salesCol: 11, trafficCol: 12,   convCol: 13, adCol: 14, roasCol: 15, adRatioCol: 17,   hasTraffic: true  },
+  // 2026-05-26 #OB-SALES-FIX-004 — 자사몰 전용 시트(gid=1273644982) 매핑. 통합 시트(col 10-17)는 호환용 (별도 시트가 단순)
+  '자사몰':         { gid: 1273644982,  dateCol: 1,  salesCol: 7,  trafficCol: 2,    convCol: 9,  adCol: 8,  roasCol: null, adRatioCol: null, hasTraffic: true  },
   // 2026-05-26 #OB-SALES-FIX-003 — META 전용 시트(gid=140033998) 발견. 통합 시트 가짜 매핑 폐기.
   // 헤더(B~K): 날짜·노출수·클릭수·결과·CPC·클릭율·전환매출·전환율·광고비·ROAS
   'META':           { gid: 140033998,   dateCol: 1,  salesCol: 7,  trafficCol: 3,    convCol: 7,  adCol: 9,  roasCol: 10, adRatioCol: null, hasTraffic: true  },
-  '네이버':         { gid: 0,           dateCol: 47, salesCol: 48, trafficCol: 49,   convCol: 50, adCol: 51, roasCol: 52, adRatioCol: 53,   hasTraffic: true  },
+  // 2026-05-26 #OB-SALES-FIX-004 — 네이버 시트(gid=364317310)는 GFA광고+검색광고 두 영역 가로 배치
+  '네이버':         { gid: 364317310,   dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 9,  adCol: null, roasCol: null, adRatioCol: null, hasTraffic: true  },
+  '네이버_GFA':     { gid: 364317310,   dateCol: 1,  salesCol: 9,  trafficCol: 3,    convCol: 9,  adCol: 11, roasCol: 12, adRatioCol: null, hasTraffic: true  },
+  '네이버_검색광고':{ gid: 364317310,   dateCol: 14, salesCol: 20, trafficCol: 15,   convCol: 20, adCol: 22, roasCol: 23, adRatioCol: null, hasTraffic: true  },
   // 쿠팡 분리 시트 (gid=2052767088)
   '쿠팡_한반도':    { gid: 2052767088,  dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 9,  adCol: 11, roasCol: 12, adRatioCol: null, hasTraffic: true  },
   '쿠팡_네모칩':    { gid: 2052767088,  dateCol: 14, salesCol: 15, trafficCol: 16,   convCol: 22, adCol: 24, roasCol: 25, adRatioCol: null, hasTraffic: true  },
-  // 카카오 — 통합 시트(gid=0) 내 가로 블록 사용. 분리 시트(gid=1562400814)는 일자 컬럼 비어있어 파싱 불가
-  '카카오모먼트':   { gid: 0,           dateCol: 69, salesCol: 70, trafficCol: null, convCol: 72, adCol: 73, roasCol: 74, adRatioCol: 75,   hasTraffic: false },
-  '카카오_매출':    { gid: 0,           dateCol: 61, salesCol: 62, trafficCol: 63,   convCol: null, adCol: null, roasCol: 66, adRatioCol: 67, hasTraffic: true  },
-  // 네이버 검색광고 (gid=364317310)
-  '네이버_검색광고':{ gid: 364317310,   dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 9,  adCol: 11, roasCol: 12, adRatioCol: null, hasTraffic: true  },
+  // 카카오 — 진짜 카카오모먼트 시트(gid=1562400814): 좌측 모먼트 매출 + 우측 메세지 발송
+  '카카오모먼트':   { gid: 1562400814,  dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 2,  adCol: null, roasCol: null, adRatioCol: null, hasTraffic: true  },
+  '카카오_매출':    { gid: 1562400814,  dateCol: 14, salesCol: 20, trafficCol: 15,   convCol: 20, adCol: 21, roasCol: 22, adRatioCol: null, hasTraffic: true  },
+  // 2026-05-26 #OB-SALES-FIX-004 — 유튜브쇼핑 시트(gid=1763675428). 어쿠스틱(col 1-7) + 미스터위스키(col 9-15) 합산은 추후. 어쿠스틱만 매핑(미스터위스키 5월 0)
+  '유튜브쇼핑':     { gid: 1763675428,  dateCol: 1,  salesCol: 4,  trafficCol: 2,    convCol: 3,  adCol: 5,  roasCol: 6,  adRatioCol: null, hasTraffic: true  },
 };
 
 // 채널별 색상
