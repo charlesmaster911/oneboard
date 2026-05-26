@@ -313,7 +313,8 @@ function fmtDate(str) {
 // ─── Google Sheets CSV 패치 (다중 gid 캐시) ──────────────────
 async function fetchSheetCSV(gid = 0) {
   if (rawCSVByGid[gid]) return rawCSVByGid[gid];
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
+  // 2026-05-26 #OB-CSV-FIX-001 — export?format=csv 익명 GET이 HTTP 400 → GViz API로 교체
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} (gid=${gid})`);
   const text = await res.text();
@@ -1493,7 +1494,8 @@ let dataSourceStatus = 'unknown'; // 'db' | 'local' | 'unknown'
 async function fetchTeamTasks(from, to) {
   let sheetTasks = null;
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_TEAM_TASKS_ID}/export?format=csv&gid=${SHEET_TEAM_TASKS_GID}`;
+    // 2026-05-26 #OB-CSV-FIX-001 — export?format=csv 익명 GET이 HTTP 400 → GViz API로 교체
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_TEAM_TASKS_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_TEAM_TASKS_GID}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const csv = await res.text();
@@ -1694,7 +1696,8 @@ async function fetchMinutes() {
   let sheetList = [];
   // 2026-05-21 #OB-DRIVE-001 — 회의록도 동적 fetch (sheet 13yy1MtUh gid=1125757148)
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_MINUTES_ID}/export?format=csv&gid=${SHEET_MINUTES_GID}`;
+    // 2026-05-26 #OB-CSV-FIX-001 — export?format=csv 익명 GET이 HTTP 400 → GViz API로 교체
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_MINUTES_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_MINUTES_GID}`;
     const res = await fetch(url);
     if (res.ok) {
       const csv = await res.text();
