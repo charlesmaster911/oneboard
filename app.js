@@ -349,11 +349,11 @@ function parseSheetRows(csvText, channel = '통합') {
   const cols = CHANNEL_COL_MAP[channel] || CHANNEL_COL_MAP['통합'];
   const lines = csvText.trim().split('\n').filter(l => l);
 
-  // 헤더 행 찾기: dateCol 위치에 "날짜" 텍스트가 있는 행
+  // 2026-05-26 #OB-SALES-FIX-002 — Math.min(10,...) → lines.length 전체 검색
+  // 시트의 일별 데이터는 row 20+부터 시작하는데 10줄만 검색해서 dataStart=-1 → 0개 반환되던 root cause
   let dataStart = -1;
-  for (let i = 0; i < Math.min(10, lines.length); i++) {
+  for (let i = 0; i < lines.length; i++) {
     const v = parseCSVRow(lines[i]);
-    // 2026-05-26 #OB-SALES-FIX-001 — "날짜" 라벨 의존 X. dateCol에 YYYY-MM-DD 첫 발견 시 데이터 시작
     const cell = (v[cols.dateCol] || '').replace(/"/g, '').trim();
     if (cell === '날짜') { dataStart = i + 1; break; }
     if (/^\d{4}-\d{2}-\d{2}$/.test(cell)) { dataStart = i; break; }
