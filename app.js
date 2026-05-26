@@ -180,18 +180,20 @@ const SHEET_GIDS = {
  * [gid=364317310 네이버 검색광고]
  *  네이버_검색광고 col 1-12: 날짜, 전체매출, 유입, 노출, 클릭, CPC, CTR, 전환수, 전환매출, 전환율, 광고비, ROAS
  */
+// 2026-05-26 #OB-SALES-FIX-001 — Agent 분석 결과 반영 매핑 재확정
+// 변경 3건: ①네이버 dateCol 39→47 (39는 쿠팡_네모칩 거울) ②카카오모먼트·카카오_매출 gid 1562400814→0 (분리 시트엔 일자 없음)
 const CHANNEL_COL_MAP = {
   // 메인 시트 (gid=0)
   '통합':           { gid: 0,           dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 4,  adCol: 5,  roasCol: 6,  adRatioCol: 8,    hasTraffic: true  },
   '자사몰':         { gid: 0,           dateCol: 10, salesCol: 11, trafficCol: 12,   convCol: 13, adCol: 14, roasCol: 15, adRatioCol: 17,   hasTraffic: true  },
   'META':           { gid: 0,           dateCol: 19, salesCol: 20, trafficCol: null, convCol: 20, adCol: 21, roasCol: 22, adRatioCol: 23,   hasTraffic: false },
-  '네이버':         { gid: 0,           dateCol: 39, salesCol: 40, trafficCol: 41,   convCol: 42, adCol: 43, roasCol: 44, adRatioCol: 45,   hasTraffic: true  },
+  '네이버':         { gid: 0,           dateCol: 47, salesCol: 48, trafficCol: 49,   convCol: 50, adCol: 51, roasCol: 52, adRatioCol: 53,   hasTraffic: true  },
   // 쿠팡 분리 시트 (gid=2052767088)
   '쿠팡_한반도':    { gid: 2052767088,  dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 9,  adCol: 11, roasCol: 12, adRatioCol: null, hasTraffic: true  },
   '쿠팡_네모칩':    { gid: 2052767088,  dateCol: 14, salesCol: 15, trafficCol: 16,   convCol: 22, adCol: 24, roasCol: 25, adRatioCol: null, hasTraffic: true  },
-  // 카카오 시트 (gid=1562400814)
-  '카카오모먼트':   { gid: 1562400814,  dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 9,  adCol: 11, roasCol: 12, adRatioCol: null, hasTraffic: true  },
-  '카카오_매출':    { gid: 1562400814,  dateCol: 14, salesCol: 20, trafficCol: 15,   convCol: 20, adCol: 21, roasCol: 22, adRatioCol: null, hasTraffic: true  },
+  // 카카오 — 통합 시트(gid=0) 내 가로 블록 사용. 분리 시트(gid=1562400814)는 일자 컬럼 비어있어 파싱 불가
+  '카카오모먼트':   { gid: 0,           dateCol: 69, salesCol: 70, trafficCol: null, convCol: 72, adCol: 73, roasCol: 74, adRatioCol: 75,   hasTraffic: false },
+  '카카오_매출':    { gid: 0,           dateCol: 61, salesCol: 62, trafficCol: 63,   convCol: null, adCol: null, roasCol: 66, adRatioCol: 67, hasTraffic: true  },
   // 네이버 검색광고 (gid=364317310)
   '네이버_검색광고':{ gid: 364317310,   dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 9,  adCol: 11, roasCol: 12, adRatioCol: null, hasTraffic: true  },
 };
@@ -351,8 +353,10 @@ function parseSheetRows(csvText, channel = '통합') {
   let dataStart = -1;
   for (let i = 0; i < Math.min(10, lines.length); i++) {
     const v = parseCSVRow(lines[i]);
+    // 2026-05-26 #OB-SALES-FIX-001 — "날짜" 라벨 의존 X. dateCol에 YYYY-MM-DD 첫 발견 시 데이터 시작
     const cell = (v[cols.dateCol] || '').replace(/"/g, '').trim();
     if (cell === '날짜') { dataStart = i + 1; break; }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cell)) { dataStart = i; break; }
   }
   if (dataStart === -1) return [];
 
