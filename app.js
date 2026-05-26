@@ -3080,6 +3080,7 @@ function bindSectionEvents() {
       renderWeekCalendar();
     } else {
       calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()-1, 1);
+      syncPlanningToCalendar(); // 2026-05-26 #OB-MW-001 — 월간/주간 섹션 동기화
       renderMonthCalendar();
     }
   });
@@ -3090,12 +3091,14 @@ function bindSectionEvents() {
       renderWeekCalendar();
     } else {
       calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 1);
+      syncPlanningToCalendar(); // 2026-05-26 #OB-MW-001 — 월간/주간 섹션 동기화
       renderMonthCalendar();
     }
   });
   document.getElementById('calToday')?.addEventListener('click',()=>{
     calMonth = new Date(); calMonth.setDate(1);
     calSelectedDate = new Date();
+    syncPlanningToCalendar(); // 2026-05-26 #OB-MW-001 — 월간/주간 섹션 동기화
     switchCalView(calView);
   });
   document.getElementById('refreshTeamBtn')?.addEventListener('click',renderTeamSection);
@@ -3293,6 +3296,19 @@ function addTeamMember(name, role) {
 let monthlyViewYM = ymNow();
 let weeklyViewYM = ymNow();
 
+// 2026-05-26 #OB-MW-001 — 팀 업무 캘린더 month picker ↔ 월간/주간 섹션 동기화
+function syncPlanningToCalendar() {
+  if (typeof calMonth === 'undefined') return;
+  const newYM = `${calMonth.getFullYear()}-${String(calMonth.getMonth()+1).padStart(2,'0')}`;
+  let changed = false;
+  if (monthlyViewYM !== newYM) { monthlyViewYM = newYM; changed = true; }
+  if (weeklyViewYM  !== newYM) { weeklyViewYM  = newYM; changed = true; }
+  if (changed && typeof currentMemberTab !== 'undefined' && currentMemberTab !== '통합') {
+    renderMonthlyPanel(currentMemberTab);
+    renderWeeklyPanel(currentMemberTab);
+  }
+}
+
 function ymNow() {
   const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
 }
@@ -3327,16 +3343,44 @@ function setMonthlyLocal(memberId, ym, rows) {
   saveMonthlyLocalAll(all);
 }
 
+// 2026-05-26 #OB-MW-001 — 단순 CSV 파서 (GViz CSV 응답용)
+function parseSimpleCSV(text) {
+  const lines = text.trim().split('\n').filter(l => l);
+  return lines.slice(1).map(line => {
+    const cells = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === ',' && !inQ) { cells.push(cur); cur = ''; continue; }
+      cur += ch;
+    }
+    cells.push(cur);
+    return cells.map(c => c.trim());
+  });
+}
+
+// 2026-05-26 #OB-MW-001 — 월간 주관업무: oneboard-server → Google Sheets(`monthly_tasks` 시트) 전환
 async function fetchMonthly(memberId, ym) {
   if (_monthlyCache[memberId]?.[ym]) return _monthlyCache[memberId][ym];
   const key = mkPlanKey(memberId, ym);
   try {
-    const data = await apiFetch(`/team/monthly?member_id=${encodeURIComponent(memberId)}&ym=${ym}`);
-    const rows = (data.rows || []).map(r => ({
-      id: r.id, task: r.task||'', platform: r.platform||'', automation: r.automation||'', sort_order: r.sort_order||0,
-    }));
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_TEAM_TASKS_ID}/gviz/tq?tqx=out:csv&sheet=monthly_tasks`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const csv = await res.text();
+    const all = parseSimpleCSV(csv);
+    // 컬럼: member | ym | task | platform | automation | sort_order | id
+    const rows = all
+      .filter(r => r[0] === memberId && r[1] === ym)
+      .map(r => ({
+        id: r[6] || `local-m-${Date.now()}-${Math.random()}`,
+        task: r[2] || '', platform: r[3] || '', automation: r[4] || '',
+        sort_order: parseInt(r[5], 10) || 0,
+      }))
+      .sort((a, b) => a.sort_order - b.sort_order);
     (_monthlyCache[memberId] ??= {})[ym] = rows;
-    _monthlyMode[key] = 'db';
+    _monthlyMode[key] = 'sheets';
     return rows;
   } catch {
     const rows = getMonthlyLocal(memberId, ym).map((r, i) => ({
@@ -3351,23 +3395,19 @@ async function fetchMonthly(memberId, ym) {
 
 function getMonthlyFor(memberId, ym) { return _monthlyCache[memberId]?.[ym] || []; }
 
+// 2026-05-26 #OB-MW-001 — Apps Script 양방향 sync 패턴 (team_tasks와 동일)
 async function addMonthlyRow(memberId, ym) {
   const key = mkPlanKey(memberId, ym);
   const rows = _monthlyCache[memberId]?.[ym] || [];
-  const payload = { task: '', platform: '', automation: '', sort_order: rows.length };
-  if (_monthlyMode[key] === 'db') {
-    try {
-      const data = await apiFetch('/team/monthly', {
-        method: 'POST', body: JSON.stringify({ member_id: memberId, ym, ...payload })
-      });
-      rows.push({ id: data.row.id, ...payload });
-      (_monthlyCache[memberId] ??= {})[ym] = rows;
-      return;
-    } catch { _monthlyMode[key] = 'local'; }
-  }
-  rows.push({ id: `local-m-${Date.now()}`, ...payload });
+  const id = `m-${Date.now()}-${Math.floor(Math.random()*10000)}`;
+  const payload = { id, task: '', platform: '', automation: '', sort_order: rows.length };
+  rows.push(payload);
   (_monthlyCache[memberId] ??= {})[ym] = rows;
-  setMonthlyLocal(memberId, ym, rows);
+  const sync = await syncToSheet('monthly_create', {
+    member: memberId, ym, task: '', platform: '', automation: '', sort_order: rows.length - 1, id,
+  });
+  if (sync.ok) { _monthlyMode[key] = 'sheets'; }
+  else { _monthlyMode[key] = 'local'; setMonthlyLocal(memberId, ym, rows); }
 }
 
 async function updateMonthlyRow(memberId, ym, idx, field, value) {
@@ -3376,15 +3416,9 @@ async function updateMonthlyRow(memberId, ym, idx, field, value) {
   const row = rows[idx];
   if (!row) return;
   row[field] = value;
-  if (_monthlyMode[key] === 'db' && !String(row.id).startsWith('local-')) {
-    try {
-      await apiFetch(`/team/monthly/${row.id}`, {
-        method: 'PATCH', body: JSON.stringify({ [field]: value })
-      });
-      return;
-    } catch { _monthlyMode[key] = 'local'; }
-  }
-  setMonthlyLocal(memberId, ym, rows);
+  const sync = await syncToSheet('monthly_update', { id: row.id, patch: { [field]: value } });
+  if (sync.ok) { _monthlyMode[key] = 'sheets'; }
+  else { _monthlyMode[key] = 'local'; setMonthlyLocal(memberId, ym, rows); }
 }
 
 async function deleteMonthlyRow(memberId, ym, idx) {
@@ -3392,12 +3426,10 @@ async function deleteMonthlyRow(memberId, ym, idx) {
   const rows = _monthlyCache[memberId]?.[ym] || [];
   const row = rows[idx];
   if (!row) return;
-  if (_monthlyMode[key] === 'db' && !String(row.id).startsWith('local-')) {
-    try { await apiFetch(`/team/monthly/${row.id}`, { method: 'DELETE' }); }
-    catch { _monthlyMode[key] = 'local'; }
-  }
+  const sync = await syncToSheet('monthly_delete', { id: row.id });
   rows.splice(idx, 1);
-  if (_monthlyMode[key] === 'local') setMonthlyLocal(memberId, ym, rows);
+  if (sync.ok) { _monthlyMode[key] = 'sheets'; }
+  else { _monthlyMode[key] = 'local'; setMonthlyLocal(memberId, ym, rows); }
 }
 
 async function renderMonthlyPanel(memberId) {
@@ -3459,18 +3491,33 @@ function setWeeklyLocal(memberId, ym, data) {
   saveWeeklyLocalAll(all);
 }
 
+// 2026-05-26 #OB-MW-001 — 주간업무: oneboard-server → Google Sheets(`weekly_tasks` 시트) 전환
 async function fetchWeekly(memberId, ym) {
   if (_weeklyCache[memberId]?.[ym]) return _weeklyCache[memberId][ym];
   const key = mkPlanKey(memberId, ym);
   try {
-    const data = await apiFetch(`/team/weekly?member_id=${encodeURIComponent(memberId)}&ym=${ym}`);
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_TEAM_TASKS_ID}/gviz/tq?tqx=out:csv&sheet=weekly_tasks`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const csv = await res.text();
+    const all = parseSimpleCSV(csv);
+    // 컬럼: member | ym | slot | text | done | sort_order | id
     const slotsMap = Object.fromEntries(WEEK_SLOTS.map(s => [s, []]));
-    (data.rows || []).forEach(r => {
-      if (!slotsMap[r.slot]) slotsMap[r.slot] = [];
-      slotsMap[r.slot].push({ id: r.id, text: r.text||'', done: !!r.done, sort_order: r.sort_order||0 });
-    });
+    all
+      .filter(r => r[0] === memberId && r[1] === ym)
+      .forEach(r => {
+        const slot = r[2] || '';
+        if (!slotsMap[slot]) slotsMap[slot] = [];
+        slotsMap[slot].push({
+          id: r[6] || `local-w-${Date.now()}-${Math.random()}`,
+          text: r[3] || '',
+          done: (r[4] || '').toUpperCase() === 'TRUE',
+          sort_order: parseInt(r[5], 10) || 0,
+        });
+      });
+    WEEK_SLOTS.forEach(s => { slotsMap[s].sort((a, b) => a.sort_order - b.sort_order); });
     (_weeklyCache[memberId] ??= {})[ym] = slotsMap;
-    _weeklyMode[key] = 'db';
+    _weeklyMode[key] = 'sheets';
     return slotsMap;
   } catch {
     const local = getWeeklyLocal(memberId, ym);
@@ -3491,24 +3538,20 @@ function getWeeklyFor(memberId, ym) {
   return _weeklyCache[memberId]?.[ym] || Object.fromEntries(WEEK_SLOTS.map(s => [s, []]));
 }
 
+// 2026-05-26 #OB-MW-001 — Apps Script 양방향 sync
 async function addWeeklyItem(memberId, ym, slot) {
   const key = mkPlanKey(memberId, ym);
   const data = _weeklyCache[memberId]?.[ym] || Object.fromEntries(WEEK_SLOTS.map(s => [s, []]));
   data[slot] = data[slot] || [];
-  const payload = { text: '새 항목', done: false, sort_order: data[slot].length };
-  if (_weeklyMode[key] === 'db') {
-    try {
-      const r = await apiFetch('/team/weekly', {
-        method: 'POST', body: JSON.stringify({ member_id: memberId, ym, slot, ...payload })
-      });
-      data[slot].push({ id: r.row.id, ...payload });
-      (_weeklyCache[memberId] ??= {})[ym] = data;
-      return;
-    } catch { _weeklyMode[key] = 'local'; }
-  }
-  data[slot].push({ id: `local-w-${Date.now()}`, ...payload });
+  const id = `w-${Date.now()}-${Math.floor(Math.random()*10000)}`;
+  const payload = { id, text: '새 항목', done: false, sort_order: data[slot].length };
+  data[slot].push(payload);
   (_weeklyCache[memberId] ??= {})[ym] = data;
-  setWeeklyLocal(memberId, ym, data);
+  const sync = await syncToSheet('weekly_create', {
+    member: memberId, ym, slot, text: '새 항목', done: false, sort_order: data[slot].length - 1, id,
+  });
+  if (sync.ok) { _weeklyMode[key] = 'sheets'; }
+  else { _weeklyMode[key] = 'local'; setWeeklyLocal(memberId, ym, data); }
 }
 
 async function updateWeeklyItem(memberId, ym, slot, idx, patch) {
@@ -3517,13 +3560,9 @@ async function updateWeeklyItem(memberId, ym, slot, idx, patch) {
   if (!data || !data[slot] || !data[slot][idx]) return;
   Object.assign(data[slot][idx], patch);
   const id = data[slot][idx].id;
-  if (_weeklyMode[key] === 'db' && !String(id).startsWith('local-')) {
-    try {
-      await apiFetch(`/team/weekly/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
-      return;
-    } catch { _weeklyMode[key] = 'local'; }
-  }
-  setWeeklyLocal(memberId, ym, data);
+  const sync = await syncToSheet('weekly_update', { id, patch });
+  if (sync.ok) { _weeklyMode[key] = 'sheets'; }
+  else { _weeklyMode[key] = 'local'; setWeeklyLocal(memberId, ym, data); }
 }
 
 async function deleteWeeklyItem(memberId, ym, slot, idx) {
@@ -3531,12 +3570,10 @@ async function deleteWeeklyItem(memberId, ym, slot, idx) {
   const data = _weeklyCache[memberId]?.[ym];
   if (!data || !data[slot] || !data[slot][idx]) return;
   const id = data[slot][idx].id;
-  if (_weeklyMode[key] === 'db' && !String(id).startsWith('local-')) {
-    try { await apiFetch(`/team/weekly/${id}`, { method: 'DELETE' }); }
-    catch { _weeklyMode[key] = 'local'; }
-  }
+  const sync = await syncToSheet('weekly_delete', { id });
   data[slot].splice(idx, 1);
-  if (_weeklyMode[key] === 'local') setWeeklyLocal(memberId, ym, data);
+  if (sync.ok) { _weeklyMode[key] = 'sheets'; }
+  else { _weeklyMode[key] = 'local'; setWeeklyLocal(memberId, ym, data); }
 }
 
 async function renderWeeklyPanel(memberId) {
