@@ -186,7 +186,9 @@ const CHANNEL_COL_MAP = {
   // 메인 시트 (gid=0)
   '통합':           { gid: 0,           dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 4,  adCol: 5,  roasCol: 6,  adRatioCol: 8,    hasTraffic: true  },
   '자사몰':         { gid: 0,           dateCol: 10, salesCol: 11, trafficCol: 12,   convCol: 13, adCol: 14, roasCol: 15, adRatioCol: 17,   hasTraffic: true  },
-  'META':           { gid: 0,           dateCol: 19, salesCol: 20, trafficCol: null, convCol: 20, adCol: 21, roasCol: 22, adRatioCol: 23,   hasTraffic: false },
+  // 2026-05-26 #OB-SALES-FIX-003 — META 전용 시트(gid=140033998) 발견. 통합 시트 가짜 매핑 폐기.
+  // 헤더(B~K): 날짜·노출수·클릭수·결과·CPC·클릭율·전환매출·전환율·광고비·ROAS
+  'META':           { gid: 140033998,   dateCol: 1,  salesCol: 7,  trafficCol: 3,    convCol: 7,  adCol: 9,  roasCol: 10, adRatioCol: null, hasTraffic: true  },
   '네이버':         { gid: 0,           dateCol: 47, salesCol: 48, trafficCol: 49,   convCol: 50, adCol: 51, roasCol: 52, adRatioCol: 53,   hasTraffic: true  },
   // 쿠팡 분리 시트 (gid=2052767088)
   '쿠팡_한반도':    { gid: 2052767088,  dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 9,  adCol: 11, roasCol: 12, adRatioCol: null, hasTraffic: true  },
