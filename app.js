@@ -1830,6 +1830,31 @@ async function createMinutes(payload) {
   return { minutes: m, autoCount: 0, autoTasks: [] };
 }
 
+// 2026-05-26 #OB-MIN-EDIT-001 — 회의록 수정 (Sheets `minutes` 시트 + localStorage 동시)
+async function updateMinutes(id, patch) {
+  if (!id) return { ok: false, reason: 'no id' };
+  // localStorage 갱신 (있는 경우)
+  const list = loadMinutesLocal();
+  const idx = list.findIndex(m => String(m.id) === String(id));
+  if (idx >= 0) {
+    list[idx] = { ...list[idx], ...patch };
+    saveMinutesLocal(list);
+  }
+  // Apps Script POST
+  const result = await syncToSheet('minutes_update', { id, patch });
+  return result;
+}
+
+// 2026-05-26 #OB-MIN-EDIT-001 — 회의록 삭제
+async function deleteMinutes(id) {
+  if (!id) return { ok: false, reason: 'no id' };
+  const list = loadMinutesLocal();
+  const filtered = list.filter(m => String(m.id) !== String(id));
+  if (filtered.length !== list.length) saveMinutesLocal(filtered);
+  const result = await syncToSheet('minutes_delete', { id });
+  return result;
+}
+
 // ── 날짜 유틸 ────────────────────────────────────────────────
 function toYMD(d) {
   // 로컬 시간 기준 YYYY-MM-DD (toISOString은 UTC 변환되어 KST에서 1일 어긋남)
@@ -2880,6 +2905,29 @@ function showMinutesDoc(m) {
     refreshMinutesListBadge(m);
   });
   headerWrap.appendChild(toggleBtn);
+
+  // 2026-05-26 #OB-MIN-EDIT-001 — 수정/삭제 버튼
+  const editBtn = document.createElement('button');
+  editBtn.className = 'minutes-status-toggle';
+  editBtn.style.marginLeft = '6px';
+  editBtn.textContent = '✏️ 수정';
+  editBtn.addEventListener('click', () => openMinutesModalForEdit(m));
+  headerWrap.appendChild(editBtn);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'minutes-status-toggle';
+  delBtn.style.marginLeft = '6px';
+  delBtn.style.color = '#dc2626';
+  delBtn.textContent = '🗑️ 삭제';
+  delBtn.addEventListener('click', async () => {
+    if (!confirm(`회의록 "${m.title}" 삭제할까요?\n(되돌릴 수 없습니다)`)) return;
+    delBtn.disabled = true;
+    delBtn.textContent = '삭제 중…';
+    await deleteMinutes(m.id);
+    renderMinutesSection();
+  });
+  headerWrap.appendChild(delBtn);
+
   viewer.appendChild(headerWrap);
 
   const titleEl=document.createElement('div'); titleEl.className='minutes-doc-title'; titleEl.textContent=m.title;
@@ -3078,9 +3126,30 @@ function switchSection(section) {
   if(section==='kpi')     renderKpiSection();
 }
 
+// 2026-05-26 #OB-MIN-EDIT-001 — 수정 모드 추적 상태
+let editingMinuteId = null;
+
+function openMinutesModalForEdit(m) {
+  editingMinuteId = m.id;
+  document.querySelector('#minutesModal .modal-title').textContent = '회의록 수정';
+  document.getElementById('saveMinutes').textContent = '수정';
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+  setVal('minutesDate', m.date || '');
+  setVal('minutesTitle', m.title || '');
+  setVal('minutesAttendees', m.attendees || '');
+  setVal('minutesSummary', m.summary || '');
+  setVal('minutesDirectives', m.directives || '');
+  setVal('minutesContent', m.content || '');
+  document.getElementById('minutesModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('minutesTitle')?.focus(), 60);
+}
+
 // ── 이벤트 바인딩 ────────────────────────────────────────────
 function bindMinutesEvents() {
   document.getElementById('addMinutesBtn')?.addEventListener('click',()=>{
+    editingMinuteId = null;
+    document.querySelector('#minutesModal .modal-title').textContent = '새 회의록 작성';
+    document.getElementById('saveMinutes').textContent = '저장';
     const dateEl = document.getElementById('minutesDate');
     if (dateEl && !dateEl.value) dateEl.value = toYMD(new Date());
     document.getElementById('minutesModal').style.display='flex';
@@ -3088,7 +3157,8 @@ function bindMinutesEvents() {
   });
   const closeModal=()=>{
     document.getElementById('minutesModal').style.display='none';
-    ['minutesTitle','minutesAttendees','minutesDirectives','minutesContent'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    editingMinuteId = null;
+    ['minutesTitle','minutesAttendees','minutesSummary','minutesDirectives','minutesContent'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   };
   document.getElementById('closeMinutesModal')?.addEventListener('click',closeModal);
   document.getElementById('cancelMinutes')?.addEventListener('click',closeModal);
@@ -3097,22 +3167,33 @@ function bindMinutesEvents() {
     const title=document.getElementById('minutesTitle')?.value.trim();
     if (!title) { alert('회의 제목을 입력하세요'); return; }
     const saveBtn = document.getElementById('saveMinutes');
+    const isEdit = !!editingMinuteId;
     saveBtn.disabled = true;
-    saveBtn.textContent = '저장 중…';
+    saveBtn.textContent = isEdit ? '수정 중…' : '저장 중…';
     const dateInput = document.getElementById('minutesDate')?.value;
     const meetingDate = dateInput || toYMD(new Date());
-    const result = await createMinutes({ date: meetingDate, title,
+    const payload = { date: meetingDate, title,
       attendees: document.getElementById('minutesAttendees')?.value.trim() || '',
       summary:   document.getElementById('minutesSummary')?.value.trim()    || '',
       directives:document.getElementById('minutesDirectives')?.value.trim() || '',
-      content:   document.getElementById('minutesContent')?.value.trim()    || '' });
-    saveBtn.disabled = false;
-    saveBtn.textContent = '저장';
-    closeModal();
-    renderMinutesSection();
-    if (result.autoCount > 0) {
-      showAutoTasksToast(result.autoCount, result.autoTasks);
-      loadTeamTasks();
+      content:   document.getElementById('minutesContent')?.value.trim()    || '' };
+
+    if (isEdit) {
+      await updateMinutes(editingMinuteId, payload);
+      saveBtn.disabled = false;
+      saveBtn.textContent = '수정';
+      closeModal();
+      renderMinutesSection();
+    } else {
+      const result = await createMinutes(payload);
+      saveBtn.disabled = false;
+      saveBtn.textContent = '저장';
+      closeModal();
+      renderMinutesSection();
+      if (result.autoCount > 0) {
+        showAutoTasksToast(result.autoCount, result.autoTasks);
+        loadTeamTasks();
+      }
     }
   });
 }
