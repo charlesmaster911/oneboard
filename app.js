@@ -336,6 +336,7 @@ async function fetchSheetCSV(gid = 0) {
 }
 
 // 채널 데이터 로드 — 채널 매핑의 gid에 해당하는 시트 fetch + 파싱
+// 2026-05-26 #OB-DOUBLE-MERGE-FIX — 채널별 머지를 여기 1곳에 통합 (탭 click 또는 init에서 다시 머지하면 이중 합산됨)
 async function loadChannelData(channel) {
   if (channelDataCache[channel]) return channelDataCache[channel];
   const cols = CHANNEL_COL_MAP[channel];
@@ -350,7 +351,13 @@ async function loadChannelData(channel) {
       return [];
     }
   }
-  const rows = parseSheetRows(csv, channel);
+  let rows = parseSheetRows(csv, channel);
+
+  // 채널별 머지 — cache miss 시 1회만 적용
+  if (channel === '통합')   rows = await mergeExtraAdSpendIntoIntegrated(rows);
+  if (channel === '자사몰') rows = await attachMetaAdSpendToOwnshop(rows);
+  if (channel === '네이버') rows = await mergeNaverAdSpend(rows);
+
   channelDataCache[channel] = rows;
   return rows;
 }
@@ -1171,19 +1178,8 @@ function bindEvents() {
       if (srcEl && cols.gid !== 0) srcEl.textContent = `로딩 중... (gid=${cols.gid})`;
 
       try {
+        // 2026-05-26 #OB-DOUBLE-MERGE-FIX — 채널별 머지는 loadChannelData 내부에서 1회만 처리. 여기서 다시 머지하면 이중 합산
         allData = await loadChannelData(currentChannel);
-        // #OB-EXTRA-SALES-002 — 통합 탭이면 기타매출 광고비 머지
-        if (currentChannel === '통합') {
-          allData = await mergeExtraAdSpendIntoIntegrated(allData);
-        }
-        // #OB-OWN-FIX-001 — 자사몰 광고비는 META 시트 col 9에서 cross-ref
-        if (currentChannel === '자사몰') {
-          allData = await attachMetaAdSpendToOwnshop(allData);
-        }
-        // #OB-NAVER-FIX-001 — 네이버 광고비 = GFA(L) + 검색광고(W) 합산
-        if (currentChannel === '네이버') {
-          allData = await mergeNaverAdSpend(allData);
-        }
       } catch (e) {
         console.warn(`[OneBoard] ${currentChannel} 로드 실패:`, e.message);
         allData = [];
@@ -1251,11 +1247,8 @@ async function init() {
 
   // 2순위: Google Sheets CSV 시도
   try {
-    const csv = await fetchSheetCSV(SHEET_GIDS.main);
-    allData = parseSheetRows(csv, '통합');
-    // #OB-EXTRA-SALES-002 — 통합 KPI에 기타매출 광고비+수수료 머지
-    allData = await mergeExtraAdSpendIntoIntegrated(allData);
-    channelDataCache['통합'] = allData;
+    // 2026-05-26 #OB-DOUBLE-MERGE-FIX — loadChannelData가 머지+캐시까지 처리 (이중 머지 방지)
+    allData = await loadChannelData('통합');
     if (allData.length === 0) throw new Error('파싱된 데이터 없음');
     if (srcEl) srcEl.textContent = `Google Sheets 실시간 연동 ✓  (${allData.length}일 · 채널 8개)`;
     console.log('[OneBoard] Sheets 데이터 로드:', allData.length, '일, 채널:', Object.keys(CHANNEL_COL_MAP).join(', '));
