@@ -185,8 +185,8 @@ const SHEET_GIDS = {
 const CHANNEL_COL_MAP = {
   // 메인 시트 (gid=0)
   '통합':           { gid: 0,           dateCol: 1,  salesCol: 2,  trafficCol: 3,    convCol: 4,  adCol: 5,  roasCol: 6,  adRatioCol: 8,    hasTraffic: true  },
-  // 2026-05-26 #OB-SALES-FIX-004 — 자사몰 전용 시트(gid=1273644982) 매핑. 통합 시트(col 10-17)는 호환용 (별도 시트가 단순)
-  '자사몰':         { gid: 1273644982,  dateCol: 1,  salesCol: 7,  trafficCol: 2,    convCol: 9,  adCol: 8,  roasCol: null, adRatioCol: null, hasTraffic: true  },
+  // 2026-05-26 #OB-OWN-FIX-001 — 자사몰: salesCol=9 (순매출=총매출-환불). col 7=총매출(참고), col 8=환불합계(광고비 아님), col 9=순매출=진짜 매출. 광고비는 META 시트 col 9 cross-ref (attachMetaAdSpendToOwnshop)
+  '자사몰':         { gid: 1273644982,  dateCol: 1,  salesCol: 9,  trafficCol: 2,    convCol: 9,  adCol: null, roasCol: null, adRatioCol: null, hasTraffic: true  },
   // 2026-05-26 #OB-SALES-FIX-003 — META 전용 시트(gid=140033998) 발견. 통합 시트 가짜 매핑 폐기.
   // 헤더(B~K): 날짜·노출수·클릭수·결과·CPC·클릭율·전환매출·전환율·광고비·ROAS
   'META':           { gid: 140033998,   dateCol: 1,  salesCol: 7,  trafficCol: 3,    convCol: 7,  adCol: 9,  roasCol: 10, adRatioCol: null, hasTraffic: true  },
@@ -700,6 +700,28 @@ function buildMockData() {
   return rows;
 }
 
+// ─── 자사몰 광고비: META 시트 col 9 cross-ref ────────────────
+// 2026-05-26 #OB-OWN-FIX-001 — Charles 지시: 자사몰 광고비 = META 시트 J 컬럼(col 9). 자사몰 시트 col 8은 환불합계라 광고비로 잡으면 안 됨
+async function attachMetaAdSpendToOwnshop(rows) {
+  try {
+    const metaRows = await loadChannelData('META');
+    if (!metaRows || !metaRows.length) return rows;
+    const byDate = Object.fromEntries(metaRows.map(r => [r.date, r.totalAdSpend || 0]));
+    return rows.map(r => {
+      const ad = byDate[r.date] || 0;
+      return {
+        ...r,
+        totalAdSpend: ad,
+        totalROAS: ad > 0 ? Math.round((r.totalSales || 0) / ad * 100) : 0,
+        convROAS:  ad > 0 ? Math.round((r.convSales  || 0) / ad * 100) : 0,
+      };
+    });
+  } catch (e) {
+    console.warn('[OneBoard] META 광고비 자사몰 attach 실패:', e.message);
+    return rows;
+  }
+}
+
 // ─── 통합 KPI 합산: 기타매출 광고비+수수료 머지 ──────────────
 // 2026-05-26 #OB-EXTRA-SALES-002 — Charles 지시: 통합 탭 총광고비에 기타매출 광고비+수수료 합산, 평균 ROAS 재계산
 async function mergeExtraAdSpendIntoIntegrated(rows) {
@@ -1124,6 +1146,10 @@ function bindEvents() {
         // #OB-EXTRA-SALES-002 — 통합 탭이면 기타매출 광고비 머지
         if (currentChannel === '통합') {
           allData = await mergeExtraAdSpendIntoIntegrated(allData);
+        }
+        // #OB-OWN-FIX-001 — 자사몰 광고비는 META 시트 col 9에서 cross-ref
+        if (currentChannel === '자사몰') {
+          allData = await attachMetaAdSpendToOwnshop(allData);
         }
       } catch (e) {
         console.warn(`[OneBoard] ${currentChannel} 로드 실패:`, e.message);
