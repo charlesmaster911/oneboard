@@ -202,8 +202,10 @@ const CHANNEL_COL_MAP = {
   '카카오_매출':    { gid: 1562400814,  dateCol: 14, salesCol: 20, trafficCol: 15,   convCol: 20, adCol: 21, roasCol: 22, adRatioCol: null, hasTraffic: true  },
   // 2026-05-26 #OB-SALES-FIX-004 — 유튜브쇼핑 시트(gid=1763675428). 어쿠스틱(col 1-7) + 미스터위스키(col 9-15) 합산은 추후. 어쿠스틱만 매핑(미스터위스키 5월 0)
   '유튜브쇼핑':     { gid: 1763675428,  dateCol: 1,  salesCol: 4,  trafficCol: 2,    convCol: 3,  adCol: 5,  roasCol: 6,  adRatioCol: null, hasTraffic: true  },
-  // 2026-05-26 #OB-EXTRA-SALES-001 — 기타매출 시트(gid=1649923806). 와디즈/오늘의집/지마켓/cj/sk스토아 등 비정기 채널. col 2=금액, col 4=플랫폼, col 5=ROAS. 통합 시트 5/13 ₩25.5M 이상치 원인이 와디즈 ₩23.75M 합산이었음
-  '기타매출':       { gid: 1649923806,  dateCol: 1,  salesCol: 2,  trafficCol: null,  convCol: 2,  adCol: null, roasCol: 5,  adRatioCol: null, hasTraffic: false },
+  // 2026-05-26 #OB-EXTRA-SALES-001/002 — 기타매출 시트(gid=1649923806). 와디즈/오늘의집/지마켓/cj/sk스토아 등 비정기 채널. col 2=매출, col 3=광고비+수수료, col 4=플랫폼, col 5=ROAS. 5/13 와디즈 매출 ₩23.75M / 광고비 ₩12.81M / ROAS 185%
+  '기타매출':         { gid: 1649923806,  dateCol: 1,  salesCol: 2,  trafficCol: null,  convCol: 2,  adCol: 3,    roasCol: 5,  adRatioCol: null, hasTraffic: false },
+  // 광고 그룹 — 기타매출의 광고비+수수료만 별도 표시 (와디즈 펀딩 수수료 등)
+  '기타_광고수수료': { gid: 1649923806,  dateCol: 1,  salesCol: 3,  trafficCol: null,  convCol: 3,  adCol: 3,    roasCol: 5,  adRatioCol: null, hasTraffic: false },
 };
 
 // 채널별 색상
@@ -698,6 +700,29 @@ function buildMockData() {
   return rows;
 }
 
+// ─── 통합 KPI 합산: 기타매출 광고비+수수료 머지 ──────────────
+// 2026-05-26 #OB-EXTRA-SALES-002 — Charles 지시: 통합 탭 총광고비에 기타매출 광고비+수수료 합산, 평균 ROAS 재계산
+async function mergeExtraAdSpendIntoIntegrated(rows) {
+  try {
+    const extraRows = await loadChannelData('기타매출');
+    if (!extraRows || !extraRows.length) return rows;
+    const byDate = Object.fromEntries(extraRows.map(r => [r.date, r.totalAdSpend || 0]));
+    return rows.map(r => {
+      const extra = byDate[r.date] || 0;
+      const merged = (r.totalAdSpend || 0) + extra;
+      return {
+        ...r,
+        totalAdSpend: merged,
+        totalROAS: merged > 0 ? Math.round((r.totalSales || 0) / merged * 100) : r.totalROAS,
+        convROAS:  merged > 0 ? Math.round((r.convSales  || 0) / merged * 100) : r.convROAS,
+      };
+    });
+  } catch (e) {
+    console.warn('[OneBoard] 기타매출 광고비 머지 실패:', e.message);
+    return rows;
+  }
+}
+
 // ─── 날짜 필터 ───────────────────────────────────────────────
 function applyRange(data, days) {
   if (!days) return data;
@@ -1096,6 +1121,10 @@ function bindEvents() {
 
       try {
         allData = await loadChannelData(currentChannel);
+        // #OB-EXTRA-SALES-002 — 통합 탭이면 기타매출 광고비 머지
+        if (currentChannel === '통합') {
+          allData = await mergeExtraAdSpendIntoIntegrated(allData);
+        }
       } catch (e) {
         console.warn(`[OneBoard] ${currentChannel} 로드 실패:`, e.message);
         allData = [];
@@ -1165,6 +1194,8 @@ async function init() {
   try {
     const csv = await fetchSheetCSV(SHEET_GIDS.main);
     allData = parseSheetRows(csv, '통합');
+    // #OB-EXTRA-SALES-002 — 통합 KPI에 기타매출 광고비+수수료 머지
+    allData = await mergeExtraAdSpendIntoIntegrated(allData);
     channelDataCache['통합'] = allData;
     if (allData.length === 0) throw new Error('파싱된 데이터 없음');
     if (srcEl) srcEl.textContent = `Google Sheets 실시간 연동 ✓  (${allData.length}일 · 채널 8개)`;
