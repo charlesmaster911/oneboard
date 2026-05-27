@@ -33,6 +33,11 @@
         <button class="range-btn active" data-range="30">30일</button>
         <button class="range-btn" data-range="90">90일</button>
         <button class="range-btn" data-range="0">전체</button>
+        <!-- 2026-05-26 #OB-DATE-PICKER-001 — 임의 기간 지정 -->
+        <input type="date" id="rangeFrom" class="range-date-input" title="시작일">
+        <span style="color:#94a3b8;font-size:12px">~</span>
+        <input type="date" id="rangeTo" class="range-date-input" title="종료일">
+        <button class="range-btn" id="rangeApply" title="지정 기간 적용">적용</button>
       </div>
       <div class="last-updated" id="lastUpdated">로딩 중...</div>
       <div class="notif-wrap" id="notifWrap">

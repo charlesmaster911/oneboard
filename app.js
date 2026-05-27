@@ -354,7 +354,8 @@ async function loadChannelData(channel) {
   let rows = parseSheetRows(csv, channel);
 
   // 채널별 머지 — cache miss 시 1회만 적용
-  if (channel === '통합')   rows = await mergeExtraAdSpendIntoIntegrated(rows);
+  // 2026-05-26 #OB-INTEGRATED-NO-MERGE — 통합 시트 col F에 권수지 대리가 이미 와디즈 광고비 합산해 박았음 (5/13 ₩13,222,361 = ~₩411K + 와디즈 ₩12.81M). 머지하면 이중 합산. 5월 합 ₩24,470,374는 이미 정상값
+  // if (channel === '통합')   rows = await mergeExtraAdSpendIntoIntegrated(rows);  // 폐기
   if (channel === '자사몰') rows = await attachMetaAdSpendToOwnshop(rows);
   if (channel === '네이버') rows = await mergeNaverAdSpend(rows);
 
@@ -782,7 +783,14 @@ async function mergeExtraAdSpendIntoIntegrated(rows) {
 }
 
 // ─── 날짜 필터 ───────────────────────────────────────────────
+// 2026-05-26 #OB-DATE-PICKER-001 — 임의 기간 지정 지원. customFrom/customTo 우선, 없으면 days 기반
+let customFromDate = null;
+let customToDate = null;
+
 function applyRange(data, days) {
+  if (customFromDate && customToDate) {
+    return data.filter(d => d.date >= customFromDate && d.date <= customToDate);
+  }
   if (!days) return data;
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
@@ -1146,13 +1154,33 @@ function updateDashboard() {
 // ─── 이벤트 바인딩 ────────────────────────────────────────────
 function bindEvents() {
   // 날짜 범위 버튼
-  document.querySelectorAll('.range-btn').forEach(btn => {
+  document.querySelectorAll('.range-btn[data-range]').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentRange = parseInt(btn.dataset.range);
+      // 프리셋 클릭 시 임의 기간 해제
+      customFromDate = null;
+      customToDate = null;
+      const fromEl = document.getElementById('rangeFrom');
+      const toEl   = document.getElementById('rangeTo');
+      if (fromEl) fromEl.value = '';
+      if (toEl)   toEl.value   = '';
       updateDashboard();
     });
+  });
+
+  // 2026-05-26 #OB-DATE-PICKER-001 — 임의 기간 적용
+  document.getElementById('rangeApply')?.addEventListener('click', () => {
+    const from = document.getElementById('rangeFrom')?.value;
+    const to   = document.getElementById('rangeTo')?.value;
+    if (!from || !to) { alert('시작일과 종료일을 모두 입력하세요'); return; }
+    if (from > to) { alert('시작일이 종료일보다 늦을 수 없습니다'); return; }
+    customFromDate = from;
+    customToDate   = to;
+    document.querySelectorAll('.range-btn[data-range]').forEach(b => b.classList.remove('active'));
+    document.getElementById('rangeApply')?.classList.add('active');
+    updateDashboard();
   });
 
   // 채널 탭 — 실데이터 전환 (다중 gid 비동기 로드)

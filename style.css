@@ -73,12 +73,26 @@ body {
 
 .date-range-btns {
   display: flex;
+  align-items: center;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: 3px;
-  gap: 2px;
+  gap: 4px;
 }
+/* 2026-05-26 #OB-DATE-PICKER-001 — 임의 기간 input */
+.range-date-input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-1);
+  font-family: inherit;
+  cursor: pointer;
+  margin-left: 4px;
+}
+.range-date-input:hover { border-color: var(--blue); }
 .range-btn {
   background: none;
   border: none;
