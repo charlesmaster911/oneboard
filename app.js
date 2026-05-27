@@ -202,6 +202,8 @@ const CHANNEL_COL_MAP = {
   '카카오_매출':    { gid: 1562400814,  dateCol: 14, salesCol: 20, trafficCol: 15,   convCol: 20, adCol: 21, roasCol: 22, adRatioCol: null, hasTraffic: true  },
   // 2026-05-26 #OB-SALES-FIX-004 — 유튜브쇼핑 시트(gid=1763675428). 어쿠스틱(col 1-7) + 미스터위스키(col 9-15) 합산은 추후. 어쿠스틱만 매핑(미스터위스키 5월 0)
   '유튜브쇼핑':     { gid: 1763675428,  dateCol: 1,  salesCol: 4,  trafficCol: 2,    convCol: 3,  adCol: 5,  roasCol: 6,  adRatioCol: null, hasTraffic: true  },
+  // 2026-05-26 #OB-EXTRA-SALES-001 — 기타매출 시트(gid=1649923806). 와디즈/오늘의집/지마켓/cj/sk스토아 등 비정기 채널. col 2=금액, col 4=플랫폼, col 5=ROAS. 통합 시트 5/13 ₩25.5M 이상치 원인이 와디즈 ₩23.75M 합산이었음
+  '기타매출':       { gid: 1649923806,  dateCol: 1,  salesCol: 2,  trafficCol: null,  convCol: 2,  adCol: null, roasCol: 5,  adRatioCol: null, hasTraffic: false },
 };
 
 // 채널별 색상
