@@ -204,8 +204,8 @@ const CHANNEL_COL_MAP = {
   '유튜브쇼핑':     { gid: 1763675428,  dateCol: 1,  salesCol: 4,  trafficCol: 2,    convCol: 3,  adCol: 5,  roasCol: 6,  adRatioCol: null, hasTraffic: true  },
   // 2026-05-26 #OB-EXTRA-SALES-001/002 — 기타매출 시트(gid=1649923806). 와디즈/오늘의집/지마켓/cj/sk스토아 등 비정기 채널. col 2=매출, col 3=광고비+수수료, col 4=플랫폼, col 5=ROAS. 5/13 와디즈 매출 ₩23.75M / 광고비 ₩12.81M / ROAS 185%
   '기타매출':         { gid: 1649923806,  dateCol: 1,  salesCol: 2,  trafficCol: null,  convCol: 2,  adCol: 3,    roasCol: 5,  adRatioCol: null, hasTraffic: false },
-  // 광고 그룹 — 기타매출의 광고비+수수료만 별도 표시 (와디즈 펀딩 수수료 등)
-  '기타_광고수수료': { gid: 1649923806,  dateCol: 1,  salesCol: 3,  trafficCol: null,  convCol: 3,  adCol: 3,    roasCol: 5,  adRatioCol: null, hasTraffic: false },
+  // 2026-05-26 #OB-EXTRA-SALES-003 — 광고 그룹에서도 매출=col 2, 광고비=col 3 동일. ROAS = 매출/광고비 (와디즈 5/13: ₩23.75M / ₩12.81M = 185%)
+  '기타_광고수수료': { gid: 1649923806,  dateCol: 1,  salesCol: 2,  trafficCol: null,  convCol: 2,  adCol: 3,    roasCol: 5,  adRatioCol: null, hasTraffic: false },
 };
 
 // 채널별 색상
@@ -700,6 +700,35 @@ function buildMockData() {
   return rows;
 }
 
+// ─── 네이버 광고비: GFA(col 11) + 검색광고(col 22) 합산 ──────
+// 2026-05-26 #OB-NAVER-FIX-001 — Charles 지시: 네이버 채널 광고비 = GFA + 검색광고 합산. 매출(col 2 스토어매출) 그대로, 전환매출 = GFA+검색광고 전환매출 합산, ROAS 재계산
+async function mergeNaverAdSpend(rows) {
+  try {
+    const [gfa, search] = await Promise.all([
+      loadChannelData('네이버_GFA'),
+      loadChannelData('네이버_검색광고'),
+    ]);
+    const adGFA       = Object.fromEntries((gfa    || []).map(r => [r.date, r.totalAdSpend || 0]));
+    const adSearch    = Object.fromEntries((search || []).map(r => [r.date, r.totalAdSpend || 0]));
+    const convGFA     = Object.fromEntries((gfa    || []).map(r => [r.date, r.totalSales   || 0]));
+    const convSearch  = Object.fromEntries((search || []).map(r => [r.date, r.totalSales   || 0]));
+    return rows.map(r => {
+      const ad   = (adGFA[r.date]      || 0) + (adSearch[r.date]    || 0);
+      const conv = (convGFA[r.date]    || 0) + (convSearch[r.date]  || 0);
+      return {
+        ...r,
+        totalAdSpend: ad,
+        convSales:    conv,
+        totalROAS: ad > 0 ? Math.round((r.totalSales || 0) / ad * 100) : 0,
+        convROAS:  ad > 0 ? Math.round(conv / ad * 100) : 0,
+      };
+    });
+  } catch (e) {
+    console.warn('[OneBoard] 네이버 광고비 합산 실패:', e.message);
+    return rows;
+  }
+}
+
 // ─── 자사몰 광고비: META 시트 col 9 cross-ref ────────────────
 // 2026-05-26 #OB-OWN-FIX-001 — Charles 지시: 자사몰 광고비 = META 시트 J 컬럼(col 9). 자사몰 시트 col 8은 환불합계라 광고비로 잡으면 안 됨
 async function attachMetaAdSpendToOwnshop(rows) {
@@ -1150,6 +1179,10 @@ function bindEvents() {
         // #OB-OWN-FIX-001 — 자사몰 광고비는 META 시트 col 9에서 cross-ref
         if (currentChannel === '자사몰') {
           allData = await attachMetaAdSpendToOwnshop(allData);
+        }
+        // #OB-NAVER-FIX-001 — 네이버 광고비 = GFA(L) + 검색광고(W) 합산
+        if (currentChannel === '네이버') {
+          allData = await mergeNaverAdSpend(allData);
         }
       } catch (e) {
         console.warn(`[OneBoard] ${currentChannel} 로드 실패:`, e.message);
