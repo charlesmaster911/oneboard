@@ -25,3 +25,10 @@ npm-debug.log*
 .vscode/
 .idea/
 
+# 회의록 마이그레이션 1회성 스크립트 (2026-05-29 #OB-MIN-EDIT-002, 기록 보존·커밋 제외)
+_migrate_minutes_dryrun.js
+_migrate_minutes_run.js
+_migrate_minutes_payload.json
+_migrate_failed.json
+app.js.bak.minutes-update
+
