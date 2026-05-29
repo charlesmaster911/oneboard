@@ -1718,8 +1718,11 @@ async function fetchMinutes() {
     const res = await fetch(url);
     if (res.ok) {
       const csv = await res.text();
-      const rows = parseSimpleCSV(csv);
-      for (const r of rows) {
+      // 2026-05-29 #OB-MIN-EDIT-002 핫픽스 — content에 줄바꿈이 많아 parseSimpleCSV가
+      //   한 회의를 여러 조각으로 쪼개던 버그. 멀티라인 따옴표 셀을 처리하는 parseCSVMultiline로 교체.
+      const rows = parseCSVMultiline(csv);
+      for (let i = 1; i < rows.length; i++) { // i=0은 헤더행
+        const r = rows[i];
         if (!r[0] || !r[1]) continue;
         sheetList.push({
           id: r[6] || `min-sheet-${r[0]}-${r[1].slice(0,20)}`,
