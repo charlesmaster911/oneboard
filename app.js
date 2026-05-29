@@ -1869,6 +1869,38 @@ function getMonthCalDates(monthDate) {
   return dates;
 }
 
+// 2026-05-29 #OB-CAL-DND-001 — 캘린더 일정 드래그&드롭 이동 (구글 캘린더식)
+function makeTaskDraggable(el, taskId) {
+  el.draggable = true;
+  el.style.cursor = 'grab';
+  el.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('text/plain', String(taskId));
+    e.dataTransfer.effectAllowed = 'move';
+    el.classList.add('cal-dragging');
+  });
+  el.addEventListener('dragend', () => el.classList.remove('cal-dragging'));
+}
+function makeCellDropTarget(cell, ymd, rerender) {
+  cell.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    cell.classList.add('cal-drop-over');
+  });
+  cell.addEventListener('dragleave', e => { if (e.target === cell) cell.classList.remove('cal-drop-over'); });
+  cell.addEventListener('drop', async e => {
+    e.preventDefault();
+    cell.classList.remove('cal-drop-over');
+    const id = e.dataTransfer.getData('text/plain');
+    if (!id) return;
+    const task = teamTasks.find(t => String(t.id) === String(id));
+    if (!task || task.date === ymd) return;
+    // updateTask는 현재 date로 시트 key를 계산하므로 mutate 전에 호출
+    await updateTask(id, { date: ymd });
+    task.date = ymd;
+    rerender();
+  });
+}
+
 function renderMonthCalendar() {
   const grid = document.getElementById('calGrid');
   if (!grid) return;
@@ -1906,6 +1938,7 @@ function renderMonthCalendar() {
     dayNum.className = 'cal-month-day-num';
     dayNum.textContent = d.getDate();
     cell.appendChild(dayNum);
+    makeCellDropTarget(cell, ymd, renderMonthCalendar);
 
     // 업무 표시 (최대 3개 + 더보기)
     const visible = dayTasks.slice(0, 3);
@@ -1916,6 +1949,7 @@ function renderMonthCalendar() {
       el.style.cssText = `background:${style.bg};border-left:2px solid ${style.color};color:${style.color}`;
       el.textContent = `${t.who.slice(0,2)} ${t.task}`;
       el.title = `${t.who}: ${t.task} (${t.status})`;
+      makeTaskDraggable(el, t.id);
       el.addEventListener('click', e=>{ e.stopPropagation(); openTaskEditModal(t); });
       // 삭제 버튼 (구글 캘린더 패턴: 항목 hover 시 ✕ 노출)
       const delBtn = document.createElement('span');
@@ -2019,6 +2053,7 @@ function renderWeekCalendar() {
     dayNum.className = 'cal-month-day-num';
     dayNum.textContent = d.getDate();
     cell.appendChild(dayNum);
+    makeCellDropTarget(cell, ymd, renderWeekCalendar);
 
     // 주간뷰는 모든 task 표시 (제한 X)
     dayTasks.forEach(t => {
@@ -2028,6 +2063,7 @@ function renderWeekCalendar() {
       el.style.cssText = `background:${style.bg};border-left:3px solid ${style.color};color:${style.color}`;
       el.textContent = `${t.who.slice(0,3)} ${t.task}`;
       el.title = `${t.who}: ${t.task} (${t.status} · ${t.priority})`;
+      makeTaskDraggable(el, t.id);
       el.addEventListener('click', e => { e.stopPropagation(); openTaskEditModal(t); });
 
       const delBtn = document.createElement('span');
@@ -3585,6 +3621,7 @@ function escapeAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/</g,'&
 
 // ── 주간 업무 (1주차~5주차 + 상시) ──────────────────────────
 const WEEK_SLOTS = ['1주차','2주차','3주차','4주차','5주차','상시'];
+const WEEKLY_VISIBLE = 5; // 2026-05-29 #OB-WK-MORE-001 — 컬럼당 기본 노출 항목 수 (나머지는 더보기)
 
 function loadWeeklyLocalAll() {
   try { return JSON.parse(localStorage.getItem('ob_team_weekly') || '{}'); } catch { return {}; }
@@ -3711,6 +3748,7 @@ async function renderWeeklyPanel(memberId) {
     items.forEach((it, idx) => {
       const row = document.createElement('div');
       row.className = 'weekly-item' + (it.done?' done':'');
+      if (idx >= WEEKLY_VISIBLE) row.classList.add('weekly-hidden'); // 2026-05-29 #OB-WK-MORE-001
       row.innerHTML = `
         <input type="checkbox" ${it.done?'checked':''}>
         <span class="weekly-item-text" contenteditable="true">${escapeAttr(it.text||'')}</span>
@@ -3729,6 +3767,20 @@ async function renderWeeklyPanel(memberId) {
       });
       body.appendChild(row);
     });
+    // 2026-05-29 #OB-WK-MORE-001 — 5개 초과 시 숨기고 "더보기" 토글
+    if (items.length > WEEKLY_VISIBLE) {
+      const more = document.createElement('button');
+      more.className = 'weekly-more';
+      const hiddenCnt = items.length - WEEKLY_VISIBLE;
+      more.textContent = `▾ 더보기 (${hiddenCnt}개)`;
+      let expanded = false;
+      more.addEventListener('click', () => {
+        expanded = !expanded;
+        body.querySelectorAll('.weekly-hidden').forEach(el => el.classList.toggle('weekly-show', expanded));
+        more.textContent = expanded ? '▴ 접기' : `▾ 더보기 (${hiddenCnt}개)`;
+      });
+      body.appendChild(more);
+    }
     col.querySelector('.weekly-add').addEventListener('click', async () => {
       await addWeeklyItem(memberId, weeklyViewYM, slot);
       renderWeeklyPanel(memberId);

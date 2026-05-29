@@ -1812,6 +1812,21 @@ body {
 }
 .weekly-add:hover { border-color: var(--primary); color: var(--primary); }
 
+/* 2026-05-29 #OB-WK-MORE-001 — 주간업무 더보기 토글 */
+.weekly-hidden { display: none; }
+.weekly-hidden.weekly-show { display: flex; }
+.weekly-more {
+  margin-top: 6px; padding: 5px 8px; border: none; background: transparent;
+  border-radius: 6px; font-size: 11px; color: var(--primary); cursor: pointer;
+  font-weight: 600; text-align: left; width: 100%;
+}
+.weekly-more:hover { background: #EFF6FF; }
+
+/* 2026-05-29 #OB-CAL-DND-001 — 캘린더 일정 드래그&드롭 */
+.cal-month-task { user-select: none; }
+.cal-month-task.cal-dragging { opacity: .4; }
+.cal-month-cell.cal-drop-over { background: #DBEAFE !important; outline: 2px dashed var(--primary); outline-offset: -2px; }
+
 @media (max-width: 900px) {
   .weekly-grid { grid-template-columns: repeat(2, 1fr); }
 }

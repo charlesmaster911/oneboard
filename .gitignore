@@ -30,5 +30,11 @@ _migrate_minutes_dryrun.js
 _migrate_minutes_run.js
 _migrate_minutes_payload.json
 _migrate_failed.json
+_legacy_minutes.json
+_legacy_2026.json
+_legacy_2026_chunk*.json
+_summaries.json
+_rebuild_2026.js
+_commitmsg.tmp
 app.js.bak.minutes-update
 
