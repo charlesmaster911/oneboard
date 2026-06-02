@@ -232,7 +232,7 @@ let rawCSVByGid = {};       // gid별 원본 CSV 캐시 (다중 시트 탭 지�
 let channelDataCache = {};  // 채널별 파싱 결과 캐시
 let allData = [];
 let filteredData = [];
-let currentRange = 30;
+let currentRange = 'month'; // 2026-06-02 #OB-RANGE-WEEKMONTH-001 — 기본 '이번달' ('week'|'month'|'0'|숫자)
 let currentChannel = '통합';
 let charts = {};
 
@@ -671,7 +671,7 @@ function exportChannelMatrixCSV() {
 
 // 매트릭스 로드 + 렌더 (외부에서 호출)
 async function loadChannelMatrix(days) {
-  const rows = await fetchChannelMatrix(days || currentRange || 30);
+  const rows = await fetchChannelMatrix(days || rangeToDays(currentRange));
   const built = buildMatrix(rows || []);
   matrixData  = built.matrix;
   matrixDates = built.dates;
@@ -797,15 +797,39 @@ function dataAnchorDate(data) {
   return anchor || new Date().toISOString().slice(0, 10);
 }
 
-function applyRange(data, days) {
+// 2026-06-02 #OB-RANGE-WEEKMONTH-001 — 주/월 경계 (앵커 날짜 기준, UTC 일요일 시작)
+function weekBounds(anchorStr) {
+  const a = new Date(anchorStr + 'T00:00:00Z');
+  const from = new Date(a); from.setUTCDate(a.getUTCDate() - a.getUTCDay());
+  const to = new Date(from); to.setUTCDate(from.getUTCDate() + 6);
+  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+}
+// 매트릭스·API 호출용 일수 환산
+function rangeToDays(range) {
+  if (range === 'week') return 7;
+  if (range === 'month') return 31;
+  if (!range || range === '0' || range === 0) return 3650;
+  return Number(range) || 30;
+}
+
+function applyRange(data, range) {
   if (customFromDate && customToDate) {
     return data.filter(d => d.date >= customFromDate && d.date <= customToDate);
   }
-  if (!days) return data;
-  // 2026-06-02 #OB-SALES-ANCHOR-001 — '오늘'이 아니라 '값이 있는 마지막 날짜' 기준 N일.
+  if (!range || range === '0' || range === 0) return data; // 전체
+  // 2026-06-02 #OB-SALES-ANCHOR-001/RANGE-WEEKMONTH-001 — '오늘'이 아니라 '값이 있는 마지막 날짜' 기준
   const anchorStr = dataAnchorDate(data);
-  const a = new Date(anchorStr + 'T00:00:00Z'); // UTC 고정 (KST 변환 1일 어긋남 방지)
-  a.setUTCDate(a.getUTCDate() - (days - 1));
+  if (range === 'month') {                       // 이번달 = 앵커가 속한 달
+    const ym = anchorStr.slice(0, 7);
+    return data.filter(d => d.date.slice(0, 7) === ym);
+  }
+  if (range === 'week') {                         // 이번주 = 앵커가 속한 주(일~토)
+    const b = weekBounds(anchorStr);
+    return data.filter(d => d.date >= b.from && d.date <= b.to);
+  }
+  const n = Number(range);                        // 숫자 N일 (하위호환)
+  const a = new Date(anchorStr + 'T00:00:00Z');
+  a.setUTCDate(a.getUTCDate() - (n - 1));
   const cut = a.toISOString().slice(0, 10);
   return data.filter(d => d.date >= cut && d.date <= anchorStr);
 }
@@ -1133,16 +1157,25 @@ function exportCSV(data) {
 function updateDashboard() {
   filteredData = applyRange(allData, currentRange);
 
-  // 비교 기간 (이전 동일 기간)
+  // 비교 기간 (이전 동일 기간) — 앵커(값 있는 마지막 날짜) 기준
   let prevData = [];
-  if (currentRange > 0 && allData.length) {
-    // 2026-06-02 #OB-SALES-ANCHOR-001 — 데이터 앵커 기준 직전 동일 길이 구간
+  if (allData.length && currentRange && currentRange !== '0' && currentRange !== 0) {
     const anchorStr = dataAnchorDate(allData);
-    const c1d = new Date(anchorStr + 'T00:00:00Z'); c1d.setUTCDate(c1d.getUTCDate() - (currentRange - 1));
-    const c2d = new Date(c1d); c2d.setUTCDate(c2d.getUTCDate() - currentRange);
-    const c1 = c1d.toISOString().slice(0, 10);
-    const c2 = c2d.toISOString().slice(0, 10);
-    prevData = allData.filter(d => d.date >= c2 && d.date < c1);
+    if (currentRange === 'month') {               // 직전 달
+      const [y, m] = anchorStr.slice(0, 7).split('-').map(Number);
+      const pym = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+      prevData = allData.filter(d => d.date.slice(0, 7) === pym);
+    } else if (currentRange === 'week') {          // 직전 주
+      const b = weekBounds(anchorStr);
+      const pf = new Date(b.from + 'T00:00:00Z'); pf.setUTCDate(pf.getUTCDate() - 7);
+      const pt = new Date(b.from + 'T00:00:00Z'); pt.setUTCDate(pt.getUTCDate() - 1);
+      prevData = allData.filter(d => d.date >= pf.toISOString().slice(0, 10) && d.date <= pt.toISOString().slice(0, 10));
+    } else {                                       // 숫자 N일
+      const n = Number(currentRange);
+      const c1d = new Date(anchorStr + 'T00:00:00Z'); c1d.setUTCDate(c1d.getUTCDate() - (n - 1));
+      const c2d = new Date(c1d); c2d.setUTCDate(c2d.getUTCDate() - n);
+      prevData = allData.filter(d => d.date >= c2d.toISOString().slice(0, 10) && d.date < c1d.toISOString().slice(0, 10));
+    }
   }
 
   const curr = calcKPIs(filteredData);
@@ -1156,7 +1189,7 @@ function updateDashboard() {
   renderTable(filteredData);
 
   // 13채널 매트릭스 (daily_metrics 정본 — 비동기 fire-and-forget)
-  loadChannelMatrix(currentRange).catch(e => console.warn('[matrix] 로드 실패:', e.message));
+  loadChannelMatrix(rangeToDays(currentRange)).catch(e => console.warn('[matrix] 로드 실패:', e.message));
 
   // 최근 날짜 표시 — 빈 미래행 무시, 값이 있는 마지막 날짜 (#OB-SALES-ANCHOR-001)
   const latest = allData.length ? dataAnchorDate(allData) : (filteredData.length ? filteredData[filteredData.length - 1].date : '');
@@ -1170,7 +1203,7 @@ function bindEvents() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      currentRange = parseInt(btn.dataset.range);
+      currentRange = btn.dataset.range; // 'week' | 'month' | '0' | 숫자 문자열
       // 프리셋 클릭 시 임의 기간 해제
       customFromDate = null;
       customToDate = null;
@@ -1272,7 +1305,7 @@ async function init() {
 
   // 1순위: API 연동 시도
   try {
-    const apiRows = await fetchAPIDailyData(currentRange || 30);
+    const apiRows = await fetchAPIDailyData(rangeToDays(currentRange));
     if (apiRows && apiRows.length > 0) {
       allData = apiRows;
       channelDataCache['통합'] = allData;
