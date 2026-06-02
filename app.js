@@ -786,15 +786,28 @@ async function mergeExtraAdSpendIntoIntegrated(rows) {
 let customFromDate = null;
 let customToDate = null;
 
+// 2026-06-02 #OB-SALES-ANCHOR-001 — 값이 있는 마지막 날짜를 찾는다.
+//   시트에 빈 미래행(₩-)이 미리 깔려 있어, '오늘' 기준 롤링 창이 빈 구간에 걸려
+//   직전 달(값 꽉 찬 구간)이 가려지던 문제를 막기 위함.
+function dataAnchorDate(data) {
+  const hasVal = d => (d.totalSales > 0 || d.totalTraffic > 0 || d.totalAdSpend > 0 || d.convSales > 0);
+  let anchor = '';
+  for (const d of data) if (hasVal(d)) anchor = d.date; // data는 날짜 오름차순 정렬됨
+  if (!anchor && data.length) anchor = data[data.length - 1].date;
+  return anchor || new Date().toISOString().slice(0, 10);
+}
+
 function applyRange(data, days) {
   if (customFromDate && customToDate) {
     return data.filter(d => d.date >= customFromDate && d.date <= customToDate);
   }
   if (!days) return data;
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  const cut = cutoff.toISOString().slice(0, 10);
-  return data.filter(d => d.date >= cut);
+  // 2026-06-02 #OB-SALES-ANCHOR-001 — '오늘'이 아니라 '값이 있는 마지막 날짜' 기준 N일.
+  const anchorStr = dataAnchorDate(data);
+  const a = new Date(anchorStr + 'T00:00:00Z'); // UTC 고정 (KST 변환 1일 어긋남 방지)
+  a.setUTCDate(a.getUTCDate() - (days - 1));
+  const cut = a.toISOString().slice(0, 10);
+  return data.filter(d => d.date >= cut && d.date <= anchorStr);
 }
 
 // ─── KPI 계산 ─────────────────────────────────────────────
@@ -1123,10 +1136,12 @@ function updateDashboard() {
   // 비교 기간 (이전 동일 기간)
   let prevData = [];
   if (currentRange > 0 && allData.length) {
-    const cut1 = new Date(); cut1.setDate(cut1.getDate() - currentRange);
-    const cut2 = new Date(); cut2.setDate(cut2.getDate() - currentRange * 2);
-    const c1 = cut1.toISOString().slice(0, 10);
-    const c2 = cut2.toISOString().slice(0, 10);
+    // 2026-06-02 #OB-SALES-ANCHOR-001 — 데이터 앵커 기준 직전 동일 길이 구간
+    const anchorStr = dataAnchorDate(allData);
+    const c1d = new Date(anchorStr + 'T00:00:00Z'); c1d.setUTCDate(c1d.getUTCDate() - (currentRange - 1));
+    const c2d = new Date(c1d); c2d.setUTCDate(c2d.getUTCDate() - currentRange);
+    const c1 = c1d.toISOString().slice(0, 10);
+    const c2 = c2d.toISOString().slice(0, 10);
     prevData = allData.filter(d => d.date >= c2 && d.date < c1);
   }
 
@@ -1143,11 +1158,9 @@ function updateDashboard() {
   // 13채널 매트릭스 (daily_metrics 정본 — 비동기 fire-and-forget)
   loadChannelMatrix(currentRange).catch(e => console.warn('[matrix] 로드 실패:', e.message));
 
-  // 최근 날짜 표시
-  if (filteredData.length) {
-    const latest = filteredData[filteredData.length - 1].date;
-    document.getElementById('lastUpdated').textContent = `최근 데이터: ${latest}`;
-  }
+  // 최근 날짜 표시 — 빈 미래행 무시, 값이 있는 마지막 날짜 (#OB-SALES-ANCHOR-001)
+  const latest = allData.length ? dataAnchorDate(allData) : (filteredData.length ? filteredData[filteredData.length - 1].date : '');
+  if (latest) document.getElementById('lastUpdated').textContent = `최근 데이터: ${latest}`;
 }
 
 // ─── 이벤트 바인딩 ────────────────────────────────────────────
