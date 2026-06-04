@@ -324,8 +324,10 @@ function fmtDate(str) {
 // ─── Google Sheets CSV 패치 (다중 gid 캐시) ──────────────────
 async function fetchSheetCSV(gid = 0) {
   if (rawCSVByGid[gid]) return rawCSVByGid[gid];
-  // 2026-05-26 #OB-CSV-FIX-001 — export?format=csv 익명 GET이 HTTP 400 → GViz API로 교체
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}`;
+  // 2026-06-04 #OB-EXPORT-FULL-001 — gviz/tq?out:csv 는 시트 필터/테이블 자동감지로 최근 ~100행만 반환(2026-04~06).
+  //   → /export?format=csv 로 교체하면 시트 필터 무시, 전체 행 반환(2025-07~2026-06 365일). "과거 자료 안 들어옴" 근본 해결.
+  //   (#OB-CSV-FIX-001 당시 export 400은 다른 시트 케이스였고, 본 시트는 link-share라 export 200 OK 확인)
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} (gid=${gid})`);
   const text = await res.text();
@@ -358,61 +360,11 @@ async function loadChannelData(channel) {
   if (channel === '자사몰') rows = await attachMetaAdSpendToOwnshop(rows);
   if (channel === '네이버') rows = await mergeNaverAdSpend(rows);
 
-  // 2026-06-03 #OB-HISTORY-MERGE-001 — 과거(분리시트 이전, 4~5월) 데이터를 gid=0 마스터에서 백필.
-  //   분리 채널 시트(네이버·쿠팡·카카오·자사몰·META 등)는 6월만 존재. 4~5월 채널 이력은 gid=0 컬럼블록에만 있음.
-  //   gid=0 컬럼은 6월값 지문 대조로 채널 매핑 확정(MASTER_HISTORY). 채널별 머지 이후 마지막에 실행해 덮어쓰기 방지.
-  rows = await mergeMasterHistory(channel, rows);
+  // 2026-06-04 #OB-EXPORT-FULL-001 — 과거 백필(#OB-HISTORY-MERGE-001) 제거.
+  //   export 전환으로 각 채널 탭이 2025-07~ 전체 history를 자체 보유 → gid=0 백필 불필요.
 
   channelDataCache[channel] = rows;
   return rows;
-}
-
-// 2026-06-03 #OB-HISTORY-MERGE-001 — gid=0 마스터 시트의 채널별 과거 컬럼 (6월값 지문으로 확정)
-const MASTER_HISTORY = {
-  '통합':        null, // 이미 gid=0 직접 읽음
-  '자사몰':      { dateCol: 10, salesCol: 11, trafficCol: 12, convCol: 13, adCol: 14 }, // 광고=META(c14)
-  'META':        { dateCol: 10, salesCol: 13, trafficCol: null, convCol: 13, adCol: 14 },
-  '네이버':      { dateCol: 47, salesCol: 48, trafficCol: 49, convCol: 50, adCol: 51 }, // c51=GFA+검색 합산광고비
-  '쿠팡_한반도': { dateCol: 31, salesCol: 32, trafficCol: 33, convCol: 32, adCol: null },
-  '쿠팡_네모칩': { dateCol: 39, salesCol: 40, trafficCol: 41, convCol: 42, adCol: 43 },
-  '카카오모먼트':{ dateCol: 61, salesCol: 62, trafficCol: 63, convCol: 62, adCol: null },
-  '유튜브쇼핑':  { dateCol: 69, salesCol: 72, trafficCol: 70, convCol: 72, adCol: null },
-  // 네이버_GFA·네이버_검색광고·카카오_매출·기타매출: gid=0에 분리 이력 없음 → 백필 불가(6월만)
-};
-
-async function mergeMasterHistory(channel, rows) {
-  const h = MASTER_HISTORY[channel];
-  if (!h) return rows;
-  try {
-    let csv = rawCSVByGid[0];
-    if (!csv) { csv = await fetchSheetCSV(0); rawCSVByGid[0] = csv; }
-    const lines = csv.trim().split('\n').filter(l => l);
-    const have = new Set(rows.map(r => r.date)); // 분리시트(6월)에 이미 있는 날짜는 그대로 유지
-    const add = [];
-    for (const line of lines) {
-      const v = parseCSVRow(line);
-      const d = (v[h.dateCol] || '').replace(/"/g, '').trim();
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || have.has(d)) continue;
-      const sales = parseKRW(v[h.salesCol]);
-      const ad    = h.adCol != null ? parseKRW(v[h.adCol]) : 0;
-      const conv  = h.convCol != null ? parseKRW(v[h.convCol]) : sales;
-      add.push({
-        date: d,
-        totalSales: sales,
-        totalTraffic: h.trafficCol != null ? parseNum(v[h.trafficCol] || '0') : 0,
-        convSales: conv,
-        totalAdSpend: ad,
-        totalROAS: ad > 0 ? Math.round(sales / ad * 100) : 0,
-        convROAS:  ad > 0 ? Math.round(conv  / ad * 100) : 0,
-        adRatio:   sales > 0 ? parseFloat((ad / sales * 100).toFixed(2)) : 0,
-      });
-    }
-    if (!add.length) return rows;
-    return [...rows, ...add].sort((a, b) => a.date.localeCompare(b.date));
-  } catch (e) {
-    console.warn(`[OneBoard] ${channel} 과거 백필 실패:`, e.message);
-    return rows;
-  }
 }
 
 function parseSheetRows(csvText, channel = '통합') {
