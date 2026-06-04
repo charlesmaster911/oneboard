@@ -388,11 +388,18 @@ function parseSheetRows(csvText, channel = '통합') {
     const dateStr = (v[cols.dateCol] || '').replace(/"/g, '').trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
 
+    // 2026-06-04 #OB-SALES-FALLBACK-001 — 통합 등 일부 채널은 6월부터 총매출 칸(col)을 비우고 전환매출만 기입.
+    //   총매출 0 && 전환매출>0 이면 전환매출을 총매출로 대체 → '이번주 총매출 0' 방지.
+    //   salesCol===convCol 채널은 동일값이라 무영향, 과거(총매출 기입分)는 그대로.
+    let _totalSales = parseKRW(v[cols.salesCol]);
+    const _convSales = parseKRW(v[cols.convCol]);
+    if (_totalSales === 0 && _convSales > 0) _totalSales = _convSales;
+
     rows.push({
       date:         dateStr,
-      totalSales:   parseKRW(v[cols.salesCol]),
+      totalSales:   _totalSales,
       totalTraffic: parseNum(v[cols.trafficCol] || '0'),
-      convSales:    parseKRW(v[cols.convCol]),
+      convSales:    _convSales,
       totalAdSpend: parseKRW(v[cols.adCol]),
       totalROAS:    parsePct(v[cols.roasCol]),
       convROAS:     parsePct(v[cols.roasCol]),
