@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "node scripts/build-config.js",
     "test": "vitest run --environment jsdom"
   },
   "devDependencies": {

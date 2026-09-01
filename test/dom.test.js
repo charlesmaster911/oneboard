@@ -106,3 +106,20 @@ test('the page keeps every board section behind Google login and removes the pas
   expect(page.querySelector('#settingsUnlock')).toBeNull();
   expect(page.querySelector('#settingsLockBtn')).toBeNull();
 });
+
+test('runtime config loads before application modules and frontend source contains no Apps Script credential', async () => {
+  const [indexSource, appSource, renderSource] = await Promise.all([
+    readFile(`${process.cwd()}/index.html`, 'utf8'),
+    readFile(`${process.cwd()}/app.js`, 'utf8'),
+    readFile(`${process.cwd()}/render.yaml`, 'utf8'),
+  ]);
+  const page = new DOMParser().parseFromString(indexSource, 'text/html');
+  const scripts = [...page.querySelectorAll('script[src]')].map((script) => script.getAttribute('src'));
+
+  expect(scripts.indexOf('config.js')).toBeLessThan(scripts.indexOf('modules/main.js'));
+  expect(appSource).not.toContain('script.google.com/macros');
+  expect(appSource).not.toContain('APPS_SCRIPT_TOKEN');
+  expect(renderSource).toContain('GOOGLE_CLIENT_ID');
+  expect(renderSource).toContain('ONEBOARD_API_BASE');
+  expect(renderSource).toContain('npm run build');
+});

@@ -65,7 +65,6 @@ export async function initAuth({
   google = globalThis.google,
 } = {}) {
   currentUser = null;
-  mountGoogleButton({ googleClientId, google });
 
   try {
     const session = await refreshSession();
@@ -73,6 +72,7 @@ export async function initAuth({
   } catch {
     publish(null);
   }
+  mountGoogleButton({ googleClientId, google });
   return currentUser;
 }
 

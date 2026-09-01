@@ -1,7 +1,8 @@
 const ACCESS_TOKEN_KEY = 'oneboard_access_token';
 
 function apiBase() {
-  return globalThis.ONEBOARD_API_BASE
+  return globalThis.ONEBOARD_CONFIG?.apiBase
+    || globalThis.ONEBOARD_API_BASE
     || globalThis.API_BASE
     || 'https://oneboard-server.onrender.com/api';
 }
@@ -18,6 +19,14 @@ function accessToken() {
 function clearSession() {
   sessionStorage.removeItem(ACCESS_TOKEN_KEY);
   globalThis.dispatchEvent?.(new Event('oneboard:session-cleared'));
+}
+
+export class SessionExpiredError extends Error {
+  constructor(message = 'Authenticated session expired') {
+    super(message);
+    this.name = 'SessionExpiredError';
+    this.code = 'SESSION_EXPIRED';
+  }
 }
 
 export function setAccessToken(token) {
@@ -37,10 +46,16 @@ async function responsePayload(response) {
 }
 
 export async function refreshSession() {
-  const response = await fetch(apiUrl('/auth/refresh'), {
-    method: 'POST',
-    credentials: 'include',
-  });
+  let response;
+  try {
+    response = await fetch(apiUrl('/auth/refresh'), {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch (error) {
+    clearSession();
+    throw error;
+  }
   const payload = await responsePayload(response);
   if (!response.ok || !payload?.data?.accessToken || !payload?.data?.user) {
     clearSession();
@@ -60,10 +75,14 @@ export async function apiFetch(path, options = {}) {
   try {
     await refreshSession();
   } catch {
-    return response;
+    clearSession();
+    throw new SessionExpiredError();
   }
 
   const retry = await fetch(apiUrl(path), requestOptions(options));
-  if (retry.status === 401) clearSession();
+  if (retry.status === 401) {
+    clearSession();
+    throw new SessionExpiredError();
+  }
   return retry;
 }

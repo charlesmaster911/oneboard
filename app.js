@@ -6,14 +6,33 @@
  *   날짜 | 총 매출 | 총 유입 | 전환 매출 | 총 광고비 | 총 ROAS | 전환 ROAS | 광고비율
  */
 
-// oneboard-server API 베이스 URL
-// 배포 환경에서는 index.html에서 window.API_BASE 를 설정하거나
-// 기본값 '/api' 를 사용 (Render 동일 도메인 배포 시)
-const API_BASE = window.API_BASE || 'https://oneboard-server.onrender.com/api';
+function isSessionExpired(error) {
+  return error?.code === 'SESSION_EXPIRED';
+}
 
-// JWT access token은 인증 모듈이 sessionStorage에서만 관리한다.
-function getToken() {
-  return sessionStorage.getItem('oneboard_access_token') || '';
+async function authenticatedResponse(path, options = {}) {
+  const adapter = window.ONEBOARD_API?.fetch;
+  if (typeof adapter !== 'function') throw new Error('Authenticated API adapter is unavailable');
+  const signal = options.signal || legacyLifecycleController?.signal;
+  return adapter(path, signal ? { ...options, signal } : options);
+}
+
+// Legacy callers expect parsed JSON, while auth/retry remains exclusively in modules/api.js.
+async function apiFetch(path, options = {}) {
+  const response = await authenticatedResponse(path, options);
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = new Error(payload?.error?.message || `API ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+
+let legacyLifecycleController = null;
+function lifecycleFetch(input, options = {}) {
+  const signal = options.signal || legacyLifecycleController?.signal;
+  return fetch(input, signal ? { ...options, signal } : options);
 }
 
 const SHEET_ID = '11byYTuUleS-kq3idS4e0Mgt368FssfnrHchyalHPuRI';
@@ -23,11 +42,6 @@ const SHEET_ID = '11byYTuUleS-kq3idS4e0Mgt368FssfnrHchyalHPuRI';
 const SHEET_TEAM_TASKS_ID = '1uktRhUEvxQCodwGxSSR9LXlVlfUFpESyfktUUTTZ7EQ';
 const SHEET_TEAM_TASKS_GID = 0;
 const SHEET_TEAM_TASKS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_TEAM_TASKS_ID}/edit#gid=${SHEET_TEAM_TASKS_GID}`;
-
-// 양방향 동기화 — Google Apps Script Web App (#OB-DRIVE-001 후속)
-// URL은 Charles 배포 후 교체. window.APPS_SCRIPT_URL로 override 가능.
-const APPS_SCRIPT_URL = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbyP_LxhfcmOPCHOz8YfIL1uVlNgTiSKMWYAlU7qXJLeD9I7JSoGKrRer9py0ljtpRTo/exec';
-const APPS_SCRIPT_TOKEN = 'JEWELICE_OB_2026_xK7m9pQ2';
 
 // 회의록 시트 (Legacy 별도 spreadsheet)
 // 2026-05-29 #OB-MIN-EDIT-002 — 단일 출처 통합으로 더 이상 fetch 안 함(113건 minutes 시트로 마이그레이션).
@@ -58,20 +72,16 @@ function parseCSVMultiline(text) {
 }
 
 async function syncToSheet(action, body) {
-  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('PLACEHOLDER')) {
-    return { ok: false, reason: 'apps_script_not_deployed' };
-  }
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
+    return await apiFetch('/legacy-sheets/sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // CORS preflight 회피
-      body: JSON.stringify({ token: APPS_SCRIPT_TOKEN, action, ...body }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, payload: body }),
     });
-    const data = await res.json().catch(() => ({}));
-    return data;
   } catch (e) {
-    console.warn('[OneBoard] Apps Script sync 실패:', e.message);
-    return { ok: false, reason: e.message };
+    if (isSessionExpired(e)) throw e;
+    console.warn('[OneBoard] Sheets proxy sync 실패');
+    return { ok: false, reason: 'proxy_unavailable' };
   }
 }
 
@@ -256,7 +266,7 @@ async function fetchSheetCSV(gid = 0) {
   //   → /export?format=csv 로 교체하면 시트 필터 무시, 전체 행 반환(2025-07~2026-06 365일). "과거 자료 안 들어옴" 근본 해결.
   //   (#OB-CSV-FIX-001 당시 export 400은 다른 시트 케이스였고, 본 시트는 link-share라 export 200 OK 확인)
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
-  const res = await fetch(url);
+  const res = await lifecycleFetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} (gid=${gid})`);
   const text = await res.text();
   rawCSVByGid[gid] = text;
@@ -340,20 +350,16 @@ function parseSheetRows(csvText, channel = '통합') {
 
 // ─── API: oneboard-server에서 요약 데이터 패치 ───────────────
 async function fetchAPIData(days = 30) {
-  const token = getToken();
-  if (!token) return null;
-
   const to   = new Date().toISOString().slice(0, 10);
   const from = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
 
   try {
-    const res = await fetch(`${API_BASE}/data/summary?from=${from}&to=${to}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await authenticatedResponse(`/data/summary?from=${from}&to=${to}`);
     if (!res.ok) return null;
     const json = await res.json();
     return apiSummaryToRows(json);
-  } catch {
+  } catch (error) {
+    if (isSessionExpired(error)) throw error;
     return null;
   }
 }
@@ -370,16 +376,11 @@ function apiSummaryToRows(json) {
 }
 
 async function fetchAPIDailyData(days = 30) {
-  const token = getToken();
-  if (!token) return null;
-
   const to   = new Date().toISOString().slice(0, 10);
   const from = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
 
   try {
-    const res = await fetch(`${API_BASE}/data/daily?from=${from}&to=${to}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await authenticatedResponse(`/data/daily?from=${from}&to=${to}`);
     if (!res.ok) return null;
     const json = await res.json();
     if (!json.rows || json.rows.length === 0) return null;
@@ -400,27 +401,24 @@ async function fetchAPIDailyData(days = 30) {
                       ? parseFloat((parseInt(r.ad_spend || 0) / parseInt(r.total_sales) * 100).toFixed(2))
                       : 0,
     }));
-  } catch {
+  } catch (error) {
+    if (isSessionExpired(error)) throw error;
     return null;
   }
 }
 
 // ─── 13채널 매트릭스 fetch (daily_metrics 정본) ──────────────
 async function fetchChannelMatrix(days = 30) {
-  const token = getToken();
-  if (!token) return null;
-
   const to   = new Date().toISOString().slice(0, 10);
   const from = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
 
   try {
-    const res = await fetch(`${API_BASE}/data/daily-by-platform?from=${from}&to=${to}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await authenticatedResponse(`/data/daily-by-platform?from=${from}&to=${to}`);
     if (!res.ok) return null;
     const json = await res.json();
     return json.rows || [];
-  } catch {
+  } catch (error) {
+    if (isSessionExpired(error)) throw error;
     return null;
   }
 }
@@ -1239,13 +1237,13 @@ function bindEvents() {
 //   2순위 — Google Sheets CSV (공개 시트)
 //   3순위 — mock 데이터 (graceful degradation)
 async function init() {
-  bindEvents();
-
+  const lifecycleSignal = legacyLifecycleController?.signal;
   const srcEl = document.getElementById('dataSource');
 
   // 1순위: API 연동 시도
   try {
     const apiRows = await fetchAPIDailyData(rangeToDays(currentRange));
+    if (lifecycleSignal?.aborted) return;
     if (apiRows && apiRows.length > 0) {
       allData = apiRows;
       channelDataCache['통합'] = allData;
@@ -1255,6 +1253,7 @@ async function init() {
       return;
     }
   } catch (err) {
+    if (isSessionExpired(err) || lifecycleSignal?.aborted) return;
     console.warn('[OneBoard] API 연동 실패:', err.message);
   }
 
@@ -1262,10 +1261,12 @@ async function init() {
   try {
     // 2026-05-26 #OB-DOUBLE-MERGE-FIX — loadChannelData가 머지+캐시까지 처리 (이중 머지 방지)
     allData = await loadChannelData('통합');
+    if (lifecycleSignal?.aborted) return;
     if (allData.length === 0) throw new Error('파싱된 데이터 없음');
     if (srcEl) srcEl.textContent = `Google Sheets 실시간 연동 ✓  (${allData.length}일 · 채널 8개)`;
     console.log('[OneBoard] Sheets 데이터 로드:', allData.length, '일, 채널:', Object.keys(CHANNEL_COL_MAP).join(', '));
   } catch (err) {
+    if (lifecycleSignal?.aborted) return;
     // 3순위: mock 데이터 (graceful degradation)
     console.warn('[OneBoard] Sheets 연동 실패 → 목업 데이터 사용:', err.message);
     allData = buildMockData();
@@ -1286,8 +1287,9 @@ async function waitForAuthenticatedSession() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  legacyDomReady = true;
   await waitForAuthenticatedSession();
-  await init();
+  await startAuthenticatedLifecycle();
 });
 
 
@@ -1405,16 +1407,15 @@ function loadMinutesLocal() {
 }
 function saveMinutesLocal(list) { localStorage.setItem('ob_minutes', JSON.stringify(list)); }
 
-function apiHeaders() {
-  const token = getToken();
-  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
 // ── 인앱 알림 ────────────────────────────────────────────────
 async function fetchNotifications() {
   try {
     const data = await apiFetch('/notifications');
     return data.notifications || [];
-  } catch { return []; }
+  } catch (error) {
+    if (isSessionExpired(error)) throw error;
+    return [];
+  }
 }
 
 function renderNotifications(notifs) {
@@ -1429,18 +1430,28 @@ function renderNotifications(notifs) {
     badge.style.display = 'none';
   }
   if (!notifs.length) {
-    list.innerHTML = '<div class="notif-empty">알림 없음</div>';
+    const empty = document.createElement('div');
+    empty.className = 'notif-empty';
+    empty.textContent = '알림 없음';
+    list.replaceChildren(empty);
     return;
   }
-  list.innerHTML = notifs.map(n => {
+  const fragment = document.createDocumentFragment();
+  notifs.forEach(n => {
     const t = new Date(n.createdAt);
     const timeStr = t.toLocaleString('ko-KR', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
-    return `<div class="notif-item ${n.read ? '' : 'unread'}">
-      <div class="notif-item-title">${n.title}</div>
-      <div class="notif-item-body">${n.body.replace(/</g,'&lt;')}</div>
-      <div class="notif-item-time">${timeStr}</div>
-    </div>`;
-  }).join('');
+    const item = document.createElement('div');
+    item.className = `notif-item ${n.read ? '' : 'unread'}`;
+    [['notif-item-title', n.title], ['notif-item-body', n.body], ['notif-item-time', timeStr]]
+      .forEach(([className, text]) => {
+        const child = document.createElement('div');
+        child.className = className;
+        child.textContent = String(text || '');
+        item.appendChild(child);
+      });
+    fragment.appendChild(item);
+  });
+  list.replaceChildren(fragment);
 }
 
 function bindNotifEvents() {
@@ -1472,14 +1483,29 @@ function bindNotifEvents() {
   });
 }
 
-async function initNotifications() {
-  const notifs = await fetchNotifications();
-  renderNotifications(notifs);
-  // 5분마다 뱃지 갱신
-  setInterval(async () => {
-    const notifs = await fetchNotifications();
-    renderNotifications(notifs);
-  }, 5 * 60 * 1000);
+let notificationPollTimer = null;
+let notificationPollGeneration = 0;
+function startNotificationPolling() {
+  if (notificationPollTimer !== null) return;
+  const generation = ++notificationPollGeneration;
+  const poll = async () => {
+    try {
+      const notifs = await fetchNotifications();
+      if (notificationPollTimer !== null && generation === notificationPollGeneration) {
+        renderNotifications(notifs);
+      }
+    } catch (error) {
+      if (!isSessionExpired(error)) console.warn('[OneBoard] notification request failed');
+    }
+  };
+  notificationPollTimer = setInterval(poll, 5 * 60 * 1000);
+  void poll();
+}
+
+function stopNotificationPolling() {
+  notificationPollGeneration += 1;
+  if (notificationPollTimer !== null) clearInterval(notificationPollTimer);
+  notificationPollTimer = null;
 }
 
 function showAutoTasksToast(count, tasks) {
@@ -1494,12 +1520,6 @@ function showAutoTasksToast(count, tasks) {
   setTimeout(() => toast.remove(), 6000);
 }
 
-async function apiFetch(path, opts = {}) {
-  const res = await fetch(`${API_BASE}${path}`, { ...opts, headers: { ...apiHeaders(), ...(opts.headers||{}) } });
-  if (!res.ok) throw new Error(`API ${res.status}`);
-  return res.json();
-}
-
 // 저장 상태 추적 (헤더 배지에 표시)
 let dataSourceStatus = 'unknown'; // 'db' | 'local' | 'unknown'
 
@@ -1510,7 +1530,7 @@ async function fetchTeamTasks(from, to) {
   try {
     // 2026-05-26 #OB-CSV-FIX-001 — export?format=csv 익명 GET이 HTTP 400 → GViz API로 교체
     const url = `https://docs.google.com/spreadsheets/d/${SHEET_TEAM_TASKS_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_TEAM_TASKS_GID}`;
-    const res = await fetch(url);
+    const res = await lifecycleFetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const csv = await res.text();
     const lines = csv.trim().split('\n').filter(l => l);
@@ -1713,7 +1733,7 @@ async function fetchMinutes() {
   // 컬럼: date | title | attendees | summary | directives | content | id
   try {
     const url = `https://docs.google.com/spreadsheets/d/${SHEET_TEAM_TASKS_ID}/gviz/tq?tqx=out:csv&sheet=minutes`;
-    const res = await fetch(url);
+    const res = await lifecycleFetch(url);
     if (res.ok) {
       const csv = await res.text();
       // 2026-05-29 #OB-MIN-EDIT-002 핫픽스 — content에 줄바꿈이 많아 parseSimpleCSV가
@@ -3323,18 +3343,43 @@ function bindSectionEvents() {
   bindMinutesEvents();
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-  await waitForAuthenticatedSession();
+let legacyLifecycleActive = false;
+let legacyHandlersBound = false;
+let legacyDomReady = document.readyState !== 'loading';
+
+function bindLegacyHandlersOnce() {
+  if (legacyHandlersBound) return;
+  legacyHandlersBound = true;
+  bindEvents();
   bindSectionEvents();
   bindNotifEvents();
-  initNotifications();
-  // 팀 업무 탭 기본 시작 월: 오늘 (실행 시점 기준)
-  calMonth = (() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1); })();
-  // v2 신규 초기화
   renderMemberTabs();
   bindMonthlyWeeklyEvents();
   bindManualEvents();
   bindSettingsEvents();
+}
+
+async function startAuthenticatedLifecycle() {
+  if (legacyLifecycleActive) return;
+  legacyLifecycleActive = true;
+  legacyLifecycleController = new AbortController();
+  bindLegacyHandlersOnce();
+  calMonth = (() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1); })();
+  startNotificationPolling();
+  await init();
+}
+
+function stopAuthenticatedLifecycle() {
+  if (!legacyLifecycleActive && notificationPollTimer === null) return;
+  legacyLifecycleActive = false;
+  legacyLifecycleController?.abort();
+  legacyLifecycleController = null;
+  stopNotificationPolling();
+}
+
+window.addEventListener('oneboard:auth-changed', ({ detail } = {}) => {
+  if (detail?.user && legacyDomReady) void startAuthenticatedLifecycle();
+  else stopAuthenticatedLifecycle();
 });
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -3515,7 +3560,7 @@ async function fetchMonthly(memberId, ym) {
   const key = mkPlanKey(memberId, ym);
   try {
     const url = `https://docs.google.com/spreadsheets/d/${SHEET_TEAM_TASKS_ID}/gviz/tq?tqx=out:csv&sheet=monthly_tasks`;
-    const res = await fetch(url);
+    const res = await lifecycleFetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const csv = await res.text();
     const all = parseSimpleCSV(csv);
@@ -3647,7 +3692,7 @@ async function fetchWeekly(memberId, ym) {
   const key = mkPlanKey(memberId, ym);
   try {
     const url = `https://docs.google.com/spreadsheets/d/${SHEET_TEAM_TASKS_ID}/gviz/tq?tqx=out:csv&sheet=weekly_tasks`;
-    const res = await fetch(url);
+    const res = await lifecycleFetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const csv = await res.text();
     const all = parseSimpleCSV(csv);
@@ -3980,7 +4025,7 @@ async function loadManualDoc(file, title, el) {
   try {
     let md = manualCache[file];
     if (!md) {
-      const res = await fetch(`manuals/${encodeURIComponent(file)}`);
+      const res = await lifecycleFetch(`manuals/${encodeURIComponent(file)}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       md = await res.text();
       manualCache[file] = md;
@@ -4153,7 +4198,7 @@ function bindSettingsEvents() {
   });
   document.getElementById('testConnBtn')?.addEventListener('click', async () => {
     try {
-      const res = await fetch(`${API_BASE}/health`, { method:'GET' });
+      const res = await authenticatedResponse('/health', { method:'GET' });
       alert(res.ok ? '✅ oneboard-server 연결 OK' : `⚠️ 서버 응답: ${res.status}`);
     } catch (e) {
       alert(`❌ 연결 실패: ${e.message}\n(현재는 Google Sheets로 동작 중)`);

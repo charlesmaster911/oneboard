@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 import { apiFetch, setAccessToken } from '../modules/api.js';
 import { getCurrentUser, initAuth, onAuthChanged, signOut } from '../modules/auth.js';
@@ -29,6 +32,7 @@ function sessionPayload(token = 'fresh-access-token') {
 beforeEach(() => {
   vi.restoreAllMocks();
   sessionStorage.clear();
+  delete window.ONEBOARD_API;
   document.body.innerHTML = '<div id="google-signin"></div>';
 });
 
@@ -59,10 +63,21 @@ describe('API session lifecycle', () => {
       .mockResolvedValueOnce(jsonResponse(401, { error: { code: 'ACCESS_DENIED' } }));
     vi.stubGlobal('fetch', fakeFetch);
 
-    const response = await apiFetch('/data/summary');
-
-    expect(response.status).toBe(401);
+    await expect(apiFetch('/data/summary')).rejects.toMatchObject({ code: 'SESSION_EXPIRED' });
     expect(fakeFetch).toHaveBeenCalledTimes(3);
+    expect(sessionStorage.getItem('oneboard_access_token')).toBeNull();
+  });
+
+  test('a failed refresh clears the session and stops the protected request', async () => {
+    setAccessToken('expired-access-token');
+    const fakeFetch = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(401, { error: { code: 'ACCESS_EXPIRED' } }))
+      .mockResolvedValueOnce(jsonResponse(401, { error: { code: 'REFRESH_TOKEN_INVALID' } }));
+    vi.stubGlobal('fetch', fakeFetch);
+
+    await expect(apiFetch('/data/summary')).rejects.toMatchObject({ code: 'SESSION_EXPIRED' });
+
+    expect(fakeFetch).toHaveBeenCalledTimes(2);
     expect(sessionStorage.getItem('oneboard_access_token')).toBeNull();
   });
 });
@@ -114,6 +129,31 @@ describe('Google auth state', () => {
     await initAuth({ googleClientId: 'test-client-id', google: undefined });
     window.google = google;
     document.querySelector('#google-identity-script').dispatchEvent(new Event('load'));
+
+    expect(google.accounts.id.initialize).toHaveBeenCalledOnce();
+    expect(google.accounts.id.renderButton).toHaveBeenCalledOnce();
+  });
+
+  test('Google login is not mounted until the initial refresh settles', async () => {
+    let settleRefresh;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => { settleRefresh = resolve; })));
+    const google = {
+      accounts: {
+        id: {
+          initialize: vi.fn(),
+          renderButton: vi.fn(),
+          disableAutoSelect: vi.fn(),
+        },
+      },
+    };
+
+    const initialization = initAuth({ googleClientId: 'test-client-id', google });
+    await Promise.resolve();
+    expect(google.accounts.id.initialize).not.toHaveBeenCalled();
+    expect(google.accounts.id.renderButton).not.toHaveBeenCalled();
+
+    settleRefresh(jsonResponse(401, { error: { code: 'REFRESH_TOKEN_INVALID' } }));
+    await initialization;
 
     expect(google.accounts.id.initialize).toHaveBeenCalledOnce();
     expect(google.accounts.id.renderButton).toHaveBeenCalledOnce();
@@ -206,4 +246,119 @@ test('the real legacy startup sends zero data requests before authentication', a
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   expect(fakeFetch).not.toHaveBeenCalled();
+});
+
+async function loadLegacyHooks() {
+  const script = await readFile(`${process.cwd()}/app.js`, 'utf8');
+  const storage = { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() };
+  return Function('window', 'document', 'localStorage', 'sessionStorage', `${script}\nreturn { init, fetchAPIDailyData, startNotificationPolling, stopNotificationPolling };`)(
+    window,
+    document,
+    storage,
+    storage,
+  );
+}
+
+test('the real legacy API loader uses the authenticated adapter and preserves parsed JSON', async () => {
+  const browserFetch = vi.fn();
+  vi.stubGlobal('fetch', browserFetch);
+  window.ONEBOARD_API = Object.freeze({
+    fetch: vi.fn().mockResolvedValue(jsonResponse(200, {
+      rows: [{ date: '2026-09-01', total_sales: 1000, total_traffic: 5, conversion_sales: 800, ad_spend: 100 }],
+    })),
+  });
+  const hooks = await loadLegacyHooks();
+
+  const rows = await hooks.fetchAPIDailyData(1);
+
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatchObject({ date: '2026-09-01', totalSales: 1000, totalAdSpend: 100 });
+  expect(window.ONEBOARD_API.fetch).toHaveBeenCalledOnce();
+  expect(browserFetch).not.toHaveBeenCalled();
+});
+
+test('the real legacy loader never falls through to Sheets or mock after session expiry', async () => {
+  document.body.innerHTML = '<span id="dataSource"></span>';
+  const browserFetch = vi.fn();
+  vi.stubGlobal('fetch', browserFetch);
+  const expired = Object.assign(new Error('expired'), { code: 'SESSION_EXPIRED' });
+  window.ONEBOARD_API = Object.freeze({ fetch: vi.fn().mockRejectedValue(expired) });
+  const hooks = await loadLegacyHooks();
+
+  await hooks.init();
+
+  expect(window.ONEBOARD_API.fetch).toHaveBeenCalledOnce();
+  expect(browserFetch).not.toHaveBeenCalled();
+  expect(document.getElementById('dataSource').textContent).toBe('');
+});
+
+test('notification polling stops on logout and restarts once after later login', async () => {
+  vi.useFakeTimers();
+  try {
+    window.ONEBOARD_API = Object.freeze({
+      fetch: vi.fn().mockResolvedValue(jsonResponse(200, { notifications: [] })),
+    });
+    const hooks = await loadLegacyHooks();
+
+    hooks.startNotificationPolling();
+    hooks.startNotificationPolling();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(window.ONEBOARD_API.fetch).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+    expect(window.ONEBOARD_API.fetch).toHaveBeenCalledTimes(2);
+
+    hooks.stopNotificationPolling();
+    await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    expect(window.ONEBOARD_API.fetch).toHaveBeenCalledTimes(2);
+
+    hooks.startNotificationPolling();
+    hooks.startNotificationPolling();
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+    expect(window.ONEBOARD_API.fetch).toHaveBeenCalledTimes(4);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('production config build emits runtime config and rejects a missing Google client ID', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'oneboard-config-'));
+  const output = join(directory, 'config.js');
+  try {
+    const valid = spawnSync(process.execPath, ['scripts/build-config.js'], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        NODE_ENV: 'production',
+        GOOGLE_CLIENT_ID: 'test-client-id.apps.googleusercontent.com',
+        ONEBOARD_API_BASE: 'https://api.example.test/api',
+        ONEBOARD_CONFIG_OUTPUT: output,
+      },
+      encoding: 'utf8',
+    });
+    expect(valid.status, valid.stderr).toBe(0);
+    const configSource = await readFile(output, 'utf8');
+    const target = {};
+    Function('window', configSource)(target);
+    expect(target.ONEBOARD_CONFIG).toEqual({
+      googleClientId: 'test-client-id.apps.googleusercontent.com',
+      apiBase: 'https://api.example.test/api',
+    });
+
+    const missing = spawnSync(process.execPath, ['scripts/build-config.js'], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        NODE_ENV: 'production',
+        GOOGLE_CLIENT_ID: '',
+        ONEBOARD_API_BASE: 'https://api.example.test/api',
+        ONEBOARD_CONFIG_OUTPUT: join(directory, 'missing.js'),
+      },
+      encoding: 'utf8',
+    });
+    expect(missing.status).not.toBe(0);
+    expect(missing.stderr).toMatch(/GOOGLE_CLIENT_ID/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

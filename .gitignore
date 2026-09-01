@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+config.js
 
 # 의존성
 node_modules/
@@ -37,4 +38,3 @@ _summaries.json
 _rebuild_2026.js
 _commitmsg.tmp
 app.js.bak.minutes-update
-

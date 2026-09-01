@@ -1,4 +1,5 @@
 import { getCurrentUser, initAuth, onAuthChanged, signOut } from './auth.js';
+import { apiFetch } from './api.js';
 import { applyRoleVisibility, setText } from './dom.js';
 
 export function createAuthenticatedSessionGate() {
@@ -34,12 +35,14 @@ export function renderAuthShell(user) {
 export function bootOneBoard() {
   const gate = createAuthenticatedSessionGate();
   globalThis.ONEBOARD_SESSION_READY = gate.ready;
+  globalThis.ONEBOARD_API = Object.freeze({ fetch: apiFetch });
   globalThis.dispatchEvent?.(new Event('oneboard:session-ready'));
 
   renderAuthShell(null);
   onAuthChanged((user) => {
     renderAuthShell(user);
     gate.publish(user);
+    globalThis.dispatchEvent?.(new CustomEvent('oneboard:auth-changed', { detail: { user } }));
   });
 
   document.getElementById('logout-button')?.addEventListener('click', async () => {
@@ -52,7 +55,8 @@ export function bootOneBoard() {
     }
   });
 
-  const googleClientId = globalThis.GOOGLE_CLIENT_ID
+  const googleClientId = globalThis.ONEBOARD_CONFIG?.googleClientId
+    || globalThis.GOOGLE_CLIENT_ID
     || document.documentElement.dataset.googleClientId
     || '';
   if (!googleClientId) {

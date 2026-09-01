@@ -3,7 +3,14 @@ services:
     name: oneboard
     env: static
     staticPublishPath: .
-    buildCommand: ""
+    buildCommand: npm ci && npm run build
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: ONEBOARD_API_BASE
+        value: https://oneboard-server.onrender.com/api
     routes:
       - type: rewrite
         source: /*
