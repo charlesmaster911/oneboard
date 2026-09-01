@@ -92,7 +92,7 @@ export async function initAuth({
   } catch {
     publish(null, 'initial-unauthenticated');
   }
-  mountGoogleButton({ googleClientId, google });
+  mountGoogleButton({ googleClientId, google: google || globalThis.google });
   return currentUser;
 }
 

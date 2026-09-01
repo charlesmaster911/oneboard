@@ -32,6 +32,7 @@ function sessionPayload(token = 'fresh-access-token') {
 beforeEach(() => {
   vi.restoreAllMocks();
   sessionStorage.clear();
+  delete window.google;
   delete window.ONEBOARD_API;
   document.body.innerHTML = '<div id="google-signin"></div>';
 });
@@ -193,6 +194,34 @@ describe('Google auth state', () => {
     await initAuth({ googleClientId: 'test-client-id', google: undefined });
     window.google = google;
     document.querySelector('#google-identity-script').dispatchEvent(new Event('load'));
+
+    expect(google.accounts.id.initialize).toHaveBeenCalledOnce();
+    expect(google.accounts.id.renderButton).toHaveBeenCalledOnce();
+  });
+
+  test('a Google provider that loads while the initial refresh is pending still mounts login', async () => {
+    document.body.innerHTML = `
+      <script id="google-identity-script"></script>
+      <div id="google-signin"></div>
+    `;
+    let settleRefresh;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => { settleRefresh = resolve; })));
+    const google = {
+      accounts: {
+        id: {
+          initialize: vi.fn(),
+          renderButton: vi.fn(),
+          disableAutoSelect: vi.fn(),
+        },
+      },
+    };
+
+    const initialization = initAuth({ googleClientId: 'test-client-id', google: undefined });
+    await Promise.resolve();
+    window.google = google;
+    document.querySelector('#google-identity-script').dispatchEvent(new Event('load'));
+    settleRefresh(jsonResponse(401, { error: { code: 'REFRESH_TOKEN_INVALID' } }));
+    await initialization;
 
     expect(google.accounts.id.initialize).toHaveBeenCalledOnce();
     expect(google.accounts.id.renderButton).toHaveBeenCalledOnce();
