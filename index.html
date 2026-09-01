@@ -19,14 +19,15 @@
       <span></span><span></span><span></span><span></span>
     </div>
     <p class="login-eyebrow">JEWELICE OPERATIONS</p>
-    <h1 id="login-title">OneBoard</h1>
+    <h1 id="login-title" tabindex="-1">OneBoard</h1>
     <p class="login-copy">승인된 Google 계정으로 로그인해 운영 보드에 접속하세요.</p>
     <div id="google-signin" class="google-signin" aria-label="Google 로그인"></div>
     <p id="login-status" class="login-status" role="status"></p>
   </div>
 </section>
+<p id="auth-announcer" class="sr-only" role="status" aria-live="assertive" aria-atomic="true"></p>
 
-<div id="app-shell" hidden>
+<div id="app-shell" tabindex="-1" hidden>
 <div class="app">
 
   <!-- ── Header ── -->
@@ -51,6 +52,7 @@
         </div>
         <button class="session-logout" id="logout-button" type="button">로그아웃</button>
       </div>
+      <p id="auth-action-status" class="session-action-status" role="status" aria-live="polite"></p>
       <div class="date-range-btns" id="dateRangeBtns">
         <button class="range-btn" data-range="week">이번주</button>
         <button class="range-btn active" data-range="month">이번달</button>
@@ -79,11 +81,11 @@
 
   <!-- ── Section Nav ── -->
   <nav class="section-nav">
-    <button class="section-btn active" data-section="sales">📊 매출</button>
-    <button class="section-btn" data-section="team">👥 팀 업무</button>
-    <button class="section-btn" data-section="minutes">📋 회의록</button>
-    <button class="section-btn" data-section="kpi">🏆 팀 KPI</button>
-    <button class="section-btn" data-section="manual">📘 운영매뉴얼</button>
+    <button class="section-btn active" data-section="sales" data-roles="owner,ops,marketing,member">📊 매출</button>
+    <button class="section-btn" data-section="team" data-roles="owner,ops,marketing,member">👥 팀 업무</button>
+    <button class="section-btn" data-section="minutes" data-roles="owner,ops">📋 회의록</button>
+    <button class="section-btn" data-section="kpi" data-roles="owner,ops">🏆 팀 KPI</button>
+    <button class="section-btn" data-section="manual" data-roles="owner,ops">📘 운영매뉴얼</button>
     <button class="section-btn" data-section="settings" data-roles="owner,ops">⚙️ 설정</button>
   </nav>
 
@@ -173,7 +175,7 @@
         <button class="tab-btn" data-channel="기타_광고수수료">💸 기타 광고수수료</button>
       </div>
       <div class="channel-notice" id="channelNotice" style="display:none">
-        <span>⚠️ 현재 Google Sheets 임시 연동, API 직접 호출로 단계 전환 예정입니다.</span>
+        <span>해당 채널의 인증된 API 데이터가 아직 없습니다.</span>
       </div>
 
       <!-- Main Sales Chart -->
@@ -213,7 +215,7 @@
         <section class="chart-card channel-chart-card">
           <div class="chart-header">
             <div class="chart-title">채널별 매출 비중</div>
-            <div class="channel-badge">목업</div>
+            <div class="channel-badge">인증 API</div>
           </div>
           <div class="chart-body channel-donut-body" style="height:200px">
             <canvas id="channelChart"></canvas>
@@ -482,7 +484,7 @@
     <!-- ═══════════════════════════════════════
          섹션 3: 회의록
     ═══════════════════════════════════════ -->
-    <div id="section-minutes" class="section-content" style="display:none">
+    <div id="section-minutes" class="section-content" style="display:none" data-roles="owner,ops">
 
       <div class="minutes-layout">
         <!-- 회의록 목록 -->
@@ -523,7 +525,7 @@
             </div>
             <div class="form-group">
               <label class="form-label">참석자 (선택)</label>
-              <input type="text" class="form-input" id="minutesAttendees" placeholder="예) 찰스 이한수 권나경 권수지">
+              <input type="text" class="form-input" id="minutesAttendees" placeholder="예) 운영팀, 마케팅팀">
             </div>
             <div class="form-group">
               <label class="form-label">📌 요약 (회의 핵심 3~5줄 — 상단에 박스로 표시됩니다)</label>
@@ -550,7 +552,7 @@
     <!-- ═══════════════════════════════════════
          섹션 4: 팀 KPI
     ═══════════════════════════════════════ -->
-    <div id="section-kpi" class="section-content" style="display:none">
+    <div id="section-kpi" class="section-content" style="display:none" data-roles="owner,ops">
 
       <!-- KPI 기간 선택 -->
       <div class="kpi-period-bar">
@@ -634,7 +636,7 @@
     <!-- ═══════════════════════════════════════
          섹션 5: 운영매뉴얼
     ═══════════════════════════════════════ -->
-    <div id="section-manual" class="section-content" style="display:none">
+    <div id="section-manual" class="section-content" style="display:none" data-roles="owner,ops">
       <div class="manual-layout">
         <aside class="manual-sidebar">
           <div class="manual-search-wrap">
@@ -658,28 +660,23 @@
     <div id="section-settings" class="section-content" style="display:none" data-roles="owner,ops">
       <div class="settings-body" id="settingsBody">
 
-        <!-- 데이터 소스 — Google Drive 100% 전환 (2026-05-21 #OB-DRIVE-001) -->
-        <section class="settings-section">
-          <div class="settings-section-title">📂 데이터 소스 — Google Drive 100%</div>
+        <!-- 데이터 소스 -->
+        <section class="settings-section" data-roles="owner">
+          <div class="settings-section-title">🔐 데이터 소스</div>
           <div class="settings-status-row">
             <span class="settings-status-label">현재 상태:</span>
-            <span class="settings-status-value">🟢 Google Sheets · Drive 직접 read</span>
+            <span class="settings-status-value">🟢 OneBoard 인증 API</span>
           </div>
           <div class="auth-hint" style="font-size:13px;color:#374151;line-height:1.7;margin-top:10px;background:#F0FDF4;padding:14px 16px;border-radius:8px;border-left:3px solid #10B981">
-            <strong>2026-05-21 #OB-DRIVE-001:</strong> 카페24·쿠팡·META·네이버광고·카카오 등 API 자동 연동 영구 폐기. 백엔드 suspend → <strong>월 $13 → $0</strong>.
-            <br><br>
-            📈 매출 → 시트 <code>11byYTuUl...</code> (권수지 매일 입력)<br>
-            👥 팀 업무 → 시트 <code>1uktRhUE...</code> (팀원 직접 입력 · 양방향 sync 활성)<br>
-            📋 회의록 → 시트 <code>13yy1MtUh...</code> (주간회의)<br>
-            📅 일정 → Google Calendar "회사 전체 일정 MMG"
+            매출·팀 업무·회의록은 모두 로그인된 사용자의 역할과 워크스페이스를 검증한 백엔드 API를 통해서만 접근합니다.
           </div>
           <div class="channel-keys-grid" id="channelKeysGrid">
-            <!-- JS 렌더링: Drive 자동 머지 안내 1장만 -->
+            <!-- 백엔드가 위탁 연동 상태를 제공하는 경우에만 렌더링 -->
           </div>
         </section>
 
         <!-- 대시보드 설정 -->
-        <section class="settings-section">
+        <section class="settings-section" data-roles="owner">
           <div class="settings-section-title">🎯 대시보드 설정</div>
           <div class="form-row">
             <div class="form-group" style="flex:1">
@@ -699,7 +696,7 @@
         </section>
 
         <!-- 팀원 관리 -->
-        <section class="settings-section">
+        <section class="settings-section" data-roles="owner">
           <div class="settings-section-title">👥 팀원 관리</div>
           <div class="team-mgmt-list" id="teamMgmtList"><!-- JS --></div>
           <div class="form-row" style="margin-top:12px">

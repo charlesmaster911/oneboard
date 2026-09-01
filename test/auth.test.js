@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 
 import { apiFetch, setAccessToken } from '../modules/api.js';
 import { getCurrentUser, initAuth, onAuthChanged, signOut } from '../modules/auth.js';
-import { createAuthenticatedSessionGate } from '../modules/main.js';
+import { announceAuthTransition, createAuthenticatedSessionGate } from '../modules/main.js';
 
 function jsonResponse(status, body) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
@@ -79,6 +79,70 @@ describe('API session lifecycle', () => {
 
     expect(fakeFetch).toHaveBeenCalledTimes(2);
     expect(sessionStorage.getItem('oneboard_access_token')).toBeNull();
+  });
+
+  test('concurrent 401 responses share one successful refresh and each request retries once', async () => {
+    setAccessToken('expired-access-token');
+    let releaseRefresh;
+    const fakeFetch = vi.fn(async (url, options = {}) => {
+      if (String(url).endsWith('/auth/refresh')) {
+        return new Promise((resolve) => { releaseRefresh = () => resolve(jsonResponse(200, sessionPayload())); });
+      }
+      const token = new Headers(options.headers).get('Authorization');
+      if (token === 'Bearer expired-access-token') {
+        return jsonResponse(401, { error: { code: 'ACCESS_EXPIRED' } });
+      }
+      return jsonResponse(200, { data: { ok: true } });
+    });
+    vi.stubGlobal('fetch', fakeFetch);
+
+    const first = apiFetch('/data/daily');
+    const second = apiFetch('/team/tasks');
+    await vi.waitFor(() => expect(releaseRefresh).toBeTypeOf('function'));
+    releaseRefresh();
+
+    const responses = await Promise.all([first, second]);
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(fakeFetch.mock.calls.filter(([url]) => String(url).endsWith('/auth/refresh'))).toHaveLength(1);
+    expect(fakeFetch).toHaveBeenCalledTimes(5);
+  });
+
+  test('concurrent 401 responses share one failed refresh and do not retry protected requests', async () => {
+    setAccessToken('expired-access-token');
+    let releaseRefresh;
+    const fakeFetch = vi.fn(async (url) => {
+      if (String(url).endsWith('/auth/refresh')) {
+        return new Promise((resolve) => {
+          releaseRefresh = () => resolve(jsonResponse(401, { error: { code: 'REFRESH_TOKEN_INVALID' } }));
+        });
+      }
+      return jsonResponse(401, { error: { code: 'ACCESS_EXPIRED' } });
+    });
+    vi.stubGlobal('fetch', fakeFetch);
+
+    const requests = [apiFetch('/data/daily'), apiFetch('/team/tasks')];
+    await vi.waitFor(() => expect(releaseRefresh).toBeTypeOf('function'));
+    releaseRefresh();
+
+    const settled = await Promise.allSettled(requests);
+    expect(settled.every(({ reason }) => reason?.code === 'SESSION_EXPIRED')).toBe(true);
+    expect(fakeFetch.mock.calls.filter(([url]) => String(url).endsWith('/auth/refresh'))).toHaveLength(1);
+    expect(fakeFetch).toHaveBeenCalledTimes(3);
+    expect(sessionStorage.getItem('oneboard_access_token')).toBeNull();
+  });
+
+  test('a 403 is terminal and never refreshes or clears the authenticated session', async () => {
+    setAccessToken('valid-access-token');
+    const fakeFetch = vi.fn().mockResolvedValue(jsonResponse(403, {
+      error: { code: 'ROLE_FORBIDDEN' },
+    }));
+    vi.stubGlobal('fetch', fakeFetch);
+
+    const response = await apiFetch('/data/daily');
+
+    expect(response.status).toBe(403);
+    expect(fakeFetch).toHaveBeenCalledOnce();
+    expect(sessionStorage.getItem('oneboard_access_token')).toBe('valid-access-token');
   });
 });
 
@@ -209,6 +273,43 @@ describe('Google auth state', () => {
     expect(getCurrentUser()).toBeNull();
     expect(observed.at(-1)).toBeNull();
   });
+
+  test.each([
+    ['HTTP failure', () => jsonResponse(503, { error: { message: '<img onerror=alert(1)>' } })],
+    ['network failure', () => Promise.reject(new Error('socket secret detail'))],
+  ])('signOut retains authenticated state after %s and exposes only a sanitized error', async (_label, responseFactory) => {
+    const fakeFetch = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(200, sessionPayload()))
+      .mockImplementationOnce(responseFactory);
+    vi.stubGlobal('fetch', fakeFetch);
+    const google = {
+      accounts: { id: { initialize: vi.fn(), renderButton: vi.fn(), disableAutoSelect: vi.fn() } },
+    };
+    await initAuth({ googleClientId: 'test-client-id', google });
+
+    await expect(signOut()).rejects.toMatchObject({
+      code: 'LOGOUT_UNRESOLVED',
+      message: '로그아웃을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+    });
+    expect(getCurrentUser()?.id).toBe('user-1');
+    expect(sessionStorage.getItem('oneboard_access_token')).toBe('fresh-access-token');
+  });
+});
+
+test('auth transitions move focus and use a dedicated live region', () => {
+  document.body.innerHTML = `
+    <section id="login-screen"><h1 id="login-title" tabindex="-1">OneBoard</h1></section>
+    <main id="app-shell" tabindex="-1"></main>
+    <p id="auth-announcer" aria-live="assertive"></p>
+  `;
+
+  announceAuthTransition({ id: 'user-1', role: 'ops' }, 'signed-in');
+  expect(document.activeElement).toBe(document.getElementById('app-shell'));
+  expect(document.getElementById('auth-announcer').textContent).toBe('로그인되었습니다.');
+
+  announceAuthTransition(null, 'session-expired');
+  expect(document.activeElement).toBe(document.getElementById('login-title'));
+  expect(document.getElementById('auth-announcer').textContent).toBe('세션이 만료되었습니다. 다시 로그인해 주세요.');
 });
 
 test('legacy data work stays at zero until authenticated session readiness resolves', async () => {

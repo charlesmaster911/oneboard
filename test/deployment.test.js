@@ -60,4 +60,14 @@ describe('Render public configuration boundary', () => {
     ]);
     expect(entries.get('NODE_ENV')).toEqual({ value: 'production' });
   });
+
+  it('publishes a generated allowlisted directory instead of the repository root', () => {
+    const render = readFileSync(join(projectRoot, 'render.yaml'), 'utf8');
+    const build = readFileSync(join(projectRoot, 'scripts', 'build-config.js'), 'utf8');
+
+    expect(render).toMatch(/staticPublishPath:\s*dist/);
+    expect(build).toContain("const publicAssets = ['index.html', 'style.css', 'app.js'];");
+    expect(build).toContain("const publicModules = ['api.js', 'auth.js', 'dom.js', 'main.js'];");
+    expect(build).not.toMatch(/manuals|oneboard-backup-guide/);
+  });
 });

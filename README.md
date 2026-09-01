@@ -12,32 +12,22 @@ oneboard/
 └── render.yaml  # Render 정적 배포 설정
 ```
 
-## 데이터 소스 우선순위
+## 데이터 및 인증 경계
 
-1. **oneboard-server API** (JWT 토큰 있을 때) — 실제 플랫폼 데이터
-2. **Google Sheets CSV** (공개 시트) — 수동 업데이트 데이터
-3. **Mock 데이터** (fallback) — 오프라인/개발 환경
+모든 운영 데이터는 인증된 `oneboard-server` API를 통해서만 조회·변경합니다. 액세스 토큰은 현재 브라우저 세션에만 유지되며, 갱신 세션은 HttpOnly 쿠키로 관리됩니다. API가 사용 불가능하면 공개 데이터로 대체하지 않고 빈 상태와 부분 상태를 표시합니다.
 
 ## API 서버 연동
 
-`app.js` 상단의 `API_BASE` 를 배포 환경에 맞게 설정:
-
-```js
-// index.html에서 window.API_BASE 오버라이드 가능
-const API_BASE = window.API_BASE || 'https://oneboard-server.onrender.com/api';
-```
-
-로그인 후 `localStorage.setItem('oneboard_token', JWT_TOKEN)` 으로 토큰 저장 시 자동 연동.
+운영용 `GOOGLE_CLIENT_ID`와 `ONEBOARD_API_BASE`는 Render 환경변수로 주입합니다. 서버용 비밀값은 정적 사이트 환경에 설정하지 않습니다.
 
 ## 로컬 개발
 
 ```bash
-# Live Server (VS Code 확장) 또는
-npx serve .
-# http://localhost:3000 에서 확인
+npm ci
+GOOGLE_CLIENT_ID=test-client-id ONEBOARD_API_BASE=http://localhost:4000/api npm run build
+npx serve dist
 ```
 
 ## Render 배포
 
-render.yaml 기반 정적 사이트로 자동 배포됨.
-별도 빌드 없이 파일 그대로 서빙.
+`render.yaml`의 `npm ci && npm run build` 과정은 허용된 앱 파일과 인증용 런타임 설정만 `dist/`에 생성합니다. 저장소의 테스트·매뉴얼·운영 보조 문서는 정적 배포 대상이 아닙니다.

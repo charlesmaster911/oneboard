@@ -2,7 +2,7 @@ services:
   - type: web
     name: oneboard
     env: static
-    staticPublishPath: .
+    staticPublishPath: dist
     buildCommand: npm ci && npm run build
     envVars:
       - key: NODE_ENV

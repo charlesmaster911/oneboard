@@ -4,9 +4,18 @@ const listeners = new Set();
 let currentUser = null;
 let googleIdentity = null;
 
-function publish(user) {
+function publish(user, reason = user ? 'signed-in' : 'signed-out') {
   currentUser = user || null;
-  for (const listener of listeners) listener(currentUser);
+  for (const listener of listeners) listener(currentUser, { reason });
+}
+
+function publishSanitizedAuthError(code) {
+  globalThis.dispatchEvent?.(new CustomEvent('oneboard:auth-error', {
+    detail: {
+      code,
+      message: '로그인을 완료하지 못했습니다. 승인된 계정인지 확인한 뒤 다시 시도해 주세요.',
+    },
+  }));
 }
 
 async function readAuthResponse(response) {
@@ -48,7 +57,10 @@ function mountGoogleButton({ googleClientId, google }) {
     client_id: googleClientId,
     callback: ({ credential } = {}) => {
       if (!credential) return;
-      acceptGoogleCredential(credential).catch(() => publish(null));
+      acceptGoogleCredential(credential).catch(() => {
+        publishSanitizedAuthError('GOOGLE_LOGIN_FAILED');
+        publish(null, 'login-failed');
+      });
     },
   });
   provider.renderButton(mount, {
@@ -68,9 +80,9 @@ export async function initAuth({
 
   try {
     const session = await refreshSession();
-    publish(session.user);
+    publish(session.user, 'signed-in');
   } catch {
-    publish(null);
+    publish(null, 'initial-unauthenticated');
   }
   mountGoogleButton({ googleClientId, google });
   return currentUser;
@@ -81,13 +93,22 @@ export function getCurrentUser() {
 }
 
 export async function signOut() {
+  let response;
   try {
-    await apiFetch('/auth/logout', { method: 'POST', authRetry: false });
-  } finally {
-    setAccessToken(null);
-    googleIdentity?.disableAutoSelect?.();
-    publish(null);
+    response = await apiFetch('/auth/logout', { method: 'POST', authRetry: false });
+  } catch {
+    const error = new Error('로그아웃을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    error.code = 'LOGOUT_UNRESOLVED';
+    throw error;
   }
+  if (!response.ok) {
+    const error = new Error('로그아웃을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    error.code = 'LOGOUT_UNRESOLVED';
+    throw error;
+  }
+  setAccessToken(null);
+  googleIdentity?.disableAutoSelect?.();
+  publish(null, 'signed-out');
 }
 
 export function onAuthChanged(listener) {
@@ -97,5 +118,5 @@ export function onAuthChanged(listener) {
 }
 
 globalThis.addEventListener?.('oneboard:session-cleared', () => {
-  if (currentUser) publish(null);
+  if (currentUser) publish(null, 'session-expired');
 });

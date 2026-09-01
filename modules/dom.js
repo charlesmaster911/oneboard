@@ -1,4 +1,13 @@
 const CANONICAL_ROLES = new Set(['owner', 'ops', 'marketing', 'member', 'system']);
+const SECTION_ROLES = Object.freeze({
+  sales: new Set(['owner', 'ops', 'marketing', 'member']),
+  team: new Set(['owner', 'ops', 'marketing', 'member']),
+  minutes: new Set(['owner', 'ops']),
+  kpi: new Set(['owner', 'ops']),
+  manual: new Set(['owner', 'ops']),
+  settings: new Set(['owner', 'ops']),
+});
+const PROGRESS_FIELDS = new Set(['status', 'memo', 'comment']);
 
 export function setText(element, value) {
   if (!element) return element;
@@ -48,5 +57,33 @@ export function applyRoleVisibility(role, root = document) {
       .map((value) => value.trim())
       .filter((value) => CANONICAL_ROLES.has(value));
     element.hidden = !currentRole || !allowedRoles.includes(currentRole);
+  });
+}
+
+export function applyUiPolicy(user, root = document) {
+  const role = CANONICAL_ROLES.has(user?.role) ? user.role : null;
+  root.querySelectorAll('[data-section]').forEach((element) => {
+    const allowed = SECTION_ROLES[element.dataset.section];
+    if (allowed) element.hidden = !role || !allowed.has(role);
+  });
+  applyRoleVisibility(role, root);
+}
+
+export function canMutateAssignedTask(user, task, fields = []) {
+  if (!user || !CANONICAL_ROLES.has(user.role) || user.role === 'system') return false;
+  if (user.role === 'owner' || user.role === 'ops') return true;
+  const assignedUserId = task?.assignedUserId || task?.assigned_user_id;
+  return String(assignedUserId || '') === String(user.id)
+    && fields.length > 0
+    && fields.every((field) => PROGRESS_FIELDS.has(field));
+}
+
+export function applyTaskMutationPolicy(user, task, root = document) {
+  const managesWorkspace = user?.role === 'owner' || user?.role === 'ops';
+  const mayProgress = canMutateAssignedTask(user, task, ['status']);
+  root.querySelectorAll('[data-task-control]').forEach((element) => {
+    element.hidden = element.dataset.taskControl === 'progress'
+      ? !(managesWorkspace || mayProgress)
+      : !managesWorkspace;
   });
 }

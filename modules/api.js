@@ -1,10 +1,11 @@
 const ACCESS_TOKEN_KEY = 'oneboard_access_token';
+let refreshPromise = null;
 
 function apiBase() {
   return globalThis.ONEBOARD_CONFIG?.apiBase
     || globalThis.ONEBOARD_API_BASE
     || globalThis.API_BASE
-    || 'https://oneboard-server.onrender.com/api';
+    || '/api';
 }
 
 function apiUrl(path) {
@@ -45,7 +46,7 @@ async function responsePayload(response) {
   return response.json().catch(() => null);
 }
 
-export async function refreshSession() {
+async function performRefresh() {
   let response;
   try {
     response = await fetch(apiUrl('/auth/refresh'), {
@@ -68,12 +69,22 @@ export async function refreshSession() {
   return payload.data;
 }
 
+export function refreshSession() {
+  if (!refreshPromise) {
+    refreshPromise = performRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
 export async function apiFetch(path, options = {}) {
-  const response = await fetch(apiUrl(path), requestOptions(options));
+  const requestToken = accessToken();
+  const response = await fetch(apiUrl(path), requestOptions(options, requestToken));
   if (response.status !== 401 || options.authRetry === false) return response;
 
   try {
-    await refreshSession();
+    if (!requestToken || accessToken() === requestToken) await refreshSession();
   } catch {
     clearSession();
     throw new SessionExpiredError();
