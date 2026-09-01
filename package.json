@@ -1,0 +1,12 @@
+{
+  "name": "jewelice-oneboard-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --environment jsdom"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4"
+  }
+}

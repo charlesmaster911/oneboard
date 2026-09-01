@@ -8,9 +8,24 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+  <script id="google-identity-script" src="https://accounts.google.com/gsi/client" async defer></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<section class="login-screen" id="login-screen" aria-labelledby="login-title">
+  <div class="login-card">
+    <div class="login-logo" aria-hidden="true">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <p class="login-eyebrow">JEWELICE OPERATIONS</p>
+    <h1 id="login-title">OneBoard</h1>
+    <p class="login-copy">승인된 Google 계정으로 로그인해 운영 보드에 접속하세요.</p>
+    <div id="google-signin" class="google-signin" aria-label="Google 로그인"></div>
+    <p id="login-status" class="login-status" role="status"></p>
+  </div>
+</section>
+
+<div id="app-shell" hidden>
 <div class="app">
 
   <!-- ── Header ── -->
@@ -28,6 +43,13 @@
       <div class="workspace-badge">쥬얼아이스 🍦</div>
     </div>
     <div class="header-right">
+      <div class="session-user" aria-label="현재 로그인 사용자">
+        <div class="session-user-copy">
+          <span class="session-user-name" id="current-user"></span>
+          <span class="session-user-role" id="current-role"></span>
+        </div>
+        <button class="session-logout" id="logout-button" type="button">로그아웃</button>
+      </div>
       <div class="date-range-btns" id="dateRangeBtns">
         <button class="range-btn" data-range="week">이번주</button>
         <button class="range-btn active" data-range="month">이번달</button>
@@ -61,7 +83,7 @@
     <button class="section-btn" data-section="minutes">📋 회의록</button>
     <button class="section-btn" data-section="kpi">🏆 팀 KPI</button>
     <button class="section-btn" data-section="manual">📘 운영매뉴얼</button>
-    <button class="section-btn" data-section="settings">⚙️ 설정</button>
+    <button class="section-btn" data-section="settings" data-roles="owner,ops">⚙️ 설정</button>
   </nav>
 
   <!-- ── AI 인사이트 배너 ── -->
@@ -632,21 +654,8 @@
     <!-- ═══════════════════════════════════════
          섹션 6: 설정
     ═══════════════════════════════════════ -->
-    <div id="section-settings" class="section-content" style="display:none">
-      <!-- 비밀번호 게이트 -->
-      <div class="settings-gate" id="settingsGate">
-        <div class="settings-gate-card">
-          <div class="settings-gate-icon">🔒</div>
-          <div class="settings-gate-title">관리자 접근</div>
-          <div class="settings-gate-sub">OneBoard 설정은 관리자 비밀번호가 필요합니다.</div>
-          <input type="password" class="form-input" id="settingsPassword" placeholder="비밀번호" autocomplete="off">
-          <button class="btn-primary" id="settingsUnlock" style="width:100%;margin-top:12px">잠금 해제</button>
-          <div class="settings-gate-err" id="settingsErr" style="display:none"></div>
-        </div>
-      </div>
-
-      <!-- 설정 본문 -->
-      <div class="settings-body" id="settingsBody" style="display:none">
+    <div id="section-settings" class="section-content" style="display:none" data-roles="owner,ops">
+      <div class="settings-body" id="settingsBody">
 
         <!-- 데이터 소스 — Google Drive 100% 전환 (2026-05-21 #OB-DRIVE-001) -->
         <section class="settings-section">
@@ -728,9 +737,6 @@
         <section class="settings-section">
           <div class="settings-section-title">ℹ️ 앱 정보</div>
           <div class="settings-meta">OneBoard v2.0 · 2026-04-24 업데이트 · CHEONGYE Protocol v2.0</div>
-          <div class="settings-actions" style="margin-top:12px">
-            <button class="btn-secondary" id="settingsLockBtn">🔒 잠금</button>
-          </div>
         </section>
       </div>
 
@@ -744,6 +750,8 @@
   </footer>
 
 </div>
+</div>
+<script type="module" src="modules/main.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

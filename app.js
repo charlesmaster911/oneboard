@@ -11,81 +11,9 @@
 // 기본값 '/api' 를 사용 (Render 동일 도메인 배포 시)
 const API_BASE = window.API_BASE || 'https://oneboard-server.onrender.com/api';
 
-// JWT 토큰 (로그인 후 localStorage에 저장됨)
+// JWT access token은 인증 모듈이 sessionStorage에서만 관리한다.
 function getToken() {
-  return localStorage.getItem('oneboard_token') || '';
-}
-function setToken(t) {
-  if (t) localStorage.setItem('oneboard_token', t);
-  else localStorage.removeItem('oneboard_token');
-}
-
-// ─── 워크스페이스 로그인 (팀 데이터 동기화) ───────────────
-async function authLogin(email, password) {
-  const res = await fetch(`${API_BASE}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  setToken(data.token);
-  return data;
-}
-
-async function authRegister(email, password, name, workspaceName) {
-  const res = await fetch(`${API_BASE}/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, name, workspace_name: workspaceName }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  setToken(data.token);
-  return data;
-}
-
-async function authMe() {
-  if (!getToken()) return null;
-  try {
-    const res = await fetch(`${API_BASE}/auth/me`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    if (!res.ok) {
-      if (res.status === 401) setToken(null);
-      return null;
-    }
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
-
-function authLogout() {
-  setToken(null);
-}
-
-async function refreshAuthUI() {
-  const statusEl = document.getElementById('authStatus');
-  const loginForm = document.getElementById('authLoginForm');
-  const loggedIn = document.getElementById('authLoggedIn');
-  if (!statusEl) return;
-  const me = await authMe();
-  if (me) {
-    statusEl.textContent = '🟢 로그인됨 — 백엔드 영구 저장 활성';
-    statusEl.style.color = '#065F46';
-    if (loginForm) loginForm.style.display = 'none';
-    if (loggedIn) loggedIn.style.display = '';
-    const userLabel = document.getElementById('authUserLabel');
-    const wsLabel = document.getElementById('authWorkspaceLabel');
-    if (userLabel) userLabel.textContent = `${me.name || ''} (${me.email || ''})`;
-    if (wsLabel) wsLabel.textContent = me.workspace_name || '—';
-  } else {
-    statusEl.textContent = '🔴 미로그인 — 로컬 임시저장만 가능 (팀원 입력이 동기화되지 않음)';
-    statusEl.style.color = '#991B1B';
-    if (loginForm) loginForm.style.display = '';
-    if (loggedIn) loggedIn.style.display = 'none';
-  }
+  return sessionStorage.getItem('oneboard_access_token') || '';
 }
 
 const SHEET_ID = '11byYTuUleS-kq3idS4e0Mgt368FssfnrHchyalHPuRI';
@@ -1348,7 +1276,19 @@ async function init() {
   updateDashboard();
 }
 
-document.addEventListener('DOMContentLoaded', init);
+async function waitForAuthenticatedSession() {
+  if (!window.ONEBOARD_SESSION_READY) {
+    await new Promise((resolve) => {
+      window.addEventListener('oneboard:session-ready', resolve, { once: true });
+    });
+  }
+  return window.ONEBOARD_SESSION_READY;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await waitForAuthenticatedSession();
+  await init();
+});
 
 
 
@@ -3383,7 +3323,8 @@ function bindSectionEvents() {
   bindMinutesEvents();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await waitForAuthenticatedSession();
   bindSectionEvents();
   bindNotifEvents();
   initNotifications();
@@ -4091,210 +4032,43 @@ function bindManualEvents() {
 }
 
 // ── 설정 ─────────────────────────────────────────────────────
-const SETTINGS_PASSWORD = 'JEWELICE';
-
 // 2026-05-21 #OB-DRIVE-001: 카페24·쿠팡·META·네이버광고·카카오 API 자동 연동 영구 폐기.
 // Drive 자동 머지 안내 1장만 유지. Charles "여기도 불필요한거 없애줘" 정합 단순화.
 const CHANNEL_KEYS_DEF = [
   { id:'drive_sync',        name:'📂 매일 수동 입력 — Google Drive 자동 머지', keys:['—'], doc:'권수지 대리 폴더 → oneboard-daily-upload/', group:'master', desc:'매일 오전 권수지 대리가 쿠팡·META 등 자동 안 되는 채널을 Drive 폴더에 박으면 서버가 9:30부터 30분마다 자동 가져가 매출·광고에 머지합니다. OneBoard 화면에서 별도 클릭 작업 없음.' },
 ];
 
-function isSettingsUnlocked() {
-  return !!localStorage.getItem('ob_admin_token');
-}
-function getAdminToken() {
-  return localStorage.getItem('ob_admin_token') || '';
-}
-async function adminFetch(path, opts = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Admin-Token': getAdminToken(),
-      ...(opts.headers || {}),
-    },
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`${res.status}: ${body.slice(0, 200)}`);
-  }
-  return res.json();
-}
-
-// CHANNEL_KEYS_DEF의 id ↔ server platform id 매핑
-// (구버전 호환: 기존 'coupang' 백엔드 키는 'coupang_hanbando'로 alias)
-const CHANNEL_PLATFORM_MAP = {
-  drive_sync:        'drive_sync',  // 가상 ID — 백엔드 platform_credentials와 무관, UI 안내용
-  cafe24:            'cafe24',
-  smartstore:        'naver_store',
-  coupang_hanbando:  'coupang',           // 기존 'coupang' 백엔드 그대로 (한반도가 primary)
-  coupang_nemochip:  'coupang_nemochip',  // 백엔드 신규 platform 필요
-  kakao_biz:         'kakao_biz',         // 백엔드 신규 platform 필요
-  meta:              'meta',
-  naver_ad:          'naver_ads',
-  kakao:             'kakao',
-};
-
-let channelStatusCache = {};
-
-async function fetchChannelStatus() {
-  try {
-    const data = await adminFetch('/admin/platforms');
-    channelStatusCache = {};
-    (data.platforms || []).forEach(p => {
-      channelStatusCache[p.id] = p;
-    });
-  } catch (e) {
-    console.warn('[settings] platforms 조회 실패:', e.message);
-    channelStatusCache = {};
-  }
-}
-
 function renderChannelKeys() {
   const grid = document.getElementById('channelKeysGrid');
   if (!grid) return;
-  grid.innerHTML = '';
-  let lastGroup = null;
-  CHANNEL_KEYS_DEF.forEach(ch => {
-    // 매출/광고 그룹 헤더 (group이 바뀔 때 한 번 삽입)
-    if (ch.group && ch.group !== lastGroup) {
-      const groupLabel = document.createElement('div');
-      groupLabel.className = `channel-keys-group-header channel-keys-group-${ch.group}`;
-      groupLabel.textContent =
-        ch.group === 'master' ? '📂 매일 수동 입력 — Drive 자동 머지' :
-        ch.group === 'sales'  ? '📈 매출 채널 (자동 API 연동)' :
-                                '📢 광고 채널 (자동 API 연동)';
-      grid.appendChild(groupLabel);
-      lastGroup = ch.group;
-    }
-    const platformId = CHANNEL_PLATFORM_MAP[ch.id] || ch.id;
-    const info = channelStatusCache[platformId] || { status:'pending' };
-    const st = info.status;
-    const stLabel = st==='connected'?'🟢 연결됨':st==='error'?'🔴 오류':'⚪ 미연동';
-    const lastSync = info.lastSync ? new Date(info.lastSync).toLocaleString('ko-KR') : null;
+  grid.replaceChildren();
+  CHANNEL_KEYS_DEF.forEach((ch) => {
+    const groupLabel = document.createElement('div');
+    groupLabel.className = `channel-keys-group-header channel-keys-group-${ch.group}`;
+    groupLabel.textContent = '📂 매일 수동 입력 — Drive 자동 머지';
+    grid.appendChild(groupLabel);
+
     const card = document.createElement('div');
     card.className = `channel-key-card${ch.group ? ' channel-key-card-' + ch.group : ''}`;
-    // Drive sync 마스터 카드는 키 입력·삭제 버튼 없이 안내만
-    if (ch.id === 'drive_sync') {
-      card.innerHTML = `
-        <div class="channel-key-head">
-          <div class="channel-key-name">${ch.name}</div>
-          <div class="channel-key-status" style="background:#EDE9FE;color:#6B46C1">⚙️ 자동 동작 중</div>
-        </div>
-        <div class="channel-key-doc" style="color:#6B46C1;font-weight:600;margin:6px 0;line-height:1.6">${ch.desc}</div>
-        <div class="channel-key-doc" style="background:#F3F4F6;padding:8px 10px;border-radius:6px;margin-top:6px">
-          📁 폴더: <strong>${ch.doc}</strong><br>
-          ⏰ 폴링: 09:30 시작 · 매 30분 (~22:30)<br>
-          📋 파일명: <code>sales_채널_YYYY-MM-DD.csv</code> · <code>ads_채널_YYYY-MM-DD.csv</code>
-        </div>
-      `;
-      grid.appendChild(card);
-      return;
-    }
+    const head = document.createElement('div');
+    head.className = 'channel-key-head';
+    const name = document.createElement('div');
+    name.className = 'channel-key-name';
+    name.textContent = ch.name;
+    const status = document.createElement('div');
+    status.className = 'channel-key-status';
+    status.textContent = '⚙️ 자동 동작 중';
+    head.append(name, status);
 
-    card.innerHTML = `
-      <div class="channel-key-head">
-        <div class="channel-key-name">${ch.name}</div>
-        <div class="channel-key-status">${stLabel}</div>
-      </div>
-      ${ch.desc ? `<div class="channel-key-doc" style="color:#6B46C1;font-weight:600;margin:4px 0">${ch.desc}</div>` : ''}
-      <div class="channel-key-keys">필요 키: ${ch.keys.join(' · ')}</div>
-      <div class="channel-key-doc">발급: ${ch.doc}</div>
-      ${lastSync ? `<div class="channel-key-doc" style="color:#10B981">최근 저장: ${lastSync}</div>` : ''}
-      <div class="channel-key-actions">
-        <button class="btn-primary" data-ch="${ch.id}" data-act="enter">🔑 키 입력</button>
-        ${ch.id==='cafe24' ? '<button class="btn-secondary" data-ch="cafe24" data-act="oauth">🔗 OAuth 인증 시작</button>' : ''}
-        ${st==='connected' ? `<button class="btn-danger" data-ch="${ch.id}" data-act="delete">삭제</button>` : ''}
-      </div>
-    `;
-    card.querySelectorAll('button').forEach(b => {
-      b.addEventListener('click', () => handleChannelAction(ch, b.dataset.act));
-    });
+    const description = document.createElement('div');
+    description.className = 'channel-key-doc channel-key-description';
+    description.textContent = ch.desc;
+    const detail = document.createElement('div');
+    detail.className = 'channel-key-doc channel-key-detail';
+    detail.textContent = `📁 폴더: ${ch.doc} · ⏰ 폴링: 09:30 시작, 매 30분 (~22:30) · 📋 파일명: sales_채널_YYYY-MM-DD.csv / ads_채널_YYYY-MM-DD.csv`;
+    card.append(head, description, detail);
     grid.appendChild(card);
   });
-}
-
-async function handleChannelAction(ch, act) {
-  const platformId = CHANNEL_PLATFORM_MAP[ch.id] || ch.id;
-  if (act === 'enter') {
-    openCredModal(ch, platformId);
-  } else if (act === 'oauth') {
-    if (!confirm('카페24 OAuth 인증을 시작합니다.\n먼저 mall_id, client_id, client_secret 3개가 저장되어 있어야 합니다.\n\n계속하시겠습니까?')) return;
-    const token = encodeURIComponent(getAdminToken());
-    window.location.href = `${API_BASE}/admin/oauth/cafe24/start?admin_token=${token}`;
-  } else if (act === 'delete') {
-    if (!confirm(`${ch.name} 연동을 삭제할까요?`)) return;
-    try {
-      await adminFetch(`/admin/platforms/${platformId}`, { method:'DELETE' });
-      await fetchChannelStatus();
-      renderChannelKeys();
-    } catch (e) {
-      alert(`삭제 실패: ${e.message}`);
-    }
-  }
-}
-
-// uploadEzadminCsv 함수는 2026-05-13 Drive 자동 머지 도입으로 제거됨.
-// 권수지 대리는 OneBoard UI에서 업로드하지 않고 Google Drive 폴더에 직접 박음.
-
-function openCredModal(ch, platformId) {
-  const modal = document.getElementById('credModal');
-  const title = document.getElementById('credModalTitle');
-  const body = document.getElementById('credModalBody');
-  if (!modal || !body) return;
-  title.textContent = `${ch.name} — 키 입력`;
-  body.innerHTML = `
-    <div class="cred-modal-hint">
-      각 필드에 플랫폼에서 발급받은 키를 입력하세요. 키는 서버에서 암호화되어 저장됩니다. 프론트에는 저장되지 않습니다.
-      <br><br>
-      <strong>발급 위치:</strong> ${escapeAttr(ch.doc)}
-    </div>
-    ${ch.keys.map(k => `
-      <div class="form-group">
-        <label class="form-label">${k}</label>
-        <input type="text" class="form-input cred-input" data-key="${escapeAttr(k)}" placeholder="${escapeAttr(k)} 값 입력" autocomplete="off">
-      </div>
-    `).join('')}
-    ${ch.id==='cafe24' ? '<div class="cred-modal-note">💡 access_token, refresh_token은 자동으로 생성됩니다. mall_id · client_id · client_secret 3개만 입력하세요.</div>' : ''}
-  `;
-  modal.dataset.platform = platformId;
-  modal.dataset.chId = ch.id;
-  modal.style.display = 'flex';
-  setTimeout(() => body.querySelector('.cred-input')?.focus(), 50);
-}
-
-function closeCredModal() {
-  const modal = document.getElementById('credModal');
-  if (modal) modal.style.display = 'none';
-}
-
-async function saveCredModal() {
-  const modal = document.getElementById('credModal');
-  const platformId = modal.dataset.platform;
-  const chId = modal.dataset.chId;
-  const creds = {};
-  modal.querySelectorAll('.cred-input').forEach(inp => {
-    if (inp.value.trim()) creds[inp.dataset.key] = inp.value.trim();
-  });
-  if (Object.keys(creds).length === 0) {
-    alert('최소 1개 이상의 키를 입력해주세요.');
-    return;
-  }
-  const saveBtn = document.getElementById('credModalSave');
-  saveBtn.disabled = true; saveBtn.textContent = '저장 중...';
-  try {
-    await adminFetch(`/admin/platforms/${platformId}`, {
-      method:'POST', body: JSON.stringify(creds),
-    });
-    closeCredModal();
-    await fetchChannelStatus();
-    renderChannelKeys();
-    alert(`✅ ${Object.keys(creds).length}개 키 저장 완료`);
-  } catch (e) {
-    alert(`저장 실패: ${e.message}`);
-  } finally {
-    saveBtn.disabled = false; saveBtn.textContent = '저장';
-  }
 }
 
 function renderTeamMgmtList() {
@@ -4350,158 +4124,12 @@ function collectSettingsPrefs() {
 }
 
 async function openSettingsBody() {
-  document.getElementById('settingsGate').style.display = 'none';
-  document.getElementById('settingsBody').style.display = '';
-  refreshAuthUI();
   renderChannelKeys();
   renderTeamMgmtList();
   populateSettingsInputs();
-  await fetchChannelStatus();
-  renderChannelKeys();
-}
-
-function lockSettings() {
-  localStorage.removeItem('ob_admin_token');
-  localStorage.removeItem('ob_settings_auth');
-  document.getElementById('settingsGate').style.display = '';
-  document.getElementById('settingsBody').style.display = 'none';
-  const pw = document.getElementById('settingsPassword'); if (pw) pw.value = '';
 }
 
 function bindSettingsEvents() {
-  const unlock = document.getElementById('settingsUnlock');
-  const pw = document.getElementById('settingsPassword');
-  const err = document.getElementById('settingsErr');
-  const tryUnlock = async () => {
-    const input = (pw?.value || '').trim();
-    if (!input) return;
-    if (err) { err.style.display='none'; }
-    unlock.disabled = true; unlock.textContent = '확인 중...';
-    try {
-      // 서버에 토큰 검증 요청
-      const res = await fetch(`${API_BASE}/admin/verify`, {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json', 'X-Admin-Token': input },
-      });
-      if (res.ok) {
-        localStorage.setItem('ob_admin_token', input);
-        localStorage.setItem('ob_settings_auth', 'true');
-        await openSettingsBody();
-      } else if (res.status === 503) {
-        // 서버 환경변수 미설정 — 로컬 폴백 (데모 모드)
-        if (input.toUpperCase() === SETTINGS_PASSWORD) {
-          localStorage.setItem('ob_admin_token', input);
-          localStorage.setItem('ob_settings_auth', 'true');
-          if (err) {
-            err.textContent = '⚠️ 서버에 ONEBOARD_ADMIN_TOKEN이 미설정 — 로컬 모드로 진입 (실제 키 저장 불가)';
-            err.style.color = '#F59E0B';
-            err.style.display = '';
-          }
-          await openSettingsBody();
-        } else {
-          if (err) { err.textContent='❌ 비밀번호가 틀렸습니다.'; err.style.display=''; err.style.color=''; }
-        }
-      } else {
-        if (err) { err.textContent='❌ 비밀번호가 틀렸습니다.'; err.style.display=''; err.style.color=''; }
-      }
-    } catch (e) {
-      // 네트워크 에러 — 로컬 폴백
-      if (input.toUpperCase() === SETTINGS_PASSWORD) {
-        localStorage.setItem('ob_admin_token', input);
-        localStorage.setItem('ob_settings_auth', 'true');
-        if (err) {
-          err.textContent = '⚠️ 서버 연결 실패 — 로컬 모드 (실제 키 저장 불가)';
-          err.style.color = '#F59E0B';
-          err.style.display = '';
-        }
-        await openSettingsBody();
-      } else {
-        if (err) { err.textContent=`❌ ${e.message}`; err.style.display=''; err.style.color=''; }
-      }
-    } finally {
-      unlock.disabled = false; unlock.textContent = '잠금 해제';
-    }
-  };
-  unlock?.addEventListener('click', tryUnlock);
-  pw?.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock(); });
-  document.getElementById('settingsLockBtn')?.addEventListener('click', lockSettings);
-
-  // ── 워크스페이스 로그인 (팀 데이터 동기화) ──
-  const authErrShow = (msg) => {
-    const err = document.getElementById('authErr');
-    if (err) { err.textContent = msg; err.style.display = ''; }
-  };
-  const authErrHide = () => {
-    const err = document.getElementById('authErr');
-    if (err) err.style.display = 'none';
-  };
-
-  document.getElementById('authLoginBtn')?.addEventListener('click', async () => {
-    const email = document.getElementById('authEmail')?.value.trim();
-    const password = document.getElementById('authPassword')?.value;
-    if (!email || !password) return authErrShow('이메일·비밀번호를 입력하세요.');
-    authErrHide();
-    const btn = document.getElementById('authLoginBtn');
-    btn.disabled = true; btn.textContent = '로그인 중...';
-    try {
-      await authLogin(email, password);
-      await refreshAuthUI();
-      alert('✅ 로그인 성공. 백엔드 데이터를 불러오기 위해 페이지를 새로고침합니다.');
-      location.reload();
-    } catch (e) {
-      authErrShow(`❌ ${e.message}`);
-    } finally {
-      btn.disabled = false; btn.textContent = '🔐 로그인';
-    }
-  });
-
-  document.getElementById('authPassword')?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') document.getElementById('authLoginBtn')?.click();
-  });
-
-  document.getElementById('authRegisterBtn')?.addEventListener('click', async () => {
-    const email = document.getElementById('authEmail')?.value.trim();
-    const password = document.getElementById('authPassword')?.value;
-    if (!email || !password) return authErrShow('이메일·비밀번호를 입력한 후 등록을 눌러주세요.');
-    if (password.length < 6) return authErrShow('비밀번호는 6자 이상 권장합니다.');
-    const name = prompt('관리자 이름 (예: Charles)');
-    if (!name) return;
-    const workspaceName = prompt('워크스페이스 이름 (예: 쥬얼아이스)');
-    if (!workspaceName) return;
-    if (!confirm(`다음 정보로 새 워크스페이스를 만듭니다:\n\n이메일: ${email}\n관리자 이름: ${name}\n워크스페이스: ${workspaceName}\n\n계속할까요?`)) return;
-    authErrHide();
-    try {
-      await authRegister(email, password, name, workspaceName);
-      await refreshAuthUI();
-      alert(`✅ 워크스페이스 "${workspaceName}" 등록 완료.\n\n팀원들에게 다음을 공유하세요:\n• 이메일: ${email}\n• 비밀번호: (방금 입력하신 값)\n\n페이지를 새로고침합니다.`);
-      location.reload();
-    } catch (e) {
-      authErrShow(`❌ ${e.message}`);
-    }
-  });
-
-  document.getElementById('authLogoutBtn')?.addEventListener('click', () => {
-    if (!confirm('로그아웃하시겠습니까?\n이후 입력은 로컬 임시저장만 됩니다 (팀원과 동기화 안 됨).')) return;
-    authLogout();
-    refreshAuthUI();
-    alert('로그아웃 완료. 페이지를 새로고침합니다.');
-    location.reload();
-  });
-
-  // 키 입력 모달 이벤트
-  document.getElementById('credModalClose')?.addEventListener('click', closeCredModal);
-  document.getElementById('credModalCancel')?.addEventListener('click', closeCredModal);
-  document.getElementById('credModal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'credModal') closeCredModal();
-  });
-  document.getElementById('credModalSave')?.addEventListener('click', saveCredModal);
-
-  // OAuth 성공 리턴 처리 (?oauth=success)
-  if (new URLSearchParams(location.search).get('oauth') === 'success') {
-    setTimeout(() => alert('✅ OAuth 인증 완료! access/refresh 토큰이 서버에 저장되었습니다.'), 500);
-    history.replaceState({}, '', location.pathname);
-  }
-
   // 프리퍼런스 저장 (변경 즉시)
   ['goalInput','defaultRangeSelect','notifMinutesAi','notifSalesDrop','refreshInterval'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', () => saveSettingsPrefs(collectSettingsPrefs()));
@@ -4578,10 +4206,6 @@ switchSection = function(section) {
     if (!manualCurrent) renderManualHome();
   }
   if (section === 'settings') {
-    if (isSettingsUnlocked()) openSettingsBody();
-    else {
-      document.getElementById('settingsGate').style.display = '';
-      document.getElementById('settingsBody').style.display = 'none';
-    }
+    openSettingsBody();
   }
 };
