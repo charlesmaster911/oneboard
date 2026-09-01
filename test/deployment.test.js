@@ -49,4 +49,15 @@ describe('Render public configuration boundary', () => {
 
     expect(keys.filter((key) => forbidden.includes(key))).toEqual([]);
   });
+
+  it('allows exactly the three public build environment keys with production mode fixed', () => {
+    const entries = renderEnvEntries();
+
+    expect([...entries.keys()].sort()).toEqual([
+      'GOOGLE_CLIENT_ID',
+      'NODE_ENV',
+      'ONEBOARD_API_BASE',
+    ]);
+    expect(entries.get('NODE_ENV')).toEqual({ value: 'production' });
+  });
 });
