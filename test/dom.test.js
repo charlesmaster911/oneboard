@@ -96,13 +96,13 @@ describe('authenticated shell visibility', () => {
   });
 
   test.each([
-    ['owner', ['sales', 'team', 'minutes', 'kpi', 'manual', 'settings']],
-    ['ops', ['sales', 'team', 'minutes', 'kpi', 'manual', 'settings']],
+    ['owner', ['sales', 'team', 'minutes']],
+    ['ops', ['sales', 'team', 'minutes']],
     ['marketing', ['sales', 'team']],
     ['member', ['sales', 'team']],
     ['system', []],
   ])('%s sees only canonical interactive sections', (role, visibleSections) => {
-    document.body.innerHTML = ['sales', 'team', 'minutes', 'kpi', 'manual', 'settings']
+    document.body.innerHTML = ['sales', 'team', 'minutes']
       .map((section) => `<button data-section="${section}"></button>`)
       .join('');
 
@@ -164,10 +164,36 @@ test('the page keeps every board section behind Google login and removes the pas
   expect(page.querySelector('#app-shell #current-role')).not.toBeNull();
   expect(page.querySelector('#app-shell #logout-button')).not.toBeNull();
   expect(page.querySelector('#auth-announcer[aria-live]')).not.toBeNull();
-  expect(page.querySelectorAll('#app-shell .section-content').length).toBe(6);
+  expect(page.querySelectorAll('#app-shell .section-content').length).toBe(3);
   expect(page.querySelector('#settingsPassword')).toBeNull();
   expect(page.querySelector('#settingsUnlock')).toBeNull();
   expect(page.querySelector('#settingsLockBtn')).toBeNull();
+});
+
+test('production sources contain no historical identity or target sentinels', async () => {
+  const files = [
+    'index.html', 'style.css', 'app.js',
+    'modules/api.js', 'modules/auth.js', 'modules/dom.js', 'modules/main.js',
+  ];
+  const source = (await Promise.all(files.map((file) => readFile(`${process.cwd()}/${file}`, 'utf8')))).join('\n');
+
+  expect(source).not.toMatch(/이한수|권나경|권수지|찰스|컨텐츠팀|JEWELICE|쥬얼아이스|20억/i);
+});
+
+test('the retained page exposes only wired buttons and explicit non-loading states', async () => {
+  const source = await readFile(`${process.cwd()}/index.html`, 'utf8');
+  const page = new DOMParser().parseFromString(source, 'text/html');
+  const allowedButtonIds = new Set([
+    'logout-button', 'notifBell', 'notifReadAll', 'refreshTeamBtn', 'addTaskBtn',
+    'closeTaskModal', 'cancelTask', 'saveTask', 'deleteTask',
+  ]);
+  const unaccounted = [...page.querySelectorAll('button')].filter((button) => (
+    !button.dataset.section && !allowedButtonIds.has(button.id)
+  ));
+
+  expect(unaccounted.map((button) => button.outerHTML)).toEqual([]);
+  expect(source).not.toMatch(/로딩 중|데이터 로딩|확인 중/);
+  expect(source).not.toMatch(/onclick\s*=/i);
 });
 
 test('runtime config loads before application modules and production sources contain no browser Sheets path or real presets', async () => {

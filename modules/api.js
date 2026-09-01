@@ -1,5 +1,6 @@
 const ACCESS_TOKEN_KEY = 'oneboard_access_token';
-let refreshPromise = null;
+let refreshRecord = null;
+let sessionEpoch = 0;
 
 function apiBase() {
   return globalThis.ONEBOARD_CONFIG?.apiBase
@@ -17,9 +18,9 @@ function accessToken() {
   return sessionStorage.getItem(ACCESS_TOKEN_KEY) || '';
 }
 
-function clearSession() {
+function clearSession({ notify = true } = {}) {
   sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-  globalThis.dispatchEvent?.(new Event('oneboard:session-cleared'));
+  if (notify) globalThis.dispatchEvent?.(new Event('oneboard:session-cleared'));
 }
 
 export class SessionExpiredError extends Error {
@@ -30,9 +31,31 @@ export class SessionExpiredError extends Error {
   }
 }
 
-export function setAccessToken(token) {
+export class SessionSupersededError extends Error {
+  constructor() {
+    super('Authenticated session lifecycle was superseded');
+    this.name = 'SessionSupersededError';
+    this.code = 'SESSION_SUPERSEDED';
+  }
+}
+
+export function beginSessionFamily() {
+  sessionEpoch += 1;
+  return sessionEpoch;
+}
+
+export function clearAccessToken({ notify = true } = {}) {
+  clearSession({ notify });
+}
+
+export function setAccessToken(token, { notify = true } = {}) {
   if (token) sessionStorage.setItem(ACCESS_TOKEN_KEY, String(token));
-  else clearSession();
+  else clearSession({ notify });
+}
+
+export function setAccessTokenForEpoch(token, epoch) {
+  if (epoch !== sessionEpoch) throw new SessionSupersededError();
+  setAccessToken(token);
 }
 
 function requestOptions(options = {}, token = accessToken()) {
@@ -46,7 +69,7 @@ async function responsePayload(response) {
   return response.json().catch(() => null);
 }
 
-async function performRefresh() {
+async function performRefresh(epoch) {
   let response;
   try {
     response = await fetch(apiUrl('/auth/refresh'), {
@@ -54,10 +77,12 @@ async function performRefresh() {
       credentials: 'include',
     });
   } catch (error) {
+    if (epoch !== sessionEpoch) throw new SessionSupersededError();
     clearSession();
     throw error;
   }
   const payload = await responsePayload(response);
+  if (epoch !== sessionEpoch) throw new SessionSupersededError();
   if (!response.ok || !payload?.data?.accessToken || !payload?.data?.user) {
     clearSession();
     const error = new Error(`Session refresh failed (${response.status})`);
@@ -65,17 +90,20 @@ async function performRefresh() {
     error.payload = payload;
     throw error;
   }
-  setAccessToken(payload.data.accessToken);
+  setAccessTokenForEpoch(payload.data.accessToken, epoch);
   return payload.data;
 }
 
 export function refreshSession() {
-  if (!refreshPromise) {
-    refreshPromise = performRefresh().finally(() => {
-      refreshPromise = null;
+  const epoch = sessionEpoch;
+  if (!refreshRecord || refreshRecord.epoch !== epoch) {
+    const record = { epoch, promise: null };
+    record.promise = performRefresh(epoch).finally(() => {
+      if (refreshRecord === record) refreshRecord = null;
     });
+    refreshRecord = record;
   }
-  return refreshPromise;
+  return refreshRecord.promise;
 }
 
 export async function apiFetch(path, options = {}) {
@@ -85,7 +113,8 @@ export async function apiFetch(path, options = {}) {
 
   try {
     if (!requestToken || accessToken() === requestToken) await refreshSession();
-  } catch {
+  } catch (error) {
+    if (error?.code === 'SESSION_SUPERSEDED') throw error;
     clearSession();
     throw new SessionExpiredError();
   }

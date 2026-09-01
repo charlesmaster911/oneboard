@@ -3,22 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OneBoard | 쥬얼아이스</title>
+  <title>OneBoard | 통합 운영 보드</title>
   <script src="config.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
   <script id="google-identity-script" src="https://accounts.google.com/gsi/client" async defer></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <section class="login-screen" id="login-screen" aria-labelledby="login-title">
   <div class="login-card">
-    <div class="login-logo" aria-hidden="true">
-      <span></span><span></span><span></span><span></span>
-    </div>
-    <p class="login-eyebrow">JEWELICE OPERATIONS</p>
+    <div class="login-logo" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <p class="login-eyebrow">AUTHENTICATED OPERATIONS</p>
     <h1 id="login-title" tabindex="-1">OneBoard</h1>
     <p class="login-copy">승인된 Google 계정으로 로그인해 운영 보드에 접속하세요.</p>
     <div id="google-signin" class="google-signin" aria-label="Google 로그인"></div>
@@ -28,726 +24,144 @@
 <p id="auth-announcer" class="sr-only" role="status" aria-live="assertive" aria-atomic="true"></p>
 
 <div id="app-shell" tabindex="-1" hidden>
-<div class="app">
-
-  <!-- ── Header ── -->
-  <header class="header">
-    <div class="header-left">
-      <div class="logo">
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-          <rect width="10" height="10" rx="2" fill="#3B82F6"/>
-          <rect x="12" width="10" height="10" rx="2" fill="#10B981"/>
-          <rect y="12" width="10" height="10" rx="2" fill="#F59E0B"/>
-          <rect x="12" y="12" width="10" height="10" rx="2" fill="#8B5CF6"/>
-        </svg>
-        <span class="logo-text">OneBoard</span>
-      </div>
-      <div class="workspace-badge">쥬얼아이스 🍦</div>
-    </div>
-    <div class="header-right">
-      <div class="session-user" aria-label="현재 로그인 사용자">
-        <div class="session-user-copy">
-          <span class="session-user-name" id="current-user"></span>
-          <span class="session-user-role" id="current-role"></span>
+  <div class="app">
+    <header class="header">
+      <div class="header-left">
+        <div class="logo" aria-label="OneBoard">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+            <rect width="10" height="10" rx="2" fill="#3B82F6"/>
+            <rect x="12" width="10" height="10" rx="2" fill="#10B981"/>
+            <rect y="12" width="10" height="10" rx="2" fill="#F59E0B"/>
+            <rect x="12" y="12" width="10" height="10" rx="2" fill="#8B5CF6"/>
+          </svg>
+          <span class="logo-text">OneBoard</span>
         </div>
-        <button class="session-logout" id="logout-button" type="button">로그아웃</button>
+        <div class="workspace-badge">인증된 워크스페이스</div>
       </div>
-      <p id="auth-action-status" class="session-action-status" role="status" aria-live="polite"></p>
-      <div class="date-range-btns" id="dateRangeBtns">
-        <button class="range-btn" data-range="week">이번주</button>
-        <button class="range-btn active" data-range="month">이번달</button>
-        <button class="range-btn" data-range="0">전체</button>
-        <!-- 2026-05-26 #OB-DATE-PICKER-001 — 임의 기간 지정 -->
-        <input type="date" id="rangeFrom" class="range-date-input" title="시작일">
-        <span style="color:#94a3b8;font-size:12px">~</span>
-        <input type="date" id="rangeTo" class="range-date-input" title="종료일">
-        <button class="range-btn" id="rangeApply" title="지정 기간 적용">적용</button>
-      </div>
-      <div class="last-updated" id="lastUpdated">로딩 중...</div>
-      <div class="notif-wrap" id="notifWrap">
-        <button class="notif-bell" id="notifBell" title="알림">
-          🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span>
-        </button>
-        <div class="notif-dropdown" id="notifDropdown" style="display:none">
-          <div class="notif-header">
-            <span>알림</span>
-            <button class="notif-read-all" id="notifReadAll">모두 읽음</button>
+      <div class="header-right">
+        <div class="session-user" aria-label="현재 로그인 사용자">
+          <div class="session-user-copy">
+            <span class="session-user-name" id="current-user"></span>
+            <span class="session-user-role" id="current-role"></span>
           </div>
-          <div class="notif-list" id="notifList"><div class="notif-empty">알림 없음</div></div>
+          <button class="session-logout" id="logout-button" type="button">로그아웃</button>
         </div>
-      </div>
-    </div>
-  </header>
-
-  <!-- ── Section Nav ── -->
-  <nav class="section-nav">
-    <button class="section-btn active" data-section="sales" data-roles="owner,ops,marketing,member">📊 매출</button>
-    <button class="section-btn" data-section="team" data-roles="owner,ops,marketing,member">👥 팀 업무</button>
-    <button class="section-btn" data-section="minutes" data-roles="owner,ops">📋 회의록</button>
-    <button class="section-btn" data-section="kpi" data-roles="owner,ops">🏆 팀 KPI</button>
-    <button class="section-btn" data-section="manual" data-roles="owner,ops">📘 운영매뉴얼</button>
-    <button class="section-btn" data-section="settings" data-roles="owner,ops">⚙️ 설정</button>
-  </nav>
-
-  <!-- ── AI 인사이트 배너 ── -->
-  <div class="insights-bar" id="insightsBar" style="display:none">
-    <div class="insights-bar-inner" id="insightsList"></div>
-    <button class="insights-refresh" id="insightsRefresh" title="AI 분석 새로고침">↻ AI 분석</button>
-  </div>
-
-  <main class="main">
-
-    <!-- ═══════════════════════════════════════
-         섹션 1: 매출
-    ═══════════════════════════════════════ -->
-    <div id="section-sales" class="section-content">
-
-      <!-- 연간 목표 -->
-      <section class="goal-section">
-        <div class="goal-card">
-          <div class="goal-header">
-            <span class="goal-label">2026 연간 목표</span>
-            <span class="goal-target" id="goalTarget">₩20억</span>
-          </div>
-          <div class="goal-bar-wrap">
-            <div class="goal-bar-track">
-              <div class="goal-bar-fill" id="goalBarFill" style="width:0%"></div>
+        <p id="auth-action-status" class="session-action-status" role="status" aria-live="polite"></p>
+        <div class="notif-wrap" id="notifWrap">
+          <button class="notif-bell" id="notifBell" type="button" aria-label="알림 열기">
+            🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span>
+          </button>
+          <div class="notif-dropdown" id="notifDropdown" style="display:none">
+            <div class="notif-header">
+              <span>알림</span>
+              <button class="notif-read-all" id="notifReadAll" type="button">모두 읽음</button>
             </div>
-            <span class="goal-pct" id="goalPct">0%</span>
-          </div>
-          <div class="goal-meta">
-            <span>달성 <strong id="goalYtd">—</strong></span>
-            <span>잔여 <strong id="goalRemain">—</strong></span>
-            <span>파이프라인 <strong id="goalPipeline">—</strong></span>
+            <div class="notif-list" id="notifList"><div class="notif-empty">알림 없음</div></div>
           </div>
         </div>
-      </section>
-
-      <!-- KPI Cards -->
-      <section class="kpi-section">
-        <div class="kpi-card kpi-sales">
-          <div class="kpi-icon">💰</div>
-          <div class="kpi-label">총 매출</div>
-          <div class="kpi-value" id="val-sales">—</div>
-          <div class="kpi-change neutral" id="chg-sales">전 기간 비교 중</div>
-          <div class="kpi-sub">기간 합계</div>
-        </div>
-        <div class="kpi-card kpi-traffic">
-          <div class="kpi-icon">👥</div>
-          <div class="kpi-label">총 유입</div>
-          <div class="kpi-value" id="val-traffic">—</div>
-          <div class="kpi-change neutral" id="chg-traffic">전 기간 비교 중</div>
-          <div class="kpi-sub">방문자 합계</div>
-        </div>
-        <div class="kpi-card kpi-adspend">
-          <div class="kpi-icon">📢</div>
-          <div class="kpi-label">총 광고비</div>
-          <div class="kpi-value" id="val-adspend">—</div>
-          <div class="kpi-change neutral" id="chg-adspend">전 기간 비교 중</div>
-          <div class="kpi-sub">기간 합계</div>
-        </div>
-        <div class="kpi-card kpi-roas">
-          <div class="kpi-icon">📈</div>
-          <div class="kpi-label">평균 ROAS</div>
-          <div class="kpi-value" id="val-roas">—</div>
-          <div class="kpi-change neutral" id="chg-roas">전 기간 비교 중</div>
-          <div class="kpi-sub">총매출 ÷ 광고비</div>
-        </div>
-      </section>
-
-      <!-- Channel Tabs (매출 5 + 광고 3 + 통합 1 = 9) -->
-      <div class="channel-tabs">
-        <button class="tab-btn active" data-channel="통합">📊 통합</button>
-        <span class="channel-group-label sales-label">📈 매출</span>
-        <button class="tab-btn" data-channel="자사몰">🏪 자사몰</button>
-        <button class="tab-btn" data-channel="네이버">🟢 네이버</button>
-        <button class="tab-btn" data-channel="쿠팡_한반도">🛍️ 쿠팡(한반도·듀오)</button>
-        <button class="tab-btn" data-channel="쿠팡_네모칩">🛍️ 쿠팡(네모칩·아블러)</button>
-        <button class="tab-btn" data-channel="카카오_매출">💛 카카오(메시지)</button>
-        <button class="tab-btn" data-channel="유튜브쇼핑">📺 유튜브쇼핑</button>
-        <button class="tab-btn" data-channel="기타매출">✨ 기타매출</button>
-        <span class="channel-group-divider"></span>
-        <span class="channel-group-label ads-label">📢 광고</span>
-        <button class="tab-btn" data-channel="META">📘 META</button>
-        <button class="tab-btn" data-channel="네이버_GFA">🟢 네이버 GFA</button>
-        <button class="tab-btn" data-channel="네이버_검색광고">🟢 네이버 검색광고</button>
-        <button class="tab-btn" data-channel="카카오모먼트">💛 카카오모먼트</button>
-        <button class="tab-btn" data-channel="기타_광고수수료">💸 기타 광고수수료</button>
       </div>
-      <div class="channel-notice" id="channelNotice" style="display:none">
-        <span>해당 채널의 인증된 API 데이터가 아직 없습니다.</span>
-      </div>
+    </header>
 
-      <!-- Main Sales Chart -->
-      <section class="chart-card">
-        <div class="chart-header">
-          <div class="chart-title">매출 추이</div>
-          <div class="chart-legend">
-            <span class="legend-item"><span class="legend-dot blue"></span>총 매출</span>
-            <span class="legend-item"><span class="legend-dot green"></span>전환 매출</span>
-          </div>
-        </div>
-        <div class="chart-body" style="height:280px">
-          <canvas id="salesChart"></canvas>
-        </div>
-      </section>
+    <nav class="section-nav" aria-label="운영 보드 섹션">
+      <button class="section-btn active" data-section="sales" data-roles="owner,ops,marketing,member" type="button">📊 매출</button>
+      <button class="section-btn" data-section="team" data-roles="owner,ops,marketing,member" type="button">👥 팀 업무</button>
+      <button class="section-btn" data-section="minutes" data-roles="owner,ops" type="button">📋 회의록</button>
+    </nav>
 
-      <!-- Secondary Charts -->
-      <div class="charts-grid">
+    <main class="main">
+      <div id="section-sales" class="section-content">
+        <section class="kpi-section" aria-label="매출 요약">
+          <div class="kpi-card kpi-sales"><div class="kpi-label">총 매출</div><div class="kpi-value" id="val-sales">—</div></div>
+          <div class="kpi-card kpi-traffic"><div class="kpi-label">총 유입</div><div class="kpi-value" id="val-traffic">—</div></div>
+          <div class="kpi-card kpi-adspend"><div class="kpi-label">총 광고비</div><div class="kpi-value" id="val-adspend">—</div></div>
+          <div class="kpi-card kpi-roas"><div class="kpi-label">ROAS</div><div class="kpi-value" id="val-roas">—</div></div>
+        </section>
+
         <section class="chart-card">
           <div class="chart-header">
-            <div class="chart-title">ROAS 추이</div>
-            <div class="chart-sub">총 매출 ÷ 광고비 × 100</div>
+            <div class="chart-title">최근 30일 일별 데이터</div>
+            <span class="data-source-badge" id="dataSource">로그인 후 API 조회</span>
           </div>
-          <div class="chart-body" style="height:200px">
-            <canvas id="roasChart"></canvas>
-          </div>
-        </section>
-        <section class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">광고비율 추이</div>
-            <div class="chart-sub">광고비 ÷ 총매출</div>
-          </div>
-          <div class="chart-body" style="height:200px">
-            <canvas id="adRatioChart"></canvas>
-          </div>
-        </section>
-        <section class="chart-card channel-chart-card">
-          <div class="chart-header">
-            <div class="chart-title">채널별 매출 비중</div>
-            <div class="channel-badge">인증 API</div>
-          </div>
-          <div class="chart-body channel-donut-body" style="height:200px">
-            <canvas id="channelChart"></canvas>
-          </div>
-        </section>
-      </div>
-
-      <!-- Data Table -->
-      <section class="chart-card">
-        <div class="chart-header">
-          <div class="chart-title">일별 데이터</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="data-source-badge" id="dataSource">로딩 중...</span>
-            <button class="export-btn" id="exportBtn">CSV 내보내기</button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>날짜</th>
-                <th>총 매출</th>
-                <th>총 유입</th>
-                <th>전환 매출</th>
-                <th>총 광고비</th>
-                <th>ROAS</th>
-                <th>광고비율</th>
-              </tr>
-            </thead>
-            <tbody id="tableBody">
-              <tr><td colspan="7" class="loading-row">데이터 로딩 중...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- 채널별 일자 매트릭스 (13채널 + 기타) -->
-      <section class="chart-card" id="channelMatrixSection" style="margin-top:24px">
-        <div class="chart-header">
-          <div class="chart-title">📊 채널별 일자 매출 (클릭 시 상세)</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="data-source-badge" id="matrixSource">daily_metrics</span>
-            <button class="export-btn" id="matrixExportBtn">CSV 내보내기</button>
-          </div>
-        </div>
-        <div class="table-wrap" style="overflow-x:auto">
-          <table class="data-table" id="channelMatrixTable">
-            <thead id="channelMatrixHead"></thead>
-            <tbody id="channelMatrixBody">
-              <tr><td colspan="15" class="loading-row">데이터 로딩 중...</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div style="font-size:12px;color:#6B7280;margin-top:8px">
-          ※ 매출이 들어오지 않은 채널·일자는 ₩0으로 표시. 미매핑 채널은 "기타" 컬럼에 합산되며 클릭 시 원본명 확인 가능.
-        </div>
-      </section>
-
-      <!-- 일자 상세 모달 -->
-      <div id="dayDetailModal" class="cred-modal-overlay" style="display:none">
-        <div class="cred-modal" style="max-width:760px">
-          <div class="cred-modal-head">
-            <div class="cred-modal-title" id="dayDetailTitle">📅 2026-05-13 채널별 상세</div>
-            <button class="cred-modal-close" onclick="closeDayDetailModal()">✕</button>
-          </div>
-          <div class="cred-modal-body" id="dayDetailBody">
-            <div class="loading-row">로딩 중...</div>
-          </div>
-        </div>
-      </div>
-
-    </div><!-- /section-sales -->
-
-    <!-- ═══════════════════════════════════════
-         섹션 2: 팀 업무 캘린더
-    ═══════════════════════════════════════ -->
-    <div id="section-team" class="section-content" style="display:none">
-
-      <!-- 팀원 탭 (동적) -->
-      <div class="member-tabs" id="memberTabs">
-        <!-- JS로 렌더링: 🔗 통합 + 팀원 + + 탭 추가 -->
-      </div>
-
-      <!-- 통합 뷰 (기본) — 3컬럼: 좌 우선순위 / 가운데 캘린더 / 우 알림 -->
-      <div id="integratedView">
-        <div class="int3-grid">
-
-          <!-- 좌측: 우선순위 (현재월 미완료) -->
-          <aside class="int3-left">
-            <div class="int3-section-head">
-              <span class="int3-title">🚨 우선순위 · 미완료</span>
-              <label class="int3-archive-toggle">
-                <input type="checkbox" id="intShowArchive"> <span>아카이브 포함</span>
-              </label>
-            </div>
-            <div class="int3-month-label" id="intPriorityMonth">2026년 5월</div>
-            <div id="intBlockers" class="int3-priority-list"></div>
-          </aside>
-
-          <!-- 가운데: 통합 캘린더 -->
-          <section class="int3-center">
-            <div class="int3-section-head">
-              <span class="int3-title">📅 팀 통합 캘린더</span>
-              <div class="int3-cal-nav">
-                <button class="cal-nav-btn" id="intCalPrev">‹</button>
-                <span class="int3-cal-label" id="intCalLabel">—</span>
-                <button class="cal-nav-btn" id="intCalNext">›</button>
-                <button class="cal-today-btn" id="intCalToday">오늘</button>
-              </div>
-            </div>
-            <div class="int3-cal-wrap">
-              <div class="cal-grid" id="intCalGrid"></div>
-            </div>
-            <div class="int3-cal-legend" id="intCalLegend"></div>
-          </section>
-
-          <!-- 우측: 회의록 + 알림 -->
-          <aside class="int3-right">
-            <div class="int3-section-head"><span class="int3-title">📋 최근 회의록</span></div>
-            <div id="intMinutes" class="int3-minutes-list"></div>
-            <div class="int3-section-head" style="margin-top:18px"><span class="int3-title">🤝 협업 필요</span></div>
-            <div id="intAlerts" class="int3-priority-list"></div>
-          </aside>
-
-        </div>
-        <button class="refresh-btn" id="refreshTeamBtn" style="margin:12px 0">↻ 새로고침</button>
-      </div>
-
-      <!-- 개인 탭 뷰 (숨김) -->
-      <div id="memberCalView" style="display:none">
-
-        <!-- ① 월간 주관업무 (팀원 직접 입력) -->
-        <section class="tier-block" id="monthlyBlock">
-          <div class="tier-header">
-            <div class="tier-title">① 월간 주관업무 <span class="tier-sub" id="monthlyMonthLabel">2026-04</span></div>
-            <div class="tier-nav">
-              <button class="tier-nav-btn" id="monthlyPrev">‹</button>
-              <button class="tier-nav-btn" id="monthlyNext">›</button>
-              <button class="btn-secondary" id="monthlyAddRow">+ 행 추가</button>
-            </div>
-          </div>
-          <div class="monthly-table-wrap">
-            <table class="monthly-table">
-              <thead>
-                <tr><th style="width:40%">업무</th><th style="width:25%">플랫폼/툴</th><th style="width:30%">자동화 방안</th><th style="width:5%"></th></tr>
-              </thead>
-              <tbody id="monthlyBody"></tbody>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>날짜</th><th>총 매출</th><th>총 유입</th><th>전환 매출</th><th>총 광고비</th><th>ROAS</th><th>광고비율</th></tr></thead>
+              <tbody id="tableBody"><tr><td colspan="7" class="empty-state">표시할 데이터가 없습니다.</td></tr></tbody>
             </table>
           </div>
         </section>
 
-        <!-- ② 주간업무 (6칸) -->
-        <section class="tier-block" id="weeklyBlock">
-          <div class="tier-header">
-            <div class="tier-title">② 주간업무 <span class="tier-sub" id="weeklyMonthLabel">2026-04</span></div>
-            <div class="tier-nav">
-              <button class="tier-nav-btn" id="weeklyPrev">‹</button>
-              <button class="tier-nav-btn" id="weeklyNext">›</button>
-            </div>
+        <section class="chart-card" id="channelMatrixSection">
+          <div class="chart-header">
+            <div class="chart-title">채널별 일자 매출</div>
+            <span class="data-source-badge" id="matrixSource">로그인 후 API 조회</span>
           </div>
-          <div class="weekly-grid" id="weeklyGrid">
-            <!-- JS로 6칸 렌더링 (1주~5주 + 상시) -->
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead id="channelMatrixHead"><tr><th>날짜</th><th>플랫폼</th><th>매출</th><th>광고비</th></tr></thead>
+              <tbody id="channelMatrixBody"><tr><td colspan="4" class="empty-state">표시할 채널 데이터가 없습니다.</td></tr></tbody>
+            </table>
           </div>
         </section>
-
-        <!-- ③ 팀 업무 캘린더 -->
-        <div class="tier-title" style="margin-top:20px">③ 팀 업무 캘린더</div>
-
-        <!-- 캘린더 헤더 -->
-        <div class="cal-header">
-          <div class="cal-nav">
-            <button class="cal-nav-btn" id="calPrev">‹</button>
-            <div class="cal-week-label" id="calWeekLabel">—</div>
-            <button class="cal-nav-btn" id="calNext">›</button>
-            <button class="cal-today-btn" id="calToday">오늘</button>
-          </div>
-          <div class="cal-view-btns">
-            <button class="range-btn active" data-calview="month">월간</button>
-            <button class="range-btn" data-calview="week">주간</button>
-          </div>
-          <button class="cal-add-member-btn" id="calAddMemberBtn">+ 업무 추가</button>
-        </div>
-
-        <!-- 월간 캘린더 -->
-        <div id="calMonthView" class="cal-week-wrap">
-          <div class="cal-grid" id="calGrid">
-            <!-- JS로 렌더링 -->
-          </div>
-        </div>
-
-        <!-- 주간 뷰 (7일 가로 그리드) -->
-        <div id="calWeekView" class="cal-week-wrap" style="display:none">
-          <div class="cal-grid" id="calWeekGrid">
-            <!-- JS로 렌더링 -->
-          </div>
-        </div>
-
-      </div><!-- /memberCalView -->
-
-      <!-- 데이터 상태 + 팀 캘린더 CSV 백업 -->
-      <div class="import-bar" id="importBar">
-        <span id="dataStatusBadge" style="margin-left:auto;margin-right:8px">… 확인 중</span>
-        <button class="btn-secondary" id="csvDownloadBtn" style="font-size:12px;padding:6px 14px" title="팀 캘린더(③) task를 CSV로 다운로드 — 월간/주간은 미포함">📤 팀 캘린더 CSV</button>
       </div>
 
-      <!-- 업무 추가 모달 -->
-      <div class="modal-overlay" id="taskModal" style="display:none">
-        <div class="modal">
-          <div class="modal-header">
-            <div class="modal-title">업무 추가</div>
-            <button class="modal-close" id="closeTaskModal">✕</button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group">
-              <label class="form-label">날짜</label>
-              <input type="date" class="form-input" id="taskDate">
+      <div id="section-team" class="section-content" style="display:none">
+        <section class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">배정 업무</div>
+              <div class="chart-sub">owner/ops는 구조를 관리하고, 배정된 사용자는 진행 상태와 메모만 변경할 수 있습니다.</div>
             </div>
-            <div class="form-group" id="taskAssigneeGroup">
-              <label class="form-label">담당자</label>
-              <!-- 자동 모드: 라벨 + 변경 버튼 / 수동 모드: select -->
-              <div id="taskAssigneeAuto" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:#F3F4F6;border:1px solid #E5E7EB;border-radius:8px;">
-                <span id="taskAssigneeLabel" style="font-weight:600;color:#111827"></span>
-                <button type="button" id="taskAssigneeChange" style="font-size:12px;color:#3B82F6;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0">변경</button>
+            <div class="task-toolbar">
+              <span class="data-source-badge" id="dataStatusBadge">로그인 후 API 조회</span>
+              <button class="refresh-btn" id="refreshTeamBtn" type="button">새로고침</button>
+              <button class="btn-primary" id="addTaskBtn" type="button" data-roles="owner,ops">업무 추가</button>
+            </div>
+          </div>
+          <div id="intBlockers" class="int3-priority-list"><div class="int3-empty">표시할 배정 업무가 없습니다.</div></div>
+        </section>
+
+        <div class="modal-overlay" id="taskModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+          <div class="modal">
+            <div class="modal-header">
+              <div class="modal-title" id="taskModalTitle">업무</div>
+              <button class="modal-close" id="closeTaskModal" type="button" aria-label="닫기">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="form-group"><label class="form-label" for="taskDate">날짜</label><input type="date" class="form-input" id="taskDate"></div>
+              <div class="form-group"><label class="form-label" for="taskAssignee">담당자 표시명</label><input type="text" class="form-input" id="taskAssignee" autocomplete="off"></div>
+              <div class="form-group"><label class="form-label" for="taskAssignedUserId">담당 사용자 ID (선택)</label><input type="text" class="form-input" id="taskAssignedUserId" autocomplete="off"></div>
+              <div class="form-group"><label class="form-label" for="taskContent">업무 내용</label><input type="text" class="form-input" id="taskContent" autocomplete="off"></div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label" for="taskStatus">상태</label><select class="form-input" id="taskStatus"><option value="예정">예정</option><option value="진행">진행</option><option value="완료">완료</option></select></div>
+                <div class="form-group"><label class="form-label" for="taskPriority">우선순위</label><select class="form-input" id="taskPriority"><option value="높음">높음</option><option value="보통">보통</option><option value="낮음">낮음</option></select></div>
               </div>
-              <select class="form-input" id="taskAssignee">
-                <!-- populateAssigneeOptions()가 동적으로 채움 (loadTeamMembers 기반) -->
-              </select>
+              <div class="form-group"><label class="form-label" for="taskMemo">메모</label><input type="text" class="form-input" id="taskMemo" autocomplete="off"></div>
+              <p id="taskMutationStatus" class="session-action-status" role="status" aria-live="polite"></p>
             </div>
-            <div class="form-group">
-              <label class="form-label">업무 내용</label>
-              <input type="text" class="form-input" id="taskContent" placeholder="예) META 광고 소재 검토">
+            <div class="modal-footer">
+              <button class="btn-danger" id="deleteTask" type="button">삭제</button>
+              <button class="btn-secondary" id="cancelTask" type="button">취소</button>
+              <button class="btn-primary" id="saveTask" type="button">저장</button>
             </div>
-            <div class="form-row">
-              <div class="form-group" style="flex:1">
-                <label class="form-label">상태</label>
-                <select class="form-input" id="taskStatus">
-                  <option value="예정">예정</option>
-                  <option value="진행">진행</option>
-                  <option value="완료">완료</option>
-                </select>
-              </div>
-              <div class="form-group" style="flex:1">
-                <label class="form-label">우선순위</label>
-                <select class="form-input" id="taskPriority">
-                  <option value="높음">높음</option>
-                  <option value="보통" selected>보통</option>
-                  <option value="낮음">낮음</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">메모 (선택)</label>
-              <input type="text" class="form-input" id="taskMemo" placeholder="추가 메모">
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-danger" id="deleteTask" style="display:none;margin-right:auto" title="이 업무 삭제">🗑 삭제</button>
-            <button class="btn-secondary" id="cancelTask">취소</button>
-            <button class="btn-primary" id="saveTask">저장</button>
           </div>
         </div>
       </div>
 
-    </div><!-- /section-team -->
-
-    <!-- ═══════════════════════════════════════
-         섹션 3: 회의록
-    ═══════════════════════════════════════ -->
-    <div id="section-minutes" class="section-content" style="display:none" data-roles="owner,ops">
-
-      <div class="minutes-layout">
-        <!-- 회의록 목록 -->
-        <aside class="minutes-sidebar">
-          <div class="minutes-sidebar-header">
-            <div class="chart-title">회의록 목록</div>
-            <button class="add-btn" id="addMinutesBtn">+ 새 회의록</button>
-          </div>
-          <div class="minutes-list" id="minutesList">
-            <div class="empty-state">로딩 중...</div>
-          </div>
-        </aside>
-
-        <!-- 회의록 뷰어 -->
-        <article class="minutes-viewer" id="minutesViewer">
-          <div class="minutes-placeholder">
-            <div class="minutes-placeholder-icon">📋</div>
-            <div>왼쪽 목록에서 회의록을 선택하세요</div>
-          </div>
-        </article>
-      </div>
-
-      <!-- 새 회의록 폼 -->
-      <div class="modal-overlay" id="minutesModal" style="display:none">
-        <div class="modal">
-          <div class="modal-header">
-            <div class="modal-title">새 회의록 작성</div>
-            <button class="modal-close" id="closeMinutesModal">✕</button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group">
-              <label class="form-label">회의 날짜</label>
-              <input type="date" class="form-input" id="minutesDate">
-            </div>
-            <div class="form-group">
-              <label class="form-label">회의 제목</label>
-              <input type="text" class="form-input" id="minutesTitle" placeholder="예) 주간 팀 미팅">
-            </div>
-            <div class="form-group">
-              <label class="form-label">참석자 (선택)</label>
-              <input type="text" class="form-input" id="minutesAttendees" placeholder="예) 운영팀, 마케팅팀">
-            </div>
-            <div class="form-group">
-              <label class="form-label">📌 요약 (회의 핵심 3~5줄 — 상단에 박스로 표시됩니다)</label>
-              <textarea class="form-textarea" id="minutesSummary" rows="3" placeholder="예) 이번 주 META 광고 효율 점검. 쿠팡 로켓그로스 품절 대응. 신규 콘텐츠 캘린더 확정."></textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label">✅ 지시사항 (줄바꿈으로 구분 — 각 항목이 체크박스로 추적됩니다)</label>
-              <textarea class="form-textarea" id="minutesDirectives" rows="4" placeholder="1. 이번 주 META 광고 예산 20% 증가&#10;2. 쿠팡 상품 리뷰 대응 완료&#10;3. 콘텐츠 캘린더 다음 달 분 작성"></textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label">📝 주요 논의 내용 (번호 1. 2. 3. … 으로 항목을 나누면 자동으로 줄 분리되어 보입니다)</label>
-              <textarea class="form-textarea" id="minutesContent" rows="6" placeholder="1. 신임 팀장 환영 — 출근 시간 및 적응 기간 논의&#10;2. 업무 툴 및 시스템 자동화 — 잔디·Gemini·Onboard 연동&#10;3. 부서별 주간 업무 계획 — 마케팅·물류·운영 별 점검"></textarea>
+      <div id="section-minutes" class="section-content" style="display:none" data-roles="owner,ops">
+        <section class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">회의록</div>
+              <div class="chart-sub">현재 화면은 인증된 회의록의 읽기 전용 목록만 제공합니다. 작성·수정 기능은 이 화면에서 제공하지 않습니다.</div>
             </div>
           </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" id="cancelMinutes">취소</button>
-            <button class="btn-primary" id="saveMinutes">저장</button>
-          </div>
-        </div>
-      </div>
-
-    </div><!-- /section-minutes -->
-
-    <!-- ═══════════════════════════════════════
-         섹션 4: 팀 KPI
-    ═══════════════════════════════════════ -->
-    <div id="section-kpi" class="section-content" style="display:none" data-roles="owner,ops">
-
-      <!-- KPI 기간 선택 -->
-      <div class="kpi-period-bar">
-        <div class="chart-title">팀 KPI 현황</div>
-        <div class="kpi-period-btns">
-          <button class="range-btn active" data-period="week">이번 주</button>
-          <button class="range-btn" data-period="month">이번 달</button>
-        </div>
-      </div>
-
-      <!-- 팀 전체 요약 -->
-      <section class="kpi-section">
-        <div class="kpi-card kpi-sales">
-          <div class="kpi-icon">✅</div>
-          <div class="kpi-label">팀 완료율</div>
-          <div class="kpi-value" id="kpi-completion">—</div>
-          <div class="kpi-change neutral" id="kpi-completion-chg">전 기간 대비</div>
-          <div class="kpi-sub">전체 팀 평균</div>
-        </div>
-        <div class="kpi-card kpi-traffic">
-          <div class="kpi-icon">⏱️</div>
-          <div class="kpi-label">기한 준수율</div>
-          <div class="kpi-value" id="kpi-deadline">—</div>
-          <div class="kpi-change neutral" id="kpi-deadline-chg">전 기간 대비</div>
-          <div class="kpi-sub">전체 팀 평균</div>
-        </div>
-        <div class="kpi-card kpi-adspend">
-          <div class="kpi-icon">🚧</div>
-          <div class="kpi-label">블로커 건수</div>
-          <div class="kpi-value" id="kpi-blockers">—</div>
-          <div class="kpi-change neutral" id="kpi-blockers-chg">이번 주</div>
-          <div class="kpi-sub">미해결 이슈</div>
-        </div>
-        <div class="kpi-card kpi-roas">
-          <div class="kpi-icon">📝</div>
-          <div class="kpi-label">로그 제출률</div>
-          <div class="kpi-value" id="kpi-logs">—</div>
-          <div class="kpi-change neutral" id="kpi-logs-chg">이번 주</div>
-          <div class="kpi-sub">일일 로그 기준</div>
-        </div>
-      </section>
-
-      <!-- 팀원별 KPI 테이블 -->
-      <section class="chart-card">
-        <div class="chart-header">
-          <div class="chart-title">팀원별 KPI</div>
-          <div class="chart-sub">회의록 지시사항 기준 평가</div>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th style="text-align:left">팀원</th>
-                <th>완료율</th>
-                <th>기한준수</th>
-                <th>블로커</th>
-                <th>로그제출</th>
-                <th>종합점수</th>
-                <th style="text-align:left">이번 주 핵심 업무</th>
-              </tr>
-            </thead>
-            <tbody id="memberKpiTable">
-              <tr><td colspan="7" class="loading-row">데이터 로딩 중...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- 회의록 지시사항 이행 현황 -->
-      <section class="chart-card">
-        <div class="chart-header">
-          <div class="chart-title">📌 회의록 지시사항 이행 현황</div>
-        </div>
-        <div class="directives-list" id="directivesList">
-          <div class="empty-state">로딩 중...</div>
-        </div>
-      </section>
-
-    </div><!-- /section-kpi -->
-
-    <!-- ═══════════════════════════════════════
-         섹션 5: 운영매뉴얼
-    ═══════════════════════════════════════ -->
-    <div id="section-manual" class="section-content" style="display:none" data-roles="owner,ops">
-      <div class="manual-layout">
-        <aside class="manual-sidebar">
-          <div class="manual-search-wrap">
-            <input type="text" class="form-input" id="manualSearch" placeholder="🔍 문서 검색...">
-          </div>
-          <div class="manual-nav" id="manualNav"><!-- JS --></div>
-        </aside>
-        <article class="manual-viewer" id="manualViewer">
-          <div class="manual-placeholder">
-            <div class="manual-placeholder-icon">📘</div>
-            <div>왼쪽 사이드바에서 문서를 선택하세요</div>
-            <div style="font-size:12px;color:#94a3b8;margin-top:8px">쥬얼아이스 회사기본 운영매뉴얼 · CS 통합</div>
-          </div>
-        </article>
-      </div>
-    </div><!-- /section-manual -->
-
-    <!-- ═══════════════════════════════════════
-         섹션 6: 설정
-    ═══════════════════════════════════════ -->
-    <div id="section-settings" class="section-content" style="display:none" data-roles="owner,ops">
-      <div class="settings-body" id="settingsBody">
-
-        <!-- 데이터 소스 -->
-        <section class="settings-section" data-roles="owner">
-          <div class="settings-section-title">🔐 데이터 소스</div>
-          <div class="settings-status-row">
-            <span class="settings-status-label">현재 상태:</span>
-            <span class="settings-status-value">🟢 OneBoard 인증 API</span>
-          </div>
-          <div class="auth-hint" style="font-size:13px;color:#374151;line-height:1.7;margin-top:10px;background:#F0FDF4;padding:14px 16px;border-radius:8px;border-left:3px solid #10B981">
-            매출·팀 업무·회의록은 모두 로그인된 사용자의 역할과 워크스페이스를 검증한 백엔드 API를 통해서만 접근합니다.
-          </div>
-          <div class="channel-keys-grid" id="channelKeysGrid">
-            <!-- 백엔드가 위탁 연동 상태를 제공하는 경우에만 렌더링 -->
-          </div>
-        </section>
-
-        <!-- 대시보드 설정 -->
-        <section class="settings-section" data-roles="owner">
-          <div class="settings-section-title">🎯 대시보드 설정</div>
-          <div class="form-row">
-            <div class="form-group" style="flex:1">
-              <label class="form-label">연간 목표</label>
-              <input type="text" class="form-input" id="goalInput" placeholder="₩20억">
-            </div>
-            <div class="form-group" style="flex:1">
-              <label class="form-label">기본 기간</label>
-              <select class="form-input" id="defaultRangeSelect">
-                <option value="7">7일</option>
-                <option value="30" selected>30일</option>
-                <option value="90">90일</option>
-                <option value="0">전체</option>
-              </select>
-            </div>
-          </div>
-        </section>
-
-        <!-- 팀원 관리 -->
-        <section class="settings-section" data-roles="owner">
-          <div class="settings-section-title">👥 팀원 관리</div>
-          <div class="team-mgmt-list" id="teamMgmtList"><!-- JS --></div>
-          <div class="form-row" style="margin-top:12px">
-            <input type="text" class="form-input" id="newMemberName" placeholder="이름" style="flex:1">
-            <input type="text" class="form-input" id="newMemberRole" placeholder="직책 (예: 팀장, 과장, 팀)" style="flex:1">
-            <button class="btn-primary" id="addMemberBtn">+ 추가</button>
-          </div>
-        </section>
-
-        <!-- 알림 설정 -->
-        <section class="settings-section">
-          <div class="settings-section-title">🔔 알림 설정</div>
-          <label class="checkbox-row"><input type="checkbox" id="notifMinutesAi" checked> 회의록 저장 시 AI 업무 알림</label>
-          <label class="checkbox-row"><input type="checkbox" id="notifSalesDrop" checked> 매출 급락 알림 (-20% 이상)</label>
-          <div class="form-group" style="margin-top:12px">
-            <label class="form-label">자동 갱신 주기</label>
-            <select class="form-input" id="refreshInterval">
-              <option value="1">1분</option>
-              <option value="5" selected>5분</option>
-              <option value="15">15분</option>
-              <option value="0">수동</option>
-            </select>
-          </div>
-        </section>
-
-        <!-- 데이터 백업 -->
-        <section class="settings-section">
-          <div class="settings-section-title">💾 데이터 백업/복원</div>
-          <div class="settings-actions">
-            <button class="btn-secondary" id="exportSettingsBtn">💾 설정 내보내기 (JSON)</button>
-            <button class="btn-secondary" id="importSettingsBtn">📂 설정 가져오기</button>
-            <input type="file" id="importSettingsFile" accept=".json" style="display:none">
-          </div>
-        </section>
-
-        <section class="settings-section">
-          <div class="settings-section-title">ℹ️ 앱 정보</div>
-          <div class="settings-meta">OneBoard v2.0 · 2026-04-24 업데이트 · CHEONGYE Protocol v2.0</div>
+          <div class="minutes-list" id="minutesList"><div class="empty-state">회의록이 없습니다.</div></div>
         </section>
       </div>
+    </main>
 
-    </div><!-- /section-settings -->
-
-  </main>
-
-  <footer class="footer">
-    <span>OneBoard — 쥬얼아이스 통합 운영 보드</span>
-    <span id="footerDataSource">CHEONGYE v2.0</span>
-  </footer>
-
-</div>
+    <footer class="footer"><span>OneBoard — 통합 운영 보드</span><span>인증 API 전용</span></footer>
+  </div>
 </div>
 <script type="module" src="modules/main.js"></script>
 <script src="app.js"></script>

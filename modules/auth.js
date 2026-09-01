@@ -1,4 +1,10 @@
-import { apiFetch, refreshSession, setAccessToken } from './api.js';
+import {
+  apiFetch,
+  beginSessionFamily,
+  clearAccessToken,
+  refreshSession,
+  setAccessTokenForEpoch,
+} from './api.js';
 
 const listeners = new Set();
 let currentUser = null;
@@ -18,25 +24,26 @@ function publishSanitizedAuthError(code) {
   }));
 }
 
-async function readAuthResponse(response) {
+async function readAuthResponse(response, epoch) {
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload?.data?.accessToken || !payload?.data?.user) {
     const error = new Error(payload?.error?.message || `Authentication failed (${response.status})`);
     error.status = response.status;
     throw error;
   }
-  setAccessToken(payload.data.accessToken);
+  setAccessTokenForEpoch(payload.data.accessToken, epoch);
   return payload.data.user;
 }
 
 async function acceptGoogleCredential(credential) {
+  const epoch = beginSessionFamily();
   const response = await apiFetch('/auth/google', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ credential }),
     authRetry: false,
   });
-  const user = await readAuthResponse(response);
+  const user = await readAuthResponse(response, epoch);
   publish(user);
   return user;
 }
@@ -77,6 +84,7 @@ export async function initAuth({
   google = globalThis.google,
 } = {}) {
   currentUser = null;
+  beginSessionFamily();
 
   try {
     const session = await refreshSession();
@@ -93,6 +101,7 @@ export function getCurrentUser() {
 }
 
 export async function signOut() {
+  beginSessionFamily();
   let response;
   try {
     response = await apiFetch('/auth/logout', { method: 'POST', authRetry: false });
@@ -106,7 +115,7 @@ export async function signOut() {
     error.code = 'LOGOUT_UNRESOLVED';
     throw error;
   }
-  setAccessToken(null);
+  clearAccessToken({ notify: false });
   googleIdentity?.disableAutoSelect?.();
   publish(null, 'signed-out');
 }

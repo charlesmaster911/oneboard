@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { apiFetch, setAccessToken } from '../modules/api.js';
+import { apiFetch, refreshSession, setAccessToken } from '../modules/api.js';
 import { getCurrentUser, initAuth, onAuthChanged, signOut } from '../modules/auth.js';
 import { announceAuthTransition, createAuthenticatedSessionGate } from '../modules/main.js';
 
@@ -274,6 +274,115 @@ describe('Google auth state', () => {
     expect(observed.at(-1)).toBeNull();
   });
 
+  test('logout invalidates an outstanding refresh and emits only signed-out in order', async () => {
+    const fakeFetch = vi.fn().mockResolvedValue(jsonResponse(200, sessionPayload('prior-token')));
+    vi.stubGlobal('fetch', fakeFetch);
+    const google = {
+      accounts: { id: { initialize: vi.fn(), renderButton: vi.fn(), disableAutoSelect: vi.fn() } },
+    };
+    await initAuth({ googleClientId: 'test-client-id', google });
+
+    let releaseRefresh;
+    fakeFetch.mockImplementation((url) => {
+      if (String(url).endsWith('/auth/refresh')) {
+        return new Promise((resolve) => {
+          releaseRefresh = () => resolve(jsonResponse(200, sessionPayload('stale-refresh-token')));
+        });
+      }
+      if (String(url).endsWith('/auth/logout')) return Promise.resolve(new Response(null, { status: 204 }));
+      throw new Error(`unexpected URL ${url}`);
+    });
+    const reasons = [];
+    const unsubscribe = onAuthChanged((_user, { reason }) => reasons.push(reason));
+    const refresh = refreshSession();
+    await vi.waitFor(() => expect(releaseRefresh).toBeTypeOf('function'));
+    await signOut();
+    releaseRefresh();
+    await expect(refresh).rejects.toMatchObject({ code: 'SESSION_SUPERSEDED' });
+    unsubscribe();
+
+    expect(sessionStorage.getItem('oneboard_access_token')).toBeNull();
+    expect(reasons).toEqual(['signed-out']);
+  });
+
+  test('failed logout keeps prior auth but rejects the outstanding stale refresh write', async () => {
+    const fakeFetch = vi.fn().mockResolvedValue(jsonResponse(200, sessionPayload('prior-token')));
+    vi.stubGlobal('fetch', fakeFetch);
+    const google = {
+      accounts: { id: { initialize: vi.fn(), renderButton: vi.fn(), disableAutoSelect: vi.fn() } },
+    };
+    await initAuth({ googleClientId: 'test-client-id', google });
+
+    let releaseRefresh;
+    fakeFetch.mockImplementation((url) => {
+      if (String(url).endsWith('/auth/refresh')) {
+        return new Promise((resolve) => {
+          releaseRefresh = () => resolve(jsonResponse(200, sessionPayload('stale-refresh-token')));
+        });
+      }
+      if (String(url).endsWith('/auth/logout')) {
+        return Promise.resolve(jsonResponse(503, { error: { code: 'UNAVAILABLE' } }));
+      }
+      throw new Error(`unexpected URL ${url}`);
+    });
+    const refresh = refreshSession();
+    await vi.waitFor(() => expect(releaseRefresh).toBeTypeOf('function'));
+    await expect(signOut()).rejects.toMatchObject({ code: 'LOGOUT_UNRESOLVED' });
+    releaseRefresh();
+    await expect(refresh).rejects.toMatchObject({ code: 'SESSION_SUPERSEDED' });
+
+    expect(getCurrentUser()?.id).toBe('user-1');
+    expect(sessionStorage.getItem('oneboard_access_token')).toBe('prior-token');
+  });
+
+  test('a new Google login family invalidates an older outstanding refresh', async () => {
+    const initialize = vi.fn();
+    const fakeFetch = vi.fn().mockResolvedValue(jsonResponse(200, sessionPayload('prior-token')));
+    vi.stubGlobal('fetch', fakeFetch);
+    const google = {
+      accounts: { id: { initialize, renderButton: vi.fn(), disableAutoSelect: vi.fn() } },
+    };
+    await initAuth({ googleClientId: 'test-client-id', google });
+
+    let releaseRefresh;
+    fakeFetch.mockImplementation((url) => {
+      if (String(url).endsWith('/auth/refresh')) {
+        return new Promise((resolve) => {
+          releaseRefresh = () => resolve(jsonResponse(200, sessionPayload('stale-refresh-token')));
+        });
+      }
+      if (String(url).endsWith('/auth/google')) {
+        return Promise.resolve(jsonResponse(200, sessionPayload('new-login-token')));
+      }
+      throw new Error(`unexpected URL ${url}`);
+    });
+    const refresh = refreshSession();
+    await vi.waitFor(() => expect(releaseRefresh).toBeTypeOf('function'));
+    initialize.mock.calls[0][0].callback({ credential: 'new-family-credential' });
+    await vi.waitFor(() => {
+      expect(sessionStorage.getItem('oneboard_access_token')).toBe('new-login-token');
+    });
+    releaseRefresh();
+    await expect(refresh).rejects.toMatchObject({ code: 'SESSION_SUPERSEDED' });
+
+    expect(sessionStorage.getItem('oneboard_access_token')).toBe('new-login-token');
+  });
+
+  test('involuntary session clearing emits session-expired', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, sessionPayload())));
+    const google = {
+      accounts: { id: { initialize: vi.fn(), renderButton: vi.fn(), disableAutoSelect: vi.fn() } },
+    };
+    await initAuth({ googleClientId: 'test-client-id', google });
+    const reasons = [];
+    const unsubscribe = onAuthChanged((_user, { reason }) => reasons.push(reason));
+
+    setAccessToken(null);
+
+    unsubscribe();
+    expect(reasons).toEqual(['session-expired']);
+  });
+
   test.each([
     ['HTTP failure', () => jsonResponse(503, { error: { message: '<img onerror=alert(1)>' } })],
     ['network failure', () => Promise.reject(new Error('socket secret detail'))],
@@ -352,13 +461,111 @@ test('the real legacy startup sends zero data requests before authentication', a
 async function loadLegacyHooks() {
   const script = await readFile(`${process.cwd()}/app.js`, 'utf8');
   const storage = { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() };
-  return Function('window', 'document', 'localStorage', 'sessionStorage', `${script}\nreturn { init, fetchAPIDailyData, startNotificationPolling, stopNotificationPolling };`)(
+  return Function('window', 'document', 'localStorage', 'sessionStorage', `${script}\nreturn { init, fetchAPIDailyData, startNotificationPolling, stopNotificationPolling, bindEvents, renderTaskList };`)(
     window,
     document,
     storage,
     storage,
   );
 }
+
+test('retained task controls invoke authenticated create, update, and delete APIs', async () => {
+  document.body.innerHTML = `
+    <button id="addTaskBtn"></button><button id="refreshTeamBtn"></button>
+    <div id="intBlockers"></div><div id="taskModal" style="display:none"></div>
+    <div id="taskModalTitle"></div><div id="taskMutationStatus"></div>
+    <input id="taskDate"><input id="taskAssignee"><input id="taskAssignedUserId">
+    <input id="taskContent"><select id="taskStatus"><option value="예정">예정</option><option value="완료">완료</option></select>
+    <select id="taskPriority"><option value="보통">보통</option></select><input id="taskMemo">
+    <button id="closeTaskModal"></button><button id="cancelTask"></button>
+    <button id="saveTask"></button><button id="deleteTask"></button>
+  `;
+  window.ONEBOARD_CURRENT_USER = { id: 'ops-1', role: 'ops' };
+  const task = {
+    id: 'task-1', date: '2026-09-03', assignee: 'Assigned user', assigned_user_id: 'user-2',
+    task: 'Initial task', status: '예정', priority: '보통', memo: '',
+  };
+  window.ONEBOARD_API = Object.freeze({
+    fetch: vi.fn(async (path, options = {}) => {
+      if (path === '/team/tasks' && options.method === 'POST') {
+        return jsonResponse(201, { task });
+      }
+      if (path === '/team/tasks/task-1' && options.method === 'PATCH') {
+        return jsonResponse(200, { task: { ...task, status: '완료' } });
+      }
+      if (path === '/team/tasks/task-1' && options.method === 'DELETE') {
+        return new Response(null, { status: 204 });
+      }
+      if (String(path).startsWith('/team/tasks?')) return jsonResponse(200, { tasks: [task] });
+      throw new Error(`unexpected task request ${path}`);
+    }),
+  });
+  const hooks = await loadLegacyHooks();
+  hooks.bindEvents();
+
+  document.getElementById('addTaskBtn').click();
+  document.getElementById('taskDate').value = '2026-09-03';
+  document.getElementById('taskAssignee').value = 'Assigned user';
+  document.getElementById('taskAssignedUserId').value = 'user-2';
+  document.getElementById('taskContent').value = 'Initial task';
+  document.getElementById('saveTask').click();
+  await vi.waitFor(() => expect(window.ONEBOARD_API.fetch).toHaveBeenCalledWith(
+    '/team/tasks', expect.objectContaining({ method: 'POST' })
+  ));
+
+  hooks.renderTaskList([task]);
+  document.querySelector('[data-task-id="task-1"]').click();
+  document.getElementById('taskStatus').value = '완료';
+  document.getElementById('saveTask').click();
+  await vi.waitFor(() => expect(window.ONEBOARD_API.fetch).toHaveBeenCalledWith(
+    '/team/tasks/task-1', expect.objectContaining({ method: 'PATCH' })
+  ));
+
+  hooks.renderTaskList([task]);
+  document.querySelector('[data-task-id="task-1"]').click();
+  document.getElementById('deleteTask').click();
+  await vi.waitFor(() => expect(window.ONEBOARD_API.fetch).toHaveBeenCalledWith(
+    '/team/tasks/task-1', expect.objectContaining({ method: 'DELETE' })
+  ));
+});
+
+test('assigned members receive progress-only task controls and payloads', async () => {
+  document.body.innerHTML = `
+    <div id="intBlockers"></div><div id="taskModal" style="display:none"></div>
+    <div id="taskModalTitle"></div><div id="taskMutationStatus"></div>
+    <input id="taskDate"><input id="taskAssignee"><input id="taskAssignedUserId">
+    <input id="taskContent"><select id="taskStatus"><option value="완료">완료</option></select>
+    <select id="taskPriority"><option value="보통">보통</option></select><input id="taskMemo">
+    <button id="closeTaskModal"></button><button id="cancelTask"></button>
+    <button id="saveTask"></button><button id="deleteTask"></button>
+  `;
+  window.ONEBOARD_CURRENT_USER = { id: 'member-1', role: 'member' };
+  const task = {
+    id: 'own-task', date: '2026-09-03', assignee: 'Current user', assigned_user_id: 'member-1',
+    task: 'Assigned task', status: '예정', priority: '보통', memo: '',
+  };
+  window.ONEBOARD_API = Object.freeze({
+    fetch: vi.fn(async (path, options = {}) => {
+      if (path === '/team/tasks/own-task' && options.method === 'PATCH') {
+        expect(JSON.parse(options.body)).toEqual({ status: '완료', memo: 'done' });
+        return jsonResponse(200, { task: { ...task, status: '완료', memo: 'done' } });
+      }
+      throw new Error(`unexpected task request ${path}`);
+    }),
+  });
+  const hooks = await loadLegacyHooks();
+  hooks.bindEvents();
+  hooks.renderTaskList([task]);
+
+  document.querySelector('[data-task-id="own-task"]').click();
+  expect(document.getElementById('taskContent').disabled).toBe(true);
+  expect(document.getElementById('deleteTask').hidden).toBe(true);
+  document.getElementById('taskStatus').value = '완료';
+  document.getElementById('taskMemo').value = 'done';
+  document.getElementById('saveTask').click();
+
+  await vi.waitFor(() => expect(window.ONEBOARD_API.fetch).toHaveBeenCalledOnce());
+});
 
 test('the real legacy API loader uses the authenticated adapter and preserves parsed JSON', async () => {
   const browserFetch = vi.fn();

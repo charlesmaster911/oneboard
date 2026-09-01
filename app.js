@@ -86,6 +86,7 @@ let allData = [];
 let teamTasks = [];
 let notificationPollTimer = null;
 let notificationPollGeneration = 0;
+let editingTaskId = null;
 
 async function fetchAPIDailyData(days = 30) {
   const { from, to } = dateRange(days);
@@ -279,6 +280,7 @@ async function deleteTask(id) {
 function renderTaskList(tasks) {
   const target = document.getElementById('intBlockers');
   if (!target) return;
+  teamTasks = [...tasks];
   const fragment = document.createDocumentFragment();
   for (const task of tasks) {
     const row = createElement('button', 'int3-priority-item');
@@ -291,6 +293,105 @@ function renderTaskList(tasks) {
   target.replaceChildren(fragment);
 }
 
+function taskField(id) {
+  return document.getElementById(id);
+}
+
+function closeTaskModal() {
+  const modal = taskField('taskModal');
+  if (modal) modal.style.display = 'none';
+  editingTaskId = null;
+  setText('taskMutationStatus', '');
+}
+
+function openTaskModal(task = null) {
+  const user = currentUser();
+  const manager = isWorkspaceManager(user);
+  if (!task && !manager) return;
+  if (task && !manager && !isOwnTask(task, user)) return;
+
+  editingTaskId = task?.id == null ? null : String(task.id);
+  const values = {
+    taskDate: task?.date ? String(task.date).slice(0, 10) : new Date().toISOString().slice(0, 10),
+    taskAssignee: task?.assignee || task?.who || '',
+    taskAssignedUserId: task?.assigned_user_id || task?.assignedUserId || '',
+    taskContent: task?.task || '',
+    taskStatus: task?.status || '예정',
+    taskPriority: task?.priority || '보통',
+    taskMemo: task?.memo || '',
+  };
+  for (const [id, value] of Object.entries(values)) {
+    const field = taskField(id);
+    if (field) field.value = value;
+  }
+  for (const id of ['taskDate', 'taskAssignee', 'taskAssignedUserId', 'taskContent', 'taskPriority']) {
+    const field = taskField(id);
+    if (field) field.disabled = !manager;
+  }
+  const remove = taskField('deleteTask');
+  if (remove) remove.hidden = !manager || !task;
+  setText('taskModalTitle', task ? '업무 수정' : '업무 추가');
+  setText('taskMutationStatus', '');
+  const modal = taskField('taskModal');
+  if (modal) modal.style.display = 'flex';
+  taskField(manager ? 'taskDate' : 'taskStatus')?.focus?.();
+}
+
+function taskFormPayload() {
+  return {
+    date: taskField('taskDate')?.value || '',
+    who: taskField('taskAssignee')?.value?.trim() || '',
+    assignedUserId: taskField('taskAssignedUserId')?.value?.trim() || null,
+    task: taskField('taskContent')?.value?.trim() || '',
+    status: taskField('taskStatus')?.value || '예정',
+    priority: taskField('taskPriority')?.value || '보통',
+    memo: taskField('taskMemo')?.value?.trim() || '',
+  };
+}
+
+async function saveTaskFromModal() {
+  const payload = taskFormPayload();
+  const manager = isWorkspaceManager();
+  if (manager && (!payload.date || !payload.who || !payload.task)) {
+    setText('taskMutationStatus', '날짜, 담당자, 업무 내용을 입력해 주세요.');
+    return;
+  }
+  try {
+    let saved;
+    if (editingTaskId) {
+      const patch = manager ? {
+        date: payload.date,
+        assignee: payload.who,
+        assigned_user_id: payload.assignedUserId,
+        task: payload.task,
+        status: payload.status,
+        priority: payload.priority,
+        memo: payload.memo,
+      } : { status: payload.status, memo: payload.memo };
+      saved = await updateTask(editingTaskId, patch);
+      teamTasks = teamTasks.map((task) => String(task.id) === editingTaskId ? saved : task);
+    } else {
+      saved = await createTask(payload);
+      teamTasks = [...teamTasks, saved];
+    }
+    renderTaskList(teamTasks);
+    closeTaskModal();
+  } catch {
+    setText('taskMutationStatus', '업무를 저장하지 못했습니다. 권한과 입력값을 확인해 주세요.');
+  }
+}
+
+async function deleteTaskFromModal() {
+  if (!editingTaskId || !isWorkspaceManager()) return;
+  try {
+    await deleteTask(editingTaskId);
+    renderTaskList(teamTasks);
+    closeTaskModal();
+  } catch {
+    setText('taskMutationStatus', '업무를 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  }
+}
+
 async function renderTeamSection() {
   const today = new Date();
   const from = new Date(today.getFullYear(), today.getMonth() - 3, 1).toISOString().slice(0, 10);
@@ -298,8 +399,8 @@ async function renderTeamSection() {
   teamTasks = await fetchTeamTasks(from, to);
   renderTaskList(teamTasks);
   setText('dataStatusBadge', teamTasks.length ? '인증된 API' : '빈 상태');
-  document.querySelectorAll('#calAddMemberBtn, #monthlyAddRow, #addMemberBtn')
-    .forEach((element) => { element.hidden = !isWorkspaceManager(); });
+  const add = document.getElementById('addTaskBtn');
+  if (add) add.hidden = !isWorkspaceManager();
 }
 
 async function fetchMinutes() {
@@ -319,7 +420,7 @@ async function renderMinutesSection() {
   const minutes = await fetchMinutes();
   const fragment = document.createDocumentFragment();
   for (const minute of minutes) {
-    fragment.appendChild(createElement('button', 'minutes-list-item', `${minute.date || ''} · ${minute.title || ''}`));
+    fragment.appendChild(createElement('div', 'minutes-list-item', `${minute.date || ''} · ${minute.title || ''}`));
   }
   if (!minutes.length) fragment.appendChild(createElement('div', 'empty-state', '회의록이 없습니다.'));
   target.replaceChildren(fragment);
@@ -384,6 +485,7 @@ function bindEvents() {
       document.querySelectorAll('.section-content').forEach((section) => { section.style.display = 'none'; });
       const target = document.getElementById(`section-${button.dataset.section}`);
       if (target) target.style.display = '';
+      document.querySelectorAll('.section-btn').forEach((item) => item.classList.toggle('active', item === button));
       if (button.dataset.section === 'team') void renderTeamSection();
       if (button.dataset.section === 'minutes') void renderMinutesSection();
     });
@@ -402,6 +504,23 @@ function bindEvents() {
   });
   document.getElementById('dayDetailModal')?.addEventListener('click', (event) => {
     if (event.target.id === 'dayDetailModal') closeDayDetailModal();
+  });
+  document.getElementById('refreshTeamBtn')?.addEventListener('click', () => {
+    void renderTeamSection();
+  });
+  document.getElementById('addTaskBtn')?.addEventListener('click', () => openTaskModal());
+  document.getElementById('intBlockers')?.addEventListener('click', (event) => {
+    const row = event.target.closest?.('[data-task-id]');
+    if (!row) return;
+    const task = teamTasks.find((candidate) => String(candidate.id) === String(row.dataset.taskId));
+    if (task) openTaskModal(task);
+  });
+  document.getElementById('closeTaskModal')?.addEventListener('click', closeTaskModal);
+  document.getElementById('cancelTask')?.addEventListener('click', closeTaskModal);
+  document.getElementById('saveTask')?.addEventListener('click', () => { void saveTaskFromModal(); });
+  document.getElementById('deleteTask')?.addEventListener('click', () => { void deleteTaskFromModal(); });
+  document.getElementById('taskModal')?.addEventListener('click', (event) => {
+    if (event.target.id === 'taskModal') closeTaskModal();
   });
 }
 

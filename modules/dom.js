@@ -3,9 +3,6 @@ const SECTION_ROLES = Object.freeze({
   sales: new Set(['owner', 'ops', 'marketing', 'member']),
   team: new Set(['owner', 'ops', 'marketing', 'member']),
   minutes: new Set(['owner', 'ops']),
-  kpi: new Set(['owner', 'ops']),
-  manual: new Set(['owner', 'ops']),
-  settings: new Set(['owner', 'ops']),
 });
 const PROGRESS_FIELDS = new Set(['status', 'memo', 'comment']);
 
