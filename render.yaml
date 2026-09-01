@@ -10,7 +10,7 @@ services:
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: ONEBOARD_API_BASE
-        value: https://oneboard-server.onrender.com/api
+        sync: false
     routes:
       - type: rewrite
         source: /*
