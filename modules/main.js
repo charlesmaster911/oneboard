@@ -2,8 +2,10 @@ import { getCurrentUser, initAuth, onAuthChanged, signOut } from './auth.js';
 import { apiFetch } from './api.js';
 import { applyUiPolicy, createElement, formatWon, setText } from './dom.js';
 import * as collaboration from './collaboration.js';
+import * as workspace from './workspace.js';
 
 globalThis.ONEBOARD_COLLABORATION = Object.freeze({ ...collaboration });
+globalThis.ONEBOARD_WORKSPACE = Object.freeze({ ...workspace });
 
 export function createAuthenticatedSessionGate() {
   let resolveReady;

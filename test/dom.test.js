@@ -96,13 +96,13 @@ describe('authenticated shell visibility', () => {
   });
 
   test.each([
-    ['owner', ['sales', 'team', 'minutes']],
-    ['ops', ['sales', 'team', 'minutes']],
-    ['marketing', ['sales', 'team']],
-    ['member', ['sales', 'team']],
+    ['owner', ['sales', 'team', 'minutes', 'kpi', 'manual', 'settings']],
+    ['ops', ['sales', 'team', 'minutes', 'kpi', 'manual']],
+    ['marketing', ['sales', 'team', 'kpi', 'manual']],
+    ['member', ['sales', 'team', 'kpi', 'manual']],
     ['system', []],
   ])('%s sees only canonical interactive sections', (role, visibleSections) => {
-    document.body.innerHTML = ['sales', 'team', 'minutes']
+    document.body.innerHTML = ['sales', 'team', 'minutes', 'kpi', 'manual', 'settings']
       .map((section) => `<button data-section="${section}"></button>`)
       .join('');
 
@@ -164,7 +164,7 @@ test('the page keeps every board section behind Google login and removes the pas
   expect(page.querySelector('#app-shell #current-role')).not.toBeNull();
   expect(page.querySelector('#app-shell #logout-button')).not.toBeNull();
   expect(page.querySelector('#auth-announcer[aria-live]')).not.toBeNull();
-  expect(page.querySelectorAll('#app-shell .section-content').length).toBe(3);
+  expect(page.querySelectorAll('#app-shell .section-content').length).toBe(6);
   expect(page.querySelector('#settingsPassword')).toBeNull();
   expect(page.querySelector('#settingsUnlock')).toBeNull();
   expect(page.querySelector('#settingsLockBtn')).toBeNull();
@@ -188,6 +188,7 @@ test('the retained page exposes only wired buttons and explicit non-loading stat
     'closeTaskModal', 'cancelTask', 'saveTask', 'deleteTask',
     'intCalPrev', 'intCalNext', 'intCalToday',
     'addMinutesBtn', 'closeMinutesModal', 'cancelMinutes', 'saveMinutes', 'deleteMinutes',
+    'refreshKpiBtn', 'refreshManualBtn', 'refreshSettingsBtn', 'runAllSyncBtn',
   ]);
   const unaccounted = [...page.querySelectorAll('button')].filter((button) => (
     !button.dataset.section && !allowedButtonIds.has(button.id)

@@ -66,6 +66,9 @@
       <button class="section-btn active" data-section="sales" data-roles="owner,ops,marketing,member" type="button">📊 매출</button>
       <button class="section-btn" data-section="team" data-roles="owner,ops,marketing,member" type="button">👥 팀 업무</button>
       <button class="section-btn" data-section="minutes" data-roles="owner,ops" type="button">📋 회의록</button>
+      <button class="section-btn" data-section="kpi" data-roles="owner,ops,marketing,member" type="button">🏆 팀 KPI</button>
+      <button class="section-btn" data-section="manual" data-roles="owner,ops,marketing,member" type="button">📘 운영매뉴얼</button>
+      <button class="section-btn" data-section="settings" data-roles="owner" type="button">⚙️ 설정</button>
     </nav>
 
     <main class="main">
@@ -75,6 +78,10 @@
           <div class="kpi-card kpi-traffic"><div class="kpi-label">총 유입</div><div class="kpi-value" id="val-traffic">—</div></div>
           <div class="kpi-card kpi-adspend"><div class="kpi-label">총 광고비</div><div class="kpi-value" id="val-adspend">—</div></div>
           <div class="kpi-card kpi-roas"><div class="kpi-label">ROAS</div><div class="kpi-value" id="val-roas">—</div></div>
+        </section>
+
+        <section class="channel-state-strip" id="salesPlatformStatus" aria-label="판매·광고 채널 수집 상태">
+          <div class="channel-state-empty">설정에서 판매·광고 채널을 연결하면 수집 상태가 여기에 표시됩니다.</div>
         </section>
 
         <section class="chart-card">
@@ -217,6 +224,67 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <div id="section-kpi" class="section-content" style="display:none">
+        <section class="workspace-toolbar">
+          <div>
+            <div class="workspace-eyebrow">TEAM EXECUTION</div>
+            <h2>팀 KPI</h2>
+            <p>실제 등록된 팀 업무를 기준으로 완료·지연·중요 미완료를 계산합니다.</p>
+          </div>
+          <div class="workspace-actions">
+            <label>시작일 <input type="date" id="kpiFrom" class="form-input compact-input"></label>
+            <label>종료일 <input type="date" id="kpiTo" class="form-input compact-input"></label>
+            <button class="refresh-btn" id="refreshKpiBtn" type="button">KPI 갱신</button>
+          </div>
+        </section>
+        <p class="workspace-status" id="kpiStatus" role="status" aria-live="polite">기간을 선택하면 실제 업무 기준 KPI가 표시됩니다.</p>
+        <section class="team-kpi-grid" aria-label="팀 KPI 요약">
+          <article class="team-kpi-card tone-blue"><span>완료율</span><strong id="teamKpiCompletion">—</strong><small id="teamKpiCompleted">완료 업무 —</small></article>
+          <article class="team-kpi-card tone-red"><span>기한 경과</span><strong id="teamKpiOverdue">—</strong><small>완료되지 않은 지난 업무</small></article>
+          <article class="team-kpi-card tone-amber"><span>중요 미완료</span><strong id="teamKpiImportant">—</strong><small>우선순위 높음 업무</small></article>
+          <article class="team-kpi-card tone-green"><span>참여 담당자</span><strong id="teamKpiActive">—</strong><small>선택 기간 내 담당자</small></article>
+        </section>
+        <section class="chart-card">
+          <div class="chart-header"><div><div class="chart-title">담당자별 실행 현황</div><div class="chart-sub">전체 건수와 완료·지연 업무를 비교합니다.</div></div></div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>담당자</th><th>전체</th><th>완료</th><th>완료율</th><th>기한 경과</th><th>중요 미완료</th></tr></thead><tbody id="teamKpiTable"><tr><td colspan="6" class="empty-state">표시할 KPI가 없습니다.</td></tr></tbody></table></div>
+        </section>
+      </div>
+
+      <div id="section-manual" class="section-content" style="display:none">
+        <div class="manual-layout restored-manual-layout">
+          <aside class="manual-sidebar" aria-label="운영매뉴얼 문서 목록">
+            <div class="manual-sidebar-head">
+              <div><div class="workspace-eyebrow">21 DOCUMENTS</div><h2>운영매뉴얼</h2></div>
+              <button class="refresh-btn" id="refreshManualBtn" type="button">새로고침</button>
+            </div>
+            <label class="filter-search manual-search" for="manualSearch"><span aria-hidden="true">⌕</span><input id="manualSearch" type="search" placeholder="문서 검색" autocomplete="off"></label>
+            <div class="manual-nav" id="manualNav"><div class="empty-state">문서 목록을 불러오세요.</div></div>
+          </aside>
+          <article class="manual-viewer" id="manualViewer">
+            <div id="manualViewerStatus" class="manual-placeholder" role="status" aria-live="polite">왼쪽 목록에서 문서를 선택하세요.</div>
+          </article>
+        </div>
+      </div>
+
+      <div id="section-settings" class="section-content" style="display:none" data-roles="owner">
+        <section class="workspace-toolbar settings-toolbar">
+          <div>
+            <div class="workspace-eyebrow">OWNER CONTROL</div>
+            <h2>판매·광고 연동 설정</h2>
+            <p>비밀값은 암호화 저장되며 저장 후에는 다시 표시하지 않습니다.</p>
+          </div>
+          <div class="workspace-actions">
+            <button class="refresh-btn" id="refreshSettingsBtn" type="button">연결 상태 갱신</button>
+            <button class="btn-primary" id="runAllSyncBtn" type="button">전체 수동 갱신</button>
+          </div>
+        </section>
+        <p class="workspace-status" id="settingsStatus" role="status" aria-live="polite">연결된 채널과 마지막 수집 결과를 확인할 수 있습니다.</p>
+        <section class="sync-schedule-note" aria-label="자동 갱신 시간">
+          <strong>자동 갱신</strong><span>매출·광고 매일 09:00</span><span>광고 재갱신 매일 16:00</span><span>Asia/Seoul</span>
+        </section>
+        <div class="platform-settings-grid" id="platformSettingsGrid"><div class="empty-state">연결 상태를 불러오세요.</div></div>
       </div>
     </main>
 

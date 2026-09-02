@@ -91,6 +91,8 @@ let editingTaskId = null;
 let editingMinutesId = null;
 let selectedMinutesId = null;
 let selectedTeamAssignee = '통합';
+let manualDocuments = [];
+let selectedManualFile = null;
 let integratedCalendarMonth = (() => {
   const today = new Date();
   return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -101,6 +103,324 @@ function collaborationHelpers() {
   const helpers = window.ONEBOARD_COLLABORATION;
   if (!helpers) throw new Error('COLLABORATION_HELPERS_UNAVAILABLE');
   return helpers;
+}
+
+function workspaceHelpers() {
+  const helpers = window.ONEBOARD_WORKSPACE;
+  if (!helpers) throw new Error('WORKSPACE_HELPERS_UNAVAILABLE');
+  return helpers;
+}
+
+function defaultKpiRange() {
+  const to = new Date().toISOString().slice(0, 10);
+  return { from: `${to.slice(0, 7)}-01`, to };
+}
+
+async function renderKpiSection() {
+  const fromField = document.getElementById('kpiFrom');
+  const toField = document.getElementById('kpiTo');
+  const fallback = defaultKpiRange();
+  if (fromField && !fromField.value) fromField.value = fallback.from;
+  if (toField && !toField.value) toField.value = fallback.to;
+  const from = fromField?.value || fallback.from;
+  const to = toField?.value || fallback.to;
+  setText('kpiStatus', '실제 업무 데이터를 계산하고 있습니다.');
+  try {
+    const payload = await apiFetch(`/kpi/team?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+    const totals = payload?.totals || {};
+    setText('teamKpiCompletion', `${Number(totals.completionRate || 0)}%`);
+    setText('teamKpiCompleted', `완료 ${Number(totals.completed || 0)} / 전체 ${Number(totals.total || 0)}`);
+    setText('teamKpiOverdue', `${Number(totals.overdue || 0)}건`);
+    setText('teamKpiImportant', `${Number(totals.importantOpen || 0)}건`);
+    setText('teamKpiActive', `${Number(totals.activeAssignees || 0)}명`);
+    const body = document.getElementById('teamKpiTable');
+    const fragment = document.createDocumentFragment();
+    (payload?.byAssignee || []).forEach((row) => {
+      const tr = createElement('tr');
+      [
+        row.assignee || '미배정',
+        formatNumber(row.total),
+        formatNumber(row.completed),
+        `${Number(row.completionRate || 0)}%`,
+        formatNumber(row.overdue),
+        formatNumber(row.importantOpen),
+      ].forEach((value) => tr.appendChild(createElement('td', '', value)));
+      fragment.appendChild(tr);
+    });
+    if (!fragment.childNodes.length) {
+      const tr = createElement('tr');
+      const td = createElement('td', 'empty-state', '선택 기간에 등록된 업무가 없습니다.');
+      td.colSpan = 6;
+      tr.appendChild(td);
+      fragment.appendChild(tr);
+    }
+    body?.replaceChildren(fragment);
+    setText('kpiStatus', `${from} ~ ${to} · 인증된 팀 업무 ${Number(totals.total || 0).toLocaleString('ko-KR')}건 기준`);
+  } catch (error) {
+    if (isSessionExpired(error)) return;
+    setText('kpiStatus', 'KPI를 불러오지 못했습니다. 날짜 범위와 서버 상태를 확인하세요.');
+  }
+}
+
+function appendLinkifiedText(element, text) {
+  const source = String(text || '').replace(/\*\*|__|`/g, '');
+  const matches = source.matchAll(/https?:\/\/[^\s)]+/g);
+  let cursor = 0;
+  for (const match of matches) {
+    if (match.index > cursor) element.appendChild(document.createTextNode(source.slice(cursor, match.index)));
+    const anchor = createElement('a', 'manual-link', match[0]);
+    anchor.href = match[0];
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    element.appendChild(anchor);
+    cursor = match.index + match[0].length;
+  }
+  if (cursor < source.length) element.appendChild(document.createTextNode(source.slice(cursor)));
+}
+
+function renderManualContent(documentData) {
+  const viewer = document.getElementById('manualViewer');
+  if (!viewer) return;
+  const article = createElement('div', 'manual-document');
+  const header = createElement('header', 'manual-document-head');
+  header.append(
+    createElement('span', 'manual-doc-cat', documentData.category || '운영매뉴얼'),
+    createElement('h1', '', documentData.title || '운영매뉴얼'),
+    createElement('p', 'manual-doc-summary', documentData.summary || ''),
+  );
+  article.appendChild(header);
+  const body = createElement('div', 'manual-doc-body');
+  for (const block of workspaceHelpers().markdownBlocks(documentData.content)) {
+    let element;
+    if (block.type === 'heading') element = createElement(`h${Math.min(4, Math.max(2, block.level + 1))}`, 'manual-heading');
+    else if (block.type === 'quote') element = createElement('blockquote', 'manual-quote');
+    else if (block.type === 'code' || block.type === 'table-row') element = createElement('pre', 'manual-code');
+    else if (block.type === 'divider') element = createElement('hr', 'manual-divider');
+    else if (block.type === 'list-item') {
+      element = createElement('div', 'manual-list-item');
+      element.appendChild(createElement('span', 'manual-list-marker', block.checked === true ? '☑' : block.checked === false ? '☐' : block.ordered ? '•' : '•'));
+    } else element = createElement('p', 'manual-paragraph');
+    if (block.text !== undefined) appendLinkifiedText(element, block.text);
+    body.appendChild(element);
+  }
+  article.appendChild(body);
+  viewer.replaceChildren(article);
+}
+
+function renderManualNavigation(query = '') {
+  const target = document.getElementById('manualNav');
+  if (!target) return;
+  const filtered = workspaceHelpers().filterManualDocuments(manualDocuments, query);
+  const fragment = document.createDocumentFragment();
+  let category = '';
+  for (const documentData of filtered) {
+    if (documentData.category !== category) {
+      category = documentData.category;
+      fragment.appendChild(createElement('div', 'manual-group-title', category));
+    }
+    const button = createElement('button', `manual-item${documentData.file === selectedManualFile ? ' active' : ''}`);
+    button.type = 'button';
+    button.dataset.manualFile = documentData.file;
+    const title = createElement('span', 'manual-item-title', `${documentData.hot ? '🔥 ' : ''}${documentData.title}`);
+    const summary = createElement('span', 'manual-item-summary', documentData.summary || '');
+    button.append(title, summary);
+    fragment.appendChild(button);
+  }
+  if (!filtered.length) fragment.appendChild(createElement('div', 'empty-state', '검색 결과가 없습니다.'));
+  target.replaceChildren(fragment);
+}
+
+async function openManualDocument(file) {
+  selectedManualFile = file;
+  renderManualNavigation(document.getElementById('manualSearch')?.value || '');
+  const viewer = document.getElementById('manualViewer');
+  if (viewer) viewer.replaceChildren(createElement('div', 'manual-placeholder', '문서를 불러오고 있습니다.'));
+  try {
+    const documentData = await apiFetch(`/manuals/${encodeURIComponent(file)}`);
+    renderManualContent(documentData);
+  } catch (error) {
+    if (isSessionExpired(error)) return;
+    viewer?.replaceChildren(createElement('div', 'manual-placeholder', '문서를 불러오지 못했습니다. 다시 시도하세요.'));
+  }
+}
+
+async function renderManualSection() {
+  try {
+    const payload = await apiFetch('/manuals');
+    manualDocuments = payload?.documents || [];
+    renderManualNavigation(document.getElementById('manualSearch')?.value || '');
+    if (!selectedManualFile && manualDocuments.length) selectedManualFile = manualDocuments.find((item) => item.hot)?.file || manualDocuments[0].file;
+    if (selectedManualFile) await openManualDocument(selectedManualFile);
+  } catch (error) {
+    if (isSessionExpired(error)) return;
+    document.getElementById('manualNav')?.replaceChildren(createElement('div', 'empty-state', '문서 목록을 불러오지 못했습니다.'));
+  }
+}
+
+const PLATFORM_FORMS = Object.freeze([
+  { id: 'cafe24', label: '카페24', kind: '매출', fields: [['mall_id', '쇼핑몰 ID'], ['client_id', 'Client ID'], ['client_secret', 'Client Secret']] },
+  { id: 'naver_store', label: '네이버 스마트스토어', kind: '매출', fields: [['client_id', 'Client ID'], ['client_secret', 'Client Secret']] },
+  { id: 'coupang', label: '쿠팡 한반도', kind: '매출', fields: [['vendor_id', 'Vendor ID'], ['access_key', 'Access Key'], ['secret_key', 'Secret Key']] },
+  { id: 'meta', label: 'META 광고', kind: '광고', fields: [['ad_account_id', '광고계정 ID'], ['access_token', 'Access Token'], ['app_id', 'App ID'], ['app_secret', 'App Secret']] },
+  { id: 'naver_ads', label: '네이버 검색광고', kind: '광고', fields: [['customer_id', '고객 ID'], ['api_key', 'API License'], ['secret_key', 'Secret Key']] },
+  { id: 'kakao', label: '카카오모먼트', kind: '광고', fields: [['ad_account_id', '광고계정 ID'], ['access_token', 'Business Token']] },
+]);
+
+function mergePlatformStates(platforms, syncRows) {
+  const byPlatform = new Map((platforms || []).map((row) => [row.platform, row]));
+  const bySync = new Map((syncRows || []).map((row) => [row.platform, row]));
+  return PLATFORM_FORMS.map((definition) => ({
+    ...definition,
+    ...(byPlatform.get(definition.id) || { connectionState: 'disconnected' }),
+    syncState: bySync.get(definition.id)?.status,
+    recordsSynced: bySync.get(definition.id)?.records_synced,
+    completedAt: bySync.get(definition.id)?.completed_at,
+  }));
+}
+
+function renderSettingsCards(states, overviewPlatforms = []) {
+  const target = document.getElementById('platformSettingsGrid');
+  if (!target) return;
+  const fragment = document.createDocumentFragment();
+  for (const state of states) {
+    const presentation = workspaceHelpers().platformStatePresentation(state);
+    const card = createElement('article', `platform-setting-card state-${presentation.tone}`);
+    card.dataset.platform = state.id;
+    const head = createElement('div', 'platform-setting-head');
+    const title = createElement('div');
+    title.append(createElement('span', 'platform-kind', state.kind), createElement('h3', '', state.label));
+    head.append(title, createElement('span', `platform-state-badge tone-${presentation.tone}`, presentation.label));
+    card.append(head, createElement('p', 'platform-state-action', presentation.action));
+    if (state.lastSyncAt || state.completedAt) card.appendChild(createElement('p', 'platform-last-sync', `최근 갱신 ${new Date(state.lastSyncAt || state.completedAt).toLocaleString('ko-KR')}`));
+    const identifiers = createElement('div', 'platform-identifiers');
+    (state.accountIdentifiers || []).forEach((identifier) => identifiers.appendChild(createElement('span', '', `${identifier.name} ····${identifier.lastFour}`)));
+    if (identifiers.childNodes.length) card.appendChild(identifiers);
+    const form = createElement('form', 'platform-credential-form');
+    form.dataset.platformForm = state.id;
+    state.fields.forEach(([name, label]) => {
+      const field = createElement('label', 'platform-field');
+      field.appendChild(createElement('span', '', label));
+      const input = createElement('input', 'form-input');
+      input.name = name;
+      input.type = /secret|token|key/i.test(name) ? 'password' : 'text';
+      input.autocomplete = 'off';
+      input.placeholder = state.connectionState === 'connected' ? '변경할 때만 입력' : `${label} 입력`;
+      field.appendChild(input);
+      form.appendChild(field);
+    });
+    const submit = createElement('button', 'btn-primary', state.connectionState === 'connected' ? '연결정보 변경' : '연결정보 저장');
+    submit.type = 'submit';
+    form.appendChild(submit);
+    card.appendChild(form);
+    if (state.id === 'cafe24') {
+      const oauth = createElement('button', 'btn-secondary cafe24-oauth-button', '카페24 로그인 연결');
+      oauth.type = 'button';
+      oauth.dataset.cafe24Oauth = 'start';
+      card.appendChild(oauth);
+    }
+    fragment.appendChild(card);
+  }
+  const drive = createElement('article', 'platform-setting-card state-neutral drive-import-card');
+  const driveHead = createElement('div', 'platform-setting-head');
+  const driveTitle = createElement('div');
+  driveTitle.append(createElement('span', 'platform-kind', '매출 · 무료 자동수집'), createElement('h3', '', '카카오 톡스토어 · 선물하기'));
+  driveHead.appendChild(driveTitle);
+  const driveStatus = createElement('div', 'drive-channel-states');
+  [
+    ['kakao_talk_store', '톡스토어'],
+    ['kakao_gift', '선물하기'],
+  ].forEach(([id, label]) => {
+    const state = overviewPlatforms.find((row) => row.id === id) || { connectionState: 'disconnected' };
+    const presentation = workspaceHelpers().platformStatePresentation(state);
+    driveStatus.appendChild(createElement('span', `platform-state-badge tone-${presentation.tone}`, `${label} · ${presentation.label}`));
+  });
+  const fileGuide = createElement('div', 'drive-file-guide');
+  fileGuide.append(
+    createElement('code', '', 'sales_kakao_talk_store_YYYY-MM-DD.csv'),
+    createElement('code', '', 'sales_kakao_gift_YYYY-MM-DD.csv'),
+    createElement('small', '', '필수 열: 날짜, 매출액 · 오전 9시 자동 합산 · 처리 완료 파일은 processed 폴더로 이동'),
+  );
+  drive.append(
+    driveHead,
+    createElement('p', 'platform-state-action', 'Google Drive 판매자료에서 매일 오전 9시에 자동으로 합칩니다.'),
+    driveStatus,
+    fileGuide,
+  );
+  fragment.appendChild(drive);
+  target.replaceChildren(fragment);
+}
+
+async function renderSettingsSection() {
+  if (currentUser()?.role !== 'owner') return;
+  setText('settingsStatus', '연결 상태와 최근 수집 결과를 확인하고 있습니다.');
+  try {
+    const [platformPayload, syncRows, overview] = await Promise.all([
+      apiFetch('/admin/platforms'),
+      apiFetch('/sync/status').catch(() => []),
+      apiFetch('/sync/overview').catch(() => ({ platforms: [] })),
+    ]);
+    renderSettingsCards(
+      mergePlatformStates(platformPayload?.data?.platforms, syncRows),
+      overview?.platforms || []
+    );
+    setText('settingsStatus', '비밀값은 표시되지 않습니다. 변경할 항목만 입력해 저장하세요.');
+  } catch (error) {
+    if (isSessionExpired(error)) return;
+    setText('settingsStatus', '연결 상태를 불러오지 못했습니다. 잠시 후 다시 시도하세요.');
+  }
+}
+
+async function startCafe24OAuth() {
+  setText('settingsStatus', '카페24 로그인 연결 페이지를 준비하고 있습니다.');
+  try {
+    const payload = await apiFetch('/admin/oauth/cafe24/url');
+    if (!payload?.data?.authorizationUrl) throw new Error('CAFE24_OAUTH_URL_MISSING');
+    window.location.assign(payload.data.authorizationUrl);
+  } catch (error) {
+    if (isSessionExpired(error)) return;
+    setText('settingsStatus', '카페24 쇼핑몰 ID·Client ID·Client Secret을 먼저 저장한 뒤 다시 연결하세요.');
+  }
+}
+
+async function savePlatformSettings(form) {
+  const platform = form.dataset.platformForm;
+  const supplied = Object.fromEntries([...new FormData(form).entries()]
+    .map(([name, value]) => [name, String(value).trim()])
+    .filter(([, value]) => value));
+  if (!Object.keys(supplied).length) {
+    setText('settingsStatus', '저장할 연결정보를 한 항목 이상 입력하세요.');
+    return;
+  }
+  setText('settingsStatus', `${platform} 연결정보를 암호화 저장하고 있습니다.`);
+  try {
+    await apiFetch(`/admin/platforms/${encodeURIComponent(platform)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(supplied),
+    });
+    form.reset();
+    setText('settingsStatus', '연결정보를 저장했습니다. 실제 데이터 확인을 위해 수동 갱신을 실행하세요.');
+    await renderSettingsSection();
+  } catch (error) {
+    if (isSessionExpired(error)) return;
+    setText('settingsStatus', '연결정보를 저장하지 못했습니다. 필수값과 권한을 확인하세요.');
+  }
+}
+
+async function requestFullSync() {
+  setText('settingsStatus', '오늘의 매출·광고 데이터 수집을 요청하고 있습니다.');
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    await apiFetch('/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date_from: today, date_to: today }),
+    });
+    setText('settingsStatus', '수집 요청을 접수했습니다. 완료 후 연결 상태 갱신을 눌러 결과를 확인하세요.');
+  } catch (error) {
+    if (isSessionExpired(error)) return;
+    setText('settingsStatus', '수집 요청을 접수하지 못했습니다. 연결정보와 서버 상태를 확인하세요.');
+  }
 }
 
 async function fetchAPIDailyData(days = 30) {
@@ -176,6 +496,19 @@ async function fetchChannelMatrix(days = 30) {
   if (!response.ok) return [];
   const payload = await response.json().catch(() => null);
   return payload?.rows || [];
+}
+
+async function renderSalesPlatformStatus() {
+  try {
+    const payload = await apiFetch('/sync/overview');
+    workspaceHelpers().renderPlatformStatusStrip(
+      document.getElementById('salesPlatformStatus'),
+      payload?.platforms || []
+    );
+  } catch (error) {
+    if (isSessionExpired(error)) return;
+    workspaceHelpers().renderPlatformStatusStrip(document.getElementById('salesPlatformStatus'), []);
+  }
 }
 
 function renderChannelMatrix(rows) {
@@ -903,6 +1236,9 @@ function bindEvents() {
       document.querySelectorAll('.section-btn').forEach((item) => item.classList.toggle('active', item === button));
       if (button.dataset.section === 'team') void renderTeamSection();
       if (button.dataset.section === 'minutes') void renderMinutesSection();
+      if (button.dataset.section === 'kpi') void renderKpiSection();
+      if (button.dataset.section === 'manual') void renderManualSection();
+      if (button.dataset.section === 'settings') void renderSettingsSection();
     });
   });
   document.getElementById('notifBell')?.addEventListener('click', async () => {
@@ -922,6 +1258,35 @@ function bindEvents() {
   });
   document.getElementById('refreshTeamBtn')?.addEventListener('click', () => {
     void renderTeamSection();
+  });
+  document.getElementById('refreshKpiBtn')?.addEventListener('click', () => {
+    void renderKpiSection();
+  });
+  document.getElementById('refreshManualBtn')?.addEventListener('click', () => {
+    selectedManualFile = null;
+    void renderManualSection();
+  });
+  document.getElementById('manualSearch')?.addEventListener('input', (event) => {
+    renderManualNavigation(event.target.value);
+  });
+  document.getElementById('manualNav')?.addEventListener('click', (event) => {
+    const button = event.target.closest?.('[data-manual-file]');
+    if (button) void openManualDocument(button.dataset.manualFile);
+  });
+  document.getElementById('refreshSettingsBtn')?.addEventListener('click', () => {
+    void renderSettingsSection();
+  });
+  document.getElementById('runAllSyncBtn')?.addEventListener('click', () => {
+    void requestFullSync();
+  });
+  document.getElementById('platformSettingsGrid')?.addEventListener('submit', (event) => {
+    const form = event.target.closest?.('[data-platform-form]');
+    if (!form) return;
+    event.preventDefault();
+    void savePlatformSettings(form);
+  });
+  document.getElementById('platformSettingsGrid')?.addEventListener('click', (event) => {
+    if (event.target.closest?.('[data-cafe24-oauth]')) void startCafe24OAuth();
   });
   document.getElementById('intShowArchive')?.addEventListener('change', (event) => {
     integratedShowArchive = event.target.checked;
@@ -1046,6 +1411,7 @@ async function init() {
     }
     const matrixRows = await fetchChannelMatrix(30);
     if (!signal?.aborted) renderChannelMatrix(matrixRows);
+    if (!signal?.aborted) await renderSalesPlatformStatus();
   } catch (error) {
     if (isSessionExpired(error) || signal?.aborted) return;
     allData = [];
