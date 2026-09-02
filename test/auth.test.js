@@ -568,6 +568,7 @@ test('the operations assignee can read the sales and ads update instruction insi
   expect(document.getElementById('manualViewer').textContent).toContain('OneBoard → 설정 → 판매·광고 연동 설정');
   expect(document.getElementById('manualViewer').textContent).toContain('엑셀 사용 판정: 조건부 사용 가능');
   expect(document.getElementById('manualViewer').textContent).toContain('쿠팡 계정이 2세트');
+  expect(document.getElementById('manualViewer').textContent).toContain('외부 창에서 입력해도 OneBoard의 다른 입력칸은 바뀌지 않습니다.');
   expect(apiFetch).not.toHaveBeenCalled();
 });
 
