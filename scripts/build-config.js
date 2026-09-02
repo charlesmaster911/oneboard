@@ -21,7 +21,7 @@ if (apiBase && !/^https?:\/\//i.test(apiBase)) {
 const distRoot = resolve('dist');
 const modulesRoot = join(distRoot, 'modules');
 const publicAssets = ['index.html', 'style.css', 'app.js'];
-const publicModules = ['api.js', 'auth.js', 'dom.js', 'main.js'];
+const publicModules = ['api.js', 'auth.js', 'collaboration.js', 'dom.js', 'main.js'];
 rmSync(distRoot, { recursive: true, force: true });
 mkdirSync(modulesRoot, { recursive: true });
 for (const asset of publicAssets) copyFileSync(resolve(asset), join(distRoot, asset));

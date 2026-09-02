@@ -186,6 +186,8 @@ test('the retained page exposes only wired buttons and explicit non-loading stat
   const allowedButtonIds = new Set([
     'logout-button', 'notifBell', 'notifReadAll', 'refreshTeamBtn', 'addTaskBtn',
     'closeTaskModal', 'cancelTask', 'saveTask', 'deleteTask',
+    'intCalPrev', 'intCalNext', 'intCalToday',
+    'addMinutesBtn', 'closeMinutesModal', 'cancelMinutes', 'saveMinutes', 'deleteMinutes',
   ]);
   const unaccounted = [...page.querySelectorAll('button')].filter((button) => (
     !button.dataset.section && !allowedButtonIds.has(button.id)
@@ -194,6 +196,28 @@ test('the retained page exposes only wired buttons and explicit non-loading stat
   expect(unaccounted.map((button) => button.outerHTML)).toEqual([]);
   expect(source).not.toMatch(/로딩 중|데이터 로딩|확인 중/);
   expect(source).not.toMatch(/onclick\s*=/i);
+});
+
+test('team work restores the original integrated calendar and minutes restore detail input', async () => {
+  const source = await readFile(`${process.cwd()}/index.html`, 'utf8');
+  const page = new DOMParser().parseFromString(source, 'text/html');
+
+  expect(page.querySelector('#memberTabs')).not.toBeNull();
+  expect(page.querySelector('#integratedView')).not.toBeNull();
+  expect(page.querySelector('#intBlockers')).not.toBeNull();
+  expect(page.querySelector('#intCalGrid')).not.toBeNull();
+  expect(page.querySelector('#intMinutes')).not.toBeNull();
+  expect(page.querySelector('#intAlerts')).not.toBeNull();
+  expect(page.querySelector('#minutesSearch')).not.toBeNull();
+  expect(page.querySelector('#minutesViewer')).not.toBeNull();
+  expect(page.querySelector('#addMinutesBtn')).not.toBeNull();
+  expect(page.querySelector('#minutesModal')).not.toBeNull();
+  expect(page.querySelector('#minutesDate')).not.toBeNull();
+  expect(page.querySelector('#minutesTitle')).not.toBeNull();
+  expect(page.querySelector('#minutesAttendees')).not.toBeNull();
+  expect(page.querySelector('#minutesSummary')).not.toBeNull();
+  expect(page.querySelector('#minutesDirectives')).not.toBeNull();
+  expect(page.querySelector('#minutesContent')).not.toBeNull();
 });
 
 test('runtime config loads before application modules and production sources contain no browser Sheets path or real presets', async () => {

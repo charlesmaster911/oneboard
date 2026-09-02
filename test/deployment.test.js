@@ -67,7 +67,7 @@ describe('Render public configuration boundary', () => {
 
     expect(render).toMatch(/staticPublishPath:\s*dist/);
     expect(build).toContain("const publicAssets = ['index.html', 'style.css', 'app.js'];");
-    expect(build).toContain("const publicModules = ['api.js', 'auth.js', 'dom.js', 'main.js'];");
+    expect(build).toContain("const publicModules = ['api.js', 'auth.js', 'collaboration.js', 'dom.js', 'main.js'];");
     expect(build).not.toMatch(/manuals|oneboard-backup-guide/);
   });
 });

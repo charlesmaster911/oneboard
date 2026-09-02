@@ -84,9 +84,24 @@ let legacyLifecycleActive = false;
 let legacyDomReady = document.readyState !== 'loading';
 let allData = [];
 let teamTasks = [];
+let meetingMinutes = [];
 let notificationPollTimer = null;
 let notificationPollGeneration = 0;
 let editingTaskId = null;
+let editingMinutesId = null;
+let selectedMinutesId = null;
+let selectedTeamAssignee = '통합';
+let integratedCalendarMonth = (() => {
+  const today = new Date();
+  return new Date(today.getFullYear(), today.getMonth(), 1);
+})();
+let integratedShowArchive = false;
+
+function collaborationHelpers() {
+  const helpers = window.ONEBOARD_COLLABORATION;
+  if (!helpers) throw new Error('COLLABORATION_HELPERS_UNAVAILABLE');
+  return helpers;
+}
 
 async function fetchAPIDailyData(days = 30) {
   const { from, to } = dateRange(days);
@@ -278,18 +293,221 @@ async function deleteTask(id) {
 }
 
 function renderTaskList(tasks) {
+  if (Array.isArray(tasks)) teamTasks = [...tasks];
+  renderTeamMemberTabs();
+  renderIntegratedTeamView();
+}
+
+const TEAM_COLOR_PALETTE = [
+  { color: '#EF4444', background: '#FEF2F2' },
+  { color: '#3B82F6', background: '#EFF6FF' },
+  { color: '#10B981', background: '#F0FDF4' },
+  { color: '#F59E0B', background: '#FFFBEB' },
+  { color: '#8B5CF6', background: '#F5F3FF' },
+  { color: '#0891B2', background: '#ECFEFF' },
+];
+
+function taskAssignees() {
+  return [...new Set(teamTasks.map((task) => task.assignee || task.who).filter(Boolean))]
+    .sort((left, right) => String(left).localeCompare(String(right), 'ko-KR'));
+}
+
+function memberStyle(name) {
+  const members = taskAssignees();
+  const index = Math.max(0, members.indexOf(name));
+  return TEAM_COLOR_PALETTE[index % TEAM_COLOR_PALETTE.length];
+}
+
+function activeTeamTasks() {
+  return selectedTeamAssignee === '통합'
+    ? teamTasks
+    : teamTasks.filter((task) => String(task.assignee || task.who) === selectedTeamAssignee);
+}
+
+function renderTeamMemberTabs() {
+  const target = document.getElementById('memberTabButtons');
+  if (!target) return;
+  const assignees = taskAssignees();
+  if (selectedTeamAssignee !== '통합' && !assignees.includes(selectedTeamAssignee)) selectedTeamAssignee = '통합';
+  const fragment = document.createDocumentFragment();
+  for (const name of ['통합', ...assignees]) {
+    const button = createElement('button', `member-tab-btn${name === selectedTeamAssignee ? ' active' : ''}`, name === '통합' ? '🔗 통합' : name);
+    button.type = 'button';
+    button.dataset.member = name;
+    button.addEventListener('click', () => {
+      selectedTeamAssignee = name;
+      renderTeamMemberTabs();
+      renderIntegratedTeamView();
+    });
+    fragment.appendChild(button);
+  }
+  target.replaceChildren(fragment);
+}
+
+function isTaskInCalendarMonth(task, month) {
+  const key = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
+  return String(task?.date || '').slice(0, 7) === key;
+}
+
+function renderIntegratedTeamView() {
+  const tasks = activeTeamTasks();
+  renderPriorityPanel(tasks);
+  renderIntegratedCalendar(tasks);
+  renderRecentMinutesPanel();
+  renderCollaborationAlerts(tasks);
+  renderIntegratedLegend(tasks);
+}
+
+function renderPriorityPanel(tasks) {
+  const helpers = collaborationHelpers();
+  setText('intPriorityMonth', `${integratedCalendarMonth.getFullYear()}년 ${integratedCalendarMonth.getMonth() + 1}월 기준`);
+  const priorityOrder = { 높음: 0, 보통: 1, 낮음: 2 };
+  const statusOrder = { 진행: 0, 예정: 1, 완료: 2 };
+  const visible = tasks
+    .filter((task) => isTaskInCalendarMonth(task, integratedCalendarMonth))
+    .filter((task) => integratedShowArchive || helpers.normalizeTaskStatus(task.status) !== '완료')
+    .sort((left, right) => {
+      const priority = (priorityOrder[left.priority] ?? 1) - (priorityOrder[right.priority] ?? 1);
+      if (priority) return priority;
+      const status = (statusOrder[helpers.normalizeTaskStatus(left.status)] ?? 1)
+        - (statusOrder[helpers.normalizeTaskStatus(right.status)] ?? 1);
+      if (status) return status;
+      return String(left.date || '').localeCompare(String(right.date || ''));
+    });
   const target = document.getElementById('intBlockers');
   if (!target) return;
-  teamTasks = [...tasks];
   const fragment = document.createDocumentFragment();
-  for (const task of tasks) {
-    const row = createElement('button', 'int3-priority-item');
+  visible.slice(0, 80).forEach((task) => {
+    const status = helpers.normalizeTaskStatus(task.status);
+    const assignee = task.assignee || task.who || '미지정';
+    const style = memberStyle(assignee);
+    const row = createElement('button', `int3-pri-item${task.priority === '높음' ? ' hi' : ''}`);
     row.type = 'button';
     row.dataset.taskId = String(task.id);
-    row.appendChild(createElement('span', '', `${task.date || ''} · ${task.task || ''} · ${task.status || ''}`));
+    const member = createElement('span', 'int3-mb', assignee);
+    member.style.background = style.background;
+    member.style.color = style.color;
+    row.append(
+      member,
+      createElement('span', 'int3-pt', task.task || '업무 내용 없음'),
+      createElement('span', `int3-st int3-st-${status === '진행' ? 'progress' : status === '완료' ? 'done' : 'todo'}`, status),
+      createElement('span', 'int3-dt', String(task.date || '').slice(0, 10)),
+    );
     fragment.appendChild(row);
-  }
-  if (!tasks.length) fragment.appendChild(createElement('div', 'int3-empty', '표시할 배정 업무가 없습니다.'));
+  });
+  if (!visible.length) fragment.appendChild(createElement('div', 'int3-empty', integratedShowArchive ? '이번 달 업무가 없습니다.' : '이번 달 미완료 업무가 없습니다.'));
+  target.replaceChildren(fragment);
+}
+
+function renderIntegratedCalendar(tasks) {
+  const target = document.getElementById('intCalGrid');
+  if (!target) return;
+  const helpers = collaborationHelpers();
+  const dates = helpers.monthCalendarDates(integratedCalendarMonth);
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const fragment = document.createDocumentFragment();
+  ['일', '월', '화', '수', '목', '금', '토'].forEach((day, index) => {
+    const header = createElement('div', `cal-col-header${index === 0 ? ' sun' : index === 6 ? ' sat' : ''}`);
+    header.appendChild(createElement('div', 'cal-day-name', day));
+    fragment.appendChild(header);
+  });
+  dates.forEach((dateKey) => {
+    const date = new Date(`${dateKey}T00:00:00`);
+    const inMonth = date.getMonth() === integratedCalendarMonth.getMonth();
+    const dayTasks = tasks.filter((task) => String(task.date || '').slice(0, 10) === dateKey);
+    const cell = createElement('div', `cal-month-cell int3-cal-cell${dateKey === todayKey ? ' today' : ''}${inMonth ? '' : ' other-month'}${date.getDay() === 0 ? ' sun' : date.getDay() === 6 ? ' sat' : ''}`);
+    cell.dataset.date = dateKey;
+    cell.appendChild(createElement('div', 'cal-month-day-num', date.getDate()));
+    dayTasks.slice(0, 4).forEach((task) => {
+      const assignee = task.assignee || task.who || '미지정';
+      const style = memberStyle(assignee);
+      const item = createElement('button', `cal-month-task${helpers.normalizeTaskStatus(task.status) === '완료' ? ' done' : ''}`, `${assignee.slice(0, 2)} ${task.task || ''}`);
+      item.type = 'button';
+      item.dataset.taskId = String(task.id);
+      item.title = `${assignee}: ${task.task || ''} (${helpers.normalizeTaskStatus(task.status)})`;
+      item.style.background = style.background;
+      item.style.borderLeftColor = style.color;
+      item.style.color = style.color;
+      cell.appendChild(item);
+    });
+    if (dayTasks.length > 4) cell.appendChild(createElement('div', 'cal-month-more', `+${dayTasks.length - 4}개 더`));
+    if (isWorkspaceManager()) {
+      const add = createElement('button', 'cal-month-add', '+');
+      add.type = 'button';
+      add.dataset.addTaskDate = dateKey;
+      add.setAttribute('aria-label', `${dateKey} 업무 추가`);
+      cell.appendChild(add);
+    }
+    fragment.appendChild(cell);
+  });
+  target.replaceChildren(fragment);
+  target.style.gridTemplateColumns = 'repeat(7, minmax(0, 1fr))';
+  setText('intCalLabel', `${integratedCalendarMonth.getFullYear()}년 ${integratedCalendarMonth.getMonth() + 1}월`);
+}
+
+function renderRecentMinutesPanel() {
+  const target = document.getElementById('intMinutes');
+  if (!target) return;
+  const fragment = document.createDocumentFragment();
+  collaborationHelpers().filterMinutes(meetingMinutes).slice(0, 5).forEach((minute) => {
+    const card = createElement('button', 'int3-min-card');
+    card.type = 'button';
+    card.dataset.openMinutesId = String(minute.id);
+    const head = createElement('span', 'int3-min-head');
+    const minuteStatus = collaborationHelpers().normalizeTaskStatus(minute.status || '진행');
+    head.append(
+      createElement('span', 'int3-min-date', String(minute.date || '').slice(0, 10)),
+      createElement('span', `status-chip status-${minuteStatus === '완료' ? 'done' : minuteStatus === '예정' ? 'todo' : 'progress'}`, minuteStatus),
+    );
+    card.append(head, createElement('span', 'int3-min-title', minute.title || '제목 없는 회의록'));
+    const directiveCount = collaborationHelpers().splitTextLines(minute.directives).length;
+    if (directiveCount) card.appendChild(createElement('span', 'int3-min-counter', `지시 ${directiveCount}건`));
+    fragment.appendChild(card);
+  });
+  if (!meetingMinutes.length) fragment.appendChild(createElement('div', 'int3-empty', '회의록이 없습니다.'));
+  target.replaceChildren(fragment);
+}
+
+function renderCollaborationAlerts(tasks) {
+  const target = document.getElementById('intAlerts');
+  if (!target) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const helpers = collaborationHelpers();
+  const delayed = tasks
+    .filter((task) => task.date && String(task.date).slice(0, 10) < today && helpers.normalizeTaskStatus(task.status) !== '완료')
+    .sort((left, right) => String(left.date).localeCompare(String(right.date)))
+    .slice(0, 8);
+  const fragment = document.createDocumentFragment();
+  delayed.forEach((task) => {
+    const assignee = task.assignee || task.who || '미지정';
+    const style = memberStyle(assignee);
+    const row = createElement('button', 'int3-pri-item int3-delay');
+    row.type = 'button';
+    row.dataset.taskId = String(task.id);
+    const member = createElement('span', 'int3-mb', assignee);
+    member.style.background = style.background;
+    member.style.color = style.color;
+    row.append(member, createElement('span', 'int3-pt', task.task || '업무 내용 없음'), createElement('span', 'int3-dt', `${String(task.date).slice(0, 10)} 지연`));
+    fragment.appendChild(row);
+  });
+  if (!delayed.length) fragment.appendChild(createElement('div', 'int3-empty', '지연 항목이 없습니다.'));
+  target.replaceChildren(fragment);
+}
+
+function renderIntegratedLegend(tasks) {
+  const target = document.getElementById('intCalLegend');
+  if (!target) return;
+  const names = [...new Set(tasks.map((task) => task.assignee || task.who).filter(Boolean))];
+  const fragment = document.createDocumentFragment();
+  names.forEach((name) => {
+    const style = memberStyle(name);
+    const item = createElement('span', 'int3-legend-item');
+    const dot = createElement('span', 'int3-legend-dot');
+    dot.style.background = style.color;
+    item.append(dot, document.createTextNode(name));
+    fragment.appendChild(item);
+  });
   target.replaceChildren(fragment);
 }
 
@@ -393,10 +611,13 @@ async function deleteTaskFromModal() {
 }
 
 async function renderTeamSection() {
-  const today = new Date();
-  const from = new Date(today.getFullYear(), today.getMonth() - 3, 1).toISOString().slice(0, 10);
-  const to = new Date(today.getFullYear(), today.getMonth() + 4, 0).toISOString().slice(0, 10);
-  teamTasks = await fetchTeamTasks(from, to);
+  setText('dataStatusBadge', '업무를 불러오는 중입니다');
+  const [tasks, minutes] = await Promise.all([
+    fetchTeamTasks(),
+    isWorkspaceManager() ? fetchMinutes() : Promise.resolve([]),
+  ]);
+  teamTasks = tasks;
+  meetingMinutes = minutes;
   renderTaskList(teamTasks);
   setText('dataStatusBadge', teamTasks.length ? '인증된 API' : '빈 상태');
   const add = document.getElementById('addTaskBtn');
@@ -414,16 +635,210 @@ async function fetchMinutes() {
   }
 }
 
+async function createMinutes(payload) {
+  if (!isWorkspaceManager()) throw new Error('MINUTES_MUTATION_FORBIDDEN');
+  const data = await apiFetch('/team/minutes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return data.minutes;
+}
+
+async function updateMinutes(id, patch) {
+  if (!isWorkspaceManager()) throw new Error('MINUTES_MUTATION_FORBIDDEN');
+  const data = await apiFetch(`/team/minutes/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  return data.minutes;
+}
+
+async function deleteMinutes(id) {
+  if (!isWorkspaceManager()) throw new Error('MINUTES_MUTATION_FORBIDDEN');
+  await apiFetch(`/team/minutes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+function renderMinutesList() {
+  const target = document.getElementById('minutesList');
+  if (!target) return;
+  const query = document.getElementById('minutesSearch')?.value || '';
+  const filtered = collaborationHelpers().filterMinutes(meetingMinutes, query);
+  if (!filtered.some((minute) => String(minute.id) === String(selectedMinutesId))) {
+    selectedMinutesId = filtered[0]?.id == null ? null : String(filtered[0].id);
+  }
+  const fragment = document.createDocumentFragment();
+  for (const minute of filtered) {
+    const button = createElement('button', `minutes-list-item${String(minute.id) === String(selectedMinutesId) ? ' active' : ''}`);
+    button.type = 'button';
+    button.dataset.minutesId = String(minute.id);
+    button.append(
+      createElement('span', 'minutes-item-date', collaborationHelpers().formatBoardDate(minute.date)),
+      createElement('strong', 'minutes-item-title', minute.title || '제목 없는 회의록'),
+      createElement('span', 'minutes-item-preview', minute.summary || minute.directives || minute.content || '상세 내용을 확인하세요.'),
+    );
+    fragment.appendChild(button);
+  }
+  if (!filtered.length) fragment.appendChild(createElement('div', 'empty-state', query ? '검색 결과가 없습니다.' : '회의록이 없습니다.'));
+  target.replaceChildren(fragment);
+  const selected = meetingMinutes.find((minute) => String(minute.id) === String(selectedMinutesId));
+  renderMinutesDocument(selected || null);
+}
+
+function renderMinutesDocument(minute) {
+  const viewer = document.getElementById('minutesViewer');
+  if (!viewer) return;
+  if (!minute) {
+    const placeholder = createElement('div', 'minutes-placeholder');
+    placeholder.append(createElement('div', 'minutes-placeholder-icon', '📋'), createElement('div', '', '표시할 회의록을 선택하세요.'));
+    viewer.replaceChildren(placeholder);
+    return;
+  }
+
+  const helpers = collaborationHelpers();
+  const header = createElement('header', 'minutes-doc-header');
+  const heading = createElement('div', 'minutes-doc-heading');
+  heading.append(
+    createElement('div', 'minutes-doc-date', helpers.formatBoardDate(minute.date)),
+    createElement('h2', 'minutes-doc-title', minute.title || '제목 없는 회의록'),
+  );
+  const actions = createElement('div', 'minutes-doc-actions');
+  const edit = createElement('button', 'btn-secondary', '수정');
+  edit.type = 'button';
+  edit.dataset.minutesAction = 'edit';
+  edit.dataset.minutesId = String(minute.id);
+  const remove = createElement('button', 'btn-danger', '삭제');
+  remove.type = 'button';
+  remove.dataset.minutesAction = 'delete';
+  remove.dataset.minutesId = String(minute.id);
+  actions.append(edit, remove);
+  header.append(heading, actions);
+
+  const meta = createElement('div', 'minutes-doc-meta');
+  meta.append(
+    createElement('span', 'source-chip', helpers.collaborationSourceLabel(minute)),
+    createElement('span', '', minute.attendees ? `참석자 ${minute.attendees}` : '참석자 기록 없음'),
+  );
+
+  const body = createElement('div', 'minutes-doc-body');
+  if (minute.summary) {
+    const block = createElement('section', 'minutes-summary-block');
+    block.append(createElement('h3', 'minutes-summary-title', '핵심 요약'), createElement('p', 'minutes-summary-text', minute.summary));
+    body.appendChild(block);
+  }
+
+  const directives = helpers.splitTextLines(minute.directives);
+  const directiveBlock = createElement('section', 'minutes-directive-block');
+  directiveBlock.appendChild(createElement('h3', 'minutes-directive-title', `지시사항 ${directives.length ? directives.length : ''}`.trim()));
+  if (directives.length) {
+    const list = createElement('ul', 'minutes-directive-list');
+    directives.forEach((line) => list.appendChild(createElement('li', '', line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, ''))));
+    directiveBlock.appendChild(list);
+  } else {
+    directiveBlock.appendChild(createElement('p', 'minutes-empty-copy', '등록된 지시사항이 없습니다.'));
+  }
+  body.appendChild(directiveBlock);
+
+  const contentBlock = createElement('section', 'minutes-content-block');
+  contentBlock.appendChild(createElement('h3', '', '주요 논의 내용'));
+  const contentLines = helpers.splitTextLines(minute.content);
+  if (contentLines.length) contentLines.forEach((line) => contentBlock.appendChild(createElement('p', '', line)));
+  else contentBlock.appendChild(createElement('p', 'minutes-empty-copy', '등록된 논의 내용이 없습니다.'));
+  body.appendChild(contentBlock);
+  viewer.replaceChildren(header, meta, body);
+}
+
+function minutesField(id) {
+  return document.getElementById(id);
+}
+
+function closeMinutesModal() {
+  const modal = minutesField('minutesModal');
+  if (modal) modal.style.display = 'none';
+  editingMinutesId = null;
+  setText('minutesMutationStatus', '');
+}
+
+function openMinutesModal(minute = null) {
+  if (!isWorkspaceManager()) return;
+  editingMinutesId = minute?.id == null ? null : String(minute.id);
+  const values = {
+    minutesDate: minute?.date ? String(minute.date).slice(0, 10) : new Date().toISOString().slice(0, 10),
+    minutesTitle: minute?.title || '',
+    minutesAttendees: minute?.attendees || '',
+    minutesSummary: minute?.summary || '',
+    minutesDirectives: minute?.directives || '',
+    minutesContent: minute?.content || '',
+  };
+  Object.entries(values).forEach(([id, value]) => { const field = minutesField(id); if (field) field.value = value; });
+  setText('minutesModalTitle', minute ? '회의록 수정' : '새 회의록');
+  setText('minutesMutationStatus', '');
+  const remove = minutesField('deleteMinutes');
+  if (remove) remove.hidden = !minute;
+  const modal = minutesField('minutesModal');
+  if (modal) modal.style.display = 'flex';
+  minutesField('minutesTitle')?.focus?.();
+}
+
+function minutesFormPayload() {
+  return {
+    date: minutesField('minutesDate')?.value || '',
+    title: minutesField('minutesTitle')?.value?.trim() || '',
+    attendees: minutesField('minutesAttendees')?.value?.trim() || '',
+    summary: minutesField('minutesSummary')?.value?.trim() || '',
+    directives: minutesField('minutesDirectives')?.value?.trim() || '',
+    content: minutesField('minutesContent')?.value?.trim() || '',
+  };
+}
+
+async function saveMinutesFromModal() {
+  const payload = minutesFormPayload();
+  if (!payload.date || !payload.title) {
+    setText('minutesMutationStatus', '회의 날짜와 제목을 입력해 주세요.');
+    return;
+  }
+  const button = minutesField('saveMinutes');
+  if (button) button.disabled = true;
+  try {
+    const saved = editingMinutesId
+      ? await updateMinutes(editingMinutesId, payload)
+      : await createMinutes(payload);
+    if (editingMinutesId) {
+      meetingMinutes = meetingMinutes.map((minute) => String(minute.id) === editingMinutesId ? saved : minute);
+    } else {
+      meetingMinutes = [saved, ...meetingMinutes];
+    }
+    selectedMinutesId = String(saved.id);
+    closeMinutesModal();
+    renderMinutesList();
+  } catch {
+    setText('minutesMutationStatus', '회의록을 저장하지 못했습니다. 입력값을 확인하고 다시 시도해 주세요.');
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function deleteMinutesFromModal(id = editingMinutesId) {
+  if (!id || !isWorkspaceManager()) return;
+  if (!window.confirm('이 회의록을 삭제할까요?')) return;
+  try {
+    await deleteMinutes(id);
+    meetingMinutes = meetingMinutes.filter((minute) => String(minute.id) !== String(id));
+    selectedMinutesId = null;
+    closeMinutesModal();
+    renderMinutesList();
+  } catch {
+    setText('minutesMutationStatus', '회의록을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  }
+}
+
 async function renderMinutesSection() {
   const target = document.getElementById('minutesList');
   if (!target) return;
-  const minutes = await fetchMinutes();
-  const fragment = document.createDocumentFragment();
-  for (const minute of minutes) {
-    fragment.appendChild(createElement('div', 'minutes-list-item', `${minute.date || ''} · ${minute.title || ''}`));
-  }
-  if (!minutes.length) fragment.appendChild(createElement('div', 'empty-state', '회의록이 없습니다.'));
-  target.replaceChildren(fragment);
+  target.replaceChildren(createElement('div', 'empty-state', '회의록을 불러오는 중입니다.'));
+  meetingMinutes = await fetchMinutes();
+  renderMinutesList();
 }
 
 async function fetchNotifications() {
@@ -508,12 +923,62 @@ function bindEvents() {
   document.getElementById('refreshTeamBtn')?.addEventListener('click', () => {
     void renderTeamSection();
   });
-  document.getElementById('addTaskBtn')?.addEventListener('click', () => openTaskModal());
+  document.getElementById('intShowArchive')?.addEventListener('change', (event) => {
+    integratedShowArchive = event.target.checked;
+    renderIntegratedTeamView();
+  });
+  document.getElementById('intCalPrev')?.addEventListener('click', () => {
+    integratedCalendarMonth = new Date(integratedCalendarMonth.getFullYear(), integratedCalendarMonth.getMonth() - 1, 1);
+    renderIntegratedTeamView();
+  });
+  document.getElementById('intCalNext')?.addEventListener('click', () => {
+    integratedCalendarMonth = new Date(integratedCalendarMonth.getFullYear(), integratedCalendarMonth.getMonth() + 1, 1);
+    renderIntegratedTeamView();
+  });
+  document.getElementById('intCalToday')?.addEventListener('click', () => {
+    const today = new Date();
+    integratedCalendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    renderIntegratedTeamView();
+  });
+  document.getElementById('addTaskBtn')?.addEventListener('click', () => {
+    openTaskModal();
+    if (selectedTeamAssignee !== '통합') {
+      const field = taskField('taskAssignee');
+      if (field) field.value = selectedTeamAssignee;
+    }
+  });
   document.getElementById('intBlockers')?.addEventListener('click', (event) => {
     const row = event.target.closest?.('[data-task-id]');
     if (!row) return;
     const task = teamTasks.find((candidate) => String(candidate.id) === String(row.dataset.taskId));
     if (task) openTaskModal(task);
+  });
+  document.getElementById('intAlerts')?.addEventListener('click', (event) => {
+    const row = event.target.closest?.('[data-task-id]');
+    if (!row) return;
+    const task = teamTasks.find((candidate) => String(candidate.id) === String(row.dataset.taskId));
+    if (task) openTaskModal(task);
+  });
+  document.getElementById('intCalGrid')?.addEventListener('click', (event) => {
+    const taskItem = event.target.closest?.('[data-task-id]');
+    if (taskItem) {
+      const task = teamTasks.find((candidate) => String(candidate.id) === String(taskItem.dataset.taskId));
+      if (task) openTaskModal(task);
+      return;
+    }
+    const add = event.target.closest?.('[data-add-task-date]');
+    if (!add || !isWorkspaceManager()) return;
+    openTaskModal();
+    const dateField = taskField('taskDate');
+    const assigneeField = taskField('taskAssignee');
+    if (dateField) dateField.value = add.dataset.addTaskDate;
+    if (assigneeField && selectedTeamAssignee !== '통합') assigneeField.value = selectedTeamAssignee;
+  });
+  document.getElementById('intMinutes')?.addEventListener('click', (event) => {
+    const card = event.target.closest?.('[data-open-minutes-id]');
+    if (!card) return;
+    selectedMinutesId = card.dataset.openMinutesId;
+    document.querySelector('[data-section="minutes"]')?.click();
   });
   document.getElementById('closeTaskModal')?.addEventListener('click', closeTaskModal);
   document.getElementById('cancelTask')?.addEventListener('click', closeTaskModal);
@@ -521,6 +986,34 @@ function bindEvents() {
   document.getElementById('deleteTask')?.addEventListener('click', () => { void deleteTaskFromModal(); });
   document.getElementById('taskModal')?.addEventListener('click', (event) => {
     if (event.target.id === 'taskModal') closeTaskModal();
+  });
+  document.getElementById('addMinutesBtn')?.addEventListener('click', () => openMinutesModal());
+  document.getElementById('minutesSearch')?.addEventListener('input', renderMinutesList);
+  document.getElementById('minutesList')?.addEventListener('click', (event) => {
+    const item = event.target.closest?.('[data-minutes-id]');
+    if (!item) return;
+    selectedMinutesId = item.dataset.minutesId;
+    renderMinutesList();
+  });
+  document.getElementById('minutesViewer')?.addEventListener('click', (event) => {
+    const action = event.target.closest?.('[data-minutes-action]');
+    if (!action) return;
+    const minute = meetingMinutes.find((item) => String(item.id) === String(action.dataset.minutesId));
+    if (!minute) return;
+    if (action.dataset.minutesAction === 'edit') openMinutesModal(minute);
+    if (action.dataset.minutesAction === 'delete') void deleteMinutesFromModal(minute.id);
+  });
+  document.getElementById('closeMinutesModal')?.addEventListener('click', closeMinutesModal);
+  document.getElementById('cancelMinutes')?.addEventListener('click', closeMinutesModal);
+  document.getElementById('saveMinutes')?.addEventListener('click', () => { void saveMinutesFromModal(); });
+  document.getElementById('deleteMinutes')?.addEventListener('click', () => { void deleteMinutesFromModal(); });
+  document.getElementById('minutesModal')?.addEventListener('click', (event) => {
+    if (event.target.id === 'minutesModal') closeMinutesModal();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (document.getElementById('minutesModal')?.style.display !== 'none') closeMinutesModal();
+    if (document.getElementById('taskModal')?.style.display !== 'none') closeTaskModal();
   });
 }
 
