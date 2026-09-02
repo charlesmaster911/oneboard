@@ -84,6 +84,7 @@ let legacyLifecycleActive = false;
 let legacyDomReady = document.readyState !== 'loading';
 let allData = [];
 let teamTasks = [];
+let teamRoster = [];
 let meetingMinutes = [];
 let notificationPollTimer = null;
 let notificationPollGeneration = 0;
@@ -582,6 +583,18 @@ async function fetchTeamTasks(from, to) {
   }
 }
 
+async function fetchTeamRoster() {
+  try {
+    const payload = await apiFetch('/team/roster');
+    return Array.isArray(payload?.members)
+      ? payload.members.map((name) => String(name || '').trim()).filter(Boolean)
+      : [];
+  } catch (error) {
+    if (isSessionExpired(error)) throw error;
+    return [];
+  }
+}
+
 async function createTask(payload) {
   if (!isWorkspaceManager()) throw new Error('TASK_MUTATION_FORBIDDEN');
   const data = await apiFetch('/team/tasks', {
@@ -627,6 +640,7 @@ async function deleteTask(id) {
 
 function renderTaskList(tasks) {
   if (Array.isArray(tasks)) teamTasks = [...tasks];
+  populateTaskAssigneeOptions();
   renderTeamMemberTabs();
   renderIntegratedTeamView();
 }
@@ -641,8 +655,26 @@ const TEAM_COLOR_PALETTE = [
 ];
 
 function taskAssignees() {
+  if (teamRoster.length) return [...teamRoster];
   return [...new Set(teamTasks.map((task) => task.assignee || task.who).filter(Boolean))]
     .sort((left, right) => String(left).localeCompare(String(right), 'ko-KR'));
+}
+
+function populateTaskAssigneeOptions() {
+  const field = taskField('taskAssignee');
+  if (!field || field.tagName !== 'SELECT') return;
+  const selected = field.value;
+  const fragment = document.createDocumentFragment();
+  const placeholder = createElement('option', '', '팀원을 선택하세요');
+  placeholder.value = '';
+  fragment.appendChild(placeholder);
+  taskAssignees().forEach((name) => {
+    const option = createElement('option', '', name);
+    option.value = name;
+    fragment.appendChild(option);
+  });
+  field.replaceChildren(fragment);
+  field.value = taskAssignees().includes(selected) ? selected : '';
 }
 
 function memberStyle(name) {
@@ -945,11 +977,15 @@ async function deleteTaskFromModal() {
 
 async function renderTeamSection() {
   setText('dataStatusBadge', '업무를 불러오는 중입니다');
-  const [tasks, minutes] = await Promise.all([
+  const [tasks, minutes, roster] = await Promise.all([
     fetchTeamTasks(),
     isWorkspaceManager() ? fetchMinutes() : Promise.resolve([]),
+    fetchTeamRoster(),
   ]);
-  teamTasks = tasks;
+  teamRoster = roster;
+  teamTasks = roster.length
+    ? tasks.filter((task) => roster.includes(task.assignee || task.who))
+    : tasks;
   meetingMinutes = minutes;
   renderTaskList(teamTasks);
   setText('dataStatusBadge', teamTasks.length ? '인증된 API' : '빈 상태');

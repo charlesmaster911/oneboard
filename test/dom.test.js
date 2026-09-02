@@ -203,6 +203,8 @@ test('team work restores the original integrated calendar and minutes restore de
   const source = await readFile(`${process.cwd()}/index.html`, 'utf8');
   const page = new DOMParser().parseFromString(source, 'text/html');
 
+  expect(page.querySelector('#taskAssignee')?.tagName).toBe('SELECT');
+
   expect(page.querySelector('#memberTabs')).not.toBeNull();
   expect(page.querySelector('#integratedView')).not.toBeNull();
   expect(page.querySelector('#intBlockers')).not.toBeNull();
