@@ -70,4 +70,11 @@ describe('Render public configuration boundary', () => {
     expect(build).toContain("const publicModules = ['api.js', 'auth.js', 'collaboration.js', 'dom.js', 'main.js', 'workspace.js'];");
     expect(build).not.toMatch(/manuals|oneboard-backup-guide/);
   });
+
+  it('cache-busts the deploy-sensitive application and stylesheet assets', () => {
+    const page = readFileSync(join(projectRoot, 'index.html'), 'utf8');
+
+    expect(page).toContain('href="style.css?v=20260903-2"');
+    expect(page).toContain('src="app.js?v=20260903-2"');
+  });
 });
