@@ -2451,6 +2451,56 @@ body {
 }
 
 /* ─── 채널 키 카드 그룹 헤더 (설정 섹션) ──────────────────── */
+.settings-isolation-note {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1e40af;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.platform-update-guide {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.platform-update-guide strong {
+  color: #334155;
+  font-size: 13px;
+}
+
+.platform-update-path {
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.platform-update-guide small {
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.platform-portal-link {
+  justify-self: start;
+  margin-top: 4px;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.platform-portal-link:hover,
+.platform-portal-link:focus-visible {
+  text-decoration: underline;
+}
 .channel-keys-group-header {
   grid-column: 1 / -1;
   padding: 12px 4px 6px;

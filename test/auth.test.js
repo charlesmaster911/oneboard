@@ -490,13 +490,84 @@ test('the real legacy startup sends zero data requests before authentication', a
 async function loadLegacyHooks() {
   const script = await readFile(`${process.cwd()}/app.js`, 'utf8');
   const storage = { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() };
-  return Function('window', 'document', 'localStorage', 'sessionStorage', `${script}\nreturn { init, fetchAPIDailyData, startNotificationPolling, stopNotificationPolling, bindEvents, renderTaskList };`)(
+  return Function('window', 'document', 'localStorage', 'sessionStorage', `${script}\nreturn { init, fetchAPIDailyData, startNotificationPolling, stopNotificationPolling, bindEvents, renderTaskList, renderSettingsCards, startCafe24OAuth, openManualDocument };`)(
     window,
     document,
     storage,
     storage,
   );
 }
+
+test('Cafe24 OAuth opens in an isolated window without replacing OneBoard', async () => {
+  document.body.innerHTML = '<p id="settingsStatus"></p>';
+  const originalUrl = window.location.href;
+  const portalWindow = {
+    opener: window,
+    location: { replace: vi.fn() },
+    close: vi.fn(),
+  };
+  const openWindow = vi.spyOn(window, 'open').mockReturnValue(portalWindow);
+  window.ONEBOARD_API = Object.freeze({
+    fetch: vi.fn().mockResolvedValue(jsonResponse(200, {
+      data: { authorizationUrl: 'https://eclogin.cafe24.com/oauth2/authorize?state=safe' },
+    })),
+  });
+  const hooks = await loadLegacyHooks();
+
+  await hooks.startCafe24OAuth();
+
+  expect(openWindow).toHaveBeenCalledWith('about:blank', '_blank');
+  expect(portalWindow.opener).toBeNull();
+  expect(portalWindow.location.replace).toHaveBeenCalledWith(
+    'https://eclogin.cafe24.com/oauth2/authorize?state=safe'
+  );
+  expect(window.location.href).toBe(originalUrl);
+});
+
+test('platform settings show a safe new-tab link and exact update path', async () => {
+  document.body.innerHTML = '<div id="platformSettingsGrid"></div>';
+  window.ONEBOARD_WORKSPACE = Object.freeze({
+    platformStatePresentation: () => ({ tone: 'warning', label: '연결정보 필요', action: '입력 필요' }),
+  });
+  const hooks = await loadLegacyHooks();
+
+  hooks.renderSettingsCards([{
+    id: 'naver_store',
+    label: '네이버 스마트스토어',
+    kind: '매출',
+    connectionState: 'disconnected',
+    fields: [],
+    guide: {
+      portalUrl: 'https://apicenter.commerce.naver.com/',
+      path: '내 스토어 애플리케이션 → 애플리케이션 등록/관리',
+      instruction: 'Client ID와 Client Secret을 발급한 뒤 아래 입력칸에 저장',
+    },
+  }]);
+
+  const link = document.querySelector('[data-platform-portal="naver_store"]');
+  expect(link?.getAttribute('href')).toBe('https://apicenter.commerce.naver.com/');
+  expect(link?.getAttribute('target')).toBe('_blank');
+  expect(link?.getAttribute('rel')).toBe('noopener noreferrer');
+  expect(document.getElementById('platformSettingsGrid').textContent)
+    .toContain('내 스토어 애플리케이션 → 애플리케이션 등록/관리');
+});
+
+test('the operations assignee can read the sales and ads update instruction inside OneBoard', async () => {
+  document.body.innerHTML = '<div id="manualNav"></div><div id="manualViewer"></div>';
+  const apiFetch = vi.fn();
+  window.ONEBOARD_API = Object.freeze({ fetch: apiFetch });
+  window.ONEBOARD_WORKSPACE = Object.freeze({
+    filterManualDocuments: (documents) => documents,
+    markdownBlocks: (content) => content.split('\n').filter(Boolean).map((text) => ({ type: 'paragraph', text })),
+  });
+  const hooks = await loadLegacyHooks();
+
+  await hooks.openManualDocument('kwon-suji-sales-ads-update.md');
+
+  expect(document.getElementById('manualViewer').textContent).toContain('매출·광고 연동정보 업무지시서');
+  expect(document.getElementById('manualViewer').textContent).toContain('OneBoard → 설정 → 판매·광고 연동 설정');
+  expect(apiFetch).not.toHaveBeenCalled();
+});
 
 test('retained task controls invoke authenticated create, update, and delete APIs', async () => {
   document.body.innerHTML = `

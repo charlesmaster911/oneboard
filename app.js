@@ -94,6 +94,45 @@ let selectedMinutesId = null;
 let selectedTeamAssignee = '통합';
 let manualDocuments = [];
 let selectedManualFile = null;
+const LOCAL_MANUAL_DOCUMENTS = Object.freeze([Object.freeze({
+  file: 'kwon-suji-sales-ads-update.md',
+  category: '🏢 팀 매뉴얼',
+  title: '매출·광고 연동정보 업무지시서',
+  summary: '각 채널의 발급 위치, OneBoard 입력 위치, 매일 확인 시간을 정리한 실무 지침',
+  hot: true,
+  content: [
+    '# 매출·광고 연동정보 업무지시서',
+    '## 목적',
+    '카페24·네이버 스마트스토어·쿠팡 한반도 매출과 META·네이버·카카오 광고가 OneBoard에 자동 반영되도록 연결정보를 준비하고 갱신 상태를 확인합니다.',
+    '## OneBoard에서 확인하는 위치',
+    '1. OneBoard 로그인 → 운영매뉴얼 → 이 문서를 엽니다.',
+    '2. 실제 매출과 광고 결과는 OneBoard → 매출에서 확인합니다.',
+    '3. 연결정보 입력 위치는 OneBoard → 설정 → 판매·광고 연동 설정입니다.',
+    '4. 설정은 API 비밀값 보호를 위해 OWNER 계정에서만 보입니다. 실무 담당자는 아래 발급정보를 준비하고, OWNER 담당자 화면에서 함께 입력합니다.',
+    '## 채널별 발급 위치',
+    '- 카페24: 개발자센터 → Products → Apps → App 관리 → 개발정보 관리 / 쇼핑몰 ID·Client ID·Client Secret',
+    'https://developers.cafe24.com/admin/apps/front/manage',
+    '- 네이버 스마트스토어: 커머스 API센터 → 내 스토어 애플리케이션 → 애플리케이션 등록/관리 / Client ID·Client Secret',
+    'https://apicenter.commerce.naver.com/',
+    '- 쿠팡 한반도: Wing → 판매자정보 → 추가판매정보 → OPEN API 키 발급 / Vendor ID·Access Key·Secret Key',
+    'https://wing.coupang.com/',
+    '- META 광고: 비즈니스 설정 → 사용자 → 시스템 사용자 → 자산 할당·토큰 생성 / 광고계정 ID·장기 Access Token',
+    'https://business.facebook.com/settings/system-users',
+    '- 네이버 검색광고: 검색광고 관리자 → 도구 → API 사용 관리 / 고객 ID·API License·Secret Key',
+    'https://searchad.naver.com/',
+    '- 카카오모먼트: 카카오디벨로퍼스 → 내 애플리케이션 → 비즈 앱 전환 → 추가 기능 신청 → 비즈니스 인증 / 광고계정 ID·Business Token',
+    'https://developers.kakao.com/console/app',
+    '## 입력 및 검증 순서',
+    '1. 각 발급·관리 링크를 누르면 별도 창이 열립니다. OneBoard 원래 창은 닫지 않습니다.',
+    '2. 아이디와 키를 확인하되 비밀번호·인증번호·Secret·Token은 팀 업무나 회의록에 적지 않습니다.',
+    '3. OWNER 담당자 화면의 해당 채널 카드에 값을 입력하고 저장합니다.',
+    '4. 수동 갱신 후 연결 상태가 정상인지 확인합니다. 기존 키는 새 연결의 정상 수집을 확인하기 전까지 폐기하지 않습니다.',
+    '## 매일 확인',
+    '- 09:15: 전일 매출과 오전 광고 갱신일·오류 여부를 확인합니다.',
+    '- 16:15: META·네이버·카카오 광고 재갱신 결과와 오류 여부를 확인합니다.',
+    '- 오류가 있으면 채널명·마지막 성공 시각·화면의 오류 문구만 팀 업무에 남깁니다. API 키와 토큰은 절대 남기지 않습니다.',
+  ].join('\n'),
+})]);
 let integratedCalendarMonth = (() => {
   const today = new Date();
   return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -236,6 +275,11 @@ async function openManualDocument(file) {
   renderManualNavigation(document.getElementById('manualSearch')?.value || '');
   const viewer = document.getElementById('manualViewer');
   if (viewer) viewer.replaceChildren(createElement('div', 'manual-placeholder', '문서를 불러오고 있습니다.'));
+  const localDocument = LOCAL_MANUAL_DOCUMENTS.find((item) => item.file === file);
+  if (localDocument) {
+    renderManualContent(localDocument);
+    return;
+  }
   try {
     const documentData = await apiFetch(`/manuals/${encodeURIComponent(file)}`);
     renderManualContent(documentData);
@@ -246,25 +290,51 @@ async function openManualDocument(file) {
 }
 
 async function renderManualSection() {
+  manualDocuments = [...LOCAL_MANUAL_DOCUMENTS];
+  renderManualNavigation(document.getElementById('manualSearch')?.value || '');
+  if (!selectedManualFile) selectedManualFile = LOCAL_MANUAL_DOCUMENTS[0].file;
+  await openManualDocument(selectedManualFile);
   try {
     const payload = await apiFetch('/manuals');
-    manualDocuments = payload?.documents || [];
+    const remoteDocuments = payload?.documents || [];
+    manualDocuments = [
+      ...LOCAL_MANUAL_DOCUMENTS,
+      ...remoteDocuments.filter((item) => !LOCAL_MANUAL_DOCUMENTS.some((local) => local.file === item.file)),
+    ];
     renderManualNavigation(document.getElementById('manualSearch')?.value || '');
     if (!selectedManualFile && manualDocuments.length) selectedManualFile = manualDocuments.find((item) => item.hot)?.file || manualDocuments[0].file;
     if (selectedManualFile) await openManualDocument(selectedManualFile);
   } catch (error) {
     if (isSessionExpired(error)) return;
-    document.getElementById('manualNav')?.replaceChildren(createElement('div', 'empty-state', '문서 목록을 불러오지 못했습니다.'));
+    renderManualNavigation(document.getElementById('manualSearch')?.value || '');
   }
 }
 
 const PLATFORM_FORMS = Object.freeze([
-  { id: 'cafe24', label: '카페24', kind: '매출', fields: [['mall_id', '쇼핑몰 ID'], ['client_id', 'Client ID'], ['client_secret', 'Client Secret']] },
-  { id: 'naver_store', label: '네이버 스마트스토어', kind: '매출', fields: [['client_id', 'Client ID'], ['client_secret', 'Client Secret']] },
-  { id: 'coupang', label: '쿠팡 한반도', kind: '매출', fields: [['vendor_id', 'Vendor ID'], ['access_key', 'Access Key'], ['secret_key', 'Secret Key']] },
-  { id: 'meta', label: 'META 광고', kind: '광고', fields: [['ad_account_id', '광고계정 ID'], ['access_token', 'Access Token'], ['app_id', 'App ID'], ['app_secret', 'App Secret']] },
-  { id: 'naver_ads', label: '네이버 검색광고', kind: '광고', fields: [['customer_id', '고객 ID'], ['api_key', 'API License'], ['secret_key', 'Secret Key']] },
-  { id: 'kakao', label: '카카오모먼트', kind: '광고', fields: [['ad_account_id', '광고계정 ID'], ['access_token', 'Business Token']] },
+  {
+    id: 'cafe24', label: '카페24', kind: '매출', fields: [['mall_id', '쇼핑몰 ID'], ['client_id', 'Client ID'], ['client_secret', 'Client Secret']],
+    guide: { portalUrl: 'https://developers.cafe24.com/admin/apps/front/manage', path: '전체 메뉴 → Products → Apps → App 관리 → 개발정보 관리', instruction: '쇼핑몰 ID·Client ID·Client Secret 저장 후 카페24 로그인 연결 실행' },
+  },
+  {
+    id: 'naver_store', label: '네이버 스마트스토어', kind: '매출', fields: [['client_id', 'Client ID'], ['client_secret', 'Client Secret']],
+    guide: { portalUrl: 'https://apicenter.commerce.naver.com/', path: '내 스토어 애플리케이션 → 애플리케이션 등록/관리', instruction: 'Client ID와 Client Secret을 발급한 뒤 아래 입력칸에 저장' },
+  },
+  {
+    id: 'coupang', label: '쿠팡 한반도', kind: '매출', fields: [['vendor_id', 'Vendor ID'], ['access_key', 'Access Key'], ['secret_key', 'Secret Key']],
+    guide: { portalUrl: 'https://wing.coupang.com/', path: '판매자정보 → 추가판매정보 → OPEN API 키 발급', instruction: '한반도 판매자 계정의 Vendor ID·Access Key·Secret Key 저장' },
+  },
+  {
+    id: 'meta', label: 'META 광고', kind: '광고', fields: [['ad_account_id', '광고계정 ID'], ['access_token', 'Access Token'], ['app_id', 'App ID'], ['app_secret', 'App Secret']],
+    guide: { portalUrl: 'https://business.facebook.com/settings/system-users', path: '비즈니스 설정 → 사용자 → 시스템 사용자 → 자산 할당·토큰 생성', instruction: '광고계정 ID와 장기 Access Token을 우선 저장하고 앱 정보가 있으면 함께 저장' },
+  },
+  {
+    id: 'naver_ads', label: '네이버 검색광고', kind: '광고', fields: [['customer_id', '고객 ID'], ['api_key', 'API License'], ['secret_key', 'Secret Key']],
+    guide: { portalUrl: 'https://searchad.naver.com/', path: '검색광고 관리자 → 도구 → API 사용 관리', instruction: '고객 ID·API License·Secret Key를 확인해 아래 입력칸에 저장' },
+  },
+  {
+    id: 'kakao', label: '카카오모먼트', kind: '광고', fields: [['ad_account_id', '광고계정 ID'], ['access_token', 'Business Token']],
+    guide: { portalUrl: 'https://developers.kakao.com/console/app', path: '내 애플리케이션 → 비즈 앱 전환 → 추가 기능 신청 → 비즈니스 인증', instruction: '카카오모먼트 광고계정 ID와 Business Token을 확인해 아래 입력칸에 저장' },
+  },
 ]);
 
 function mergePlatformStates(platforms, syncRows) {
@@ -296,6 +366,21 @@ function renderSettingsCards(states, overviewPlatforms = []) {
     const identifiers = createElement('div', 'platform-identifiers');
     (state.accountIdentifiers || []).forEach((identifier) => identifiers.appendChild(createElement('span', '', `${identifier.name} ····${identifier.lastFour}`)));
     if (identifiers.childNodes.length) card.appendChild(identifiers);
+    if (state.guide) {
+      const guide = createElement('div', 'platform-update-guide');
+      guide.append(
+        createElement('strong', '', '어디서 확인하나요?'),
+        createElement('span', 'platform-update-path', state.guide.path),
+        createElement('small', '', state.guide.instruction),
+      );
+      const portal = createElement('a', 'platform-portal-link', '발급·관리 페이지 열기 ↗');
+      portal.href = state.guide.portalUrl;
+      portal.target = '_blank';
+      portal.rel = 'noopener noreferrer';
+      portal.dataset.platformPortal = state.id;
+      guide.appendChild(portal);
+      card.appendChild(guide);
+    }
     const form = createElement('form', 'platform-credential-form');
     form.dataset.platformForm = state.id;
     state.fields.forEach(([name, label]) => {
@@ -372,12 +457,25 @@ async function renderSettingsSection() {
 }
 
 async function startCafe24OAuth() {
+  const portalWindow = window.open('about:blank', '_blank');
+  if (!portalWindow) {
+    setText('settingsStatus', '브라우저에서 새 창이 차단되었습니다. 팝업을 허용한 뒤 다시 시도하세요.');
+    return;
+  }
+  portalWindow.opener = null;
   setText('settingsStatus', '카페24 로그인 연결 페이지를 준비하고 있습니다.');
   try {
     const payload = await apiFetch('/admin/oauth/cafe24/url');
     if (!payload?.data?.authorizationUrl) throw new Error('CAFE24_OAUTH_URL_MISSING');
-    window.location.assign(payload.data.authorizationUrl);
+    const authorizationUrl = new URL(payload.data.authorizationUrl);
+    const trustedHost = authorizationUrl.hostname === 'cafe24.com'
+      || authorizationUrl.hostname.endsWith('.cafe24.com')
+      || authorizationUrl.hostname.endsWith('.cafe24api.com');
+    if (authorizationUrl.protocol !== 'https:' || !trustedHost) throw new Error('CAFE24_OAUTH_URL_UNTRUSTED');
+    portalWindow.location.replace(authorizationUrl.href);
+    setText('settingsStatus', '카페24 로그인 연결을 별도 창에서 열었습니다. OneBoard 화면은 그대로 유지됩니다.');
   } catch (error) {
+    portalWindow.close?.();
     if (isSessionExpired(error)) return;
     setText('settingsStatus', '카페24 쇼핑몰 ID·Client ID·Client Secret을 먼저 저장한 뒤 다시 연결하세요.');
   }

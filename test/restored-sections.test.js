@@ -91,6 +91,8 @@ test('the authenticated shell contains the six restored working areas', async ()
 test('Cafe24 OAuth can be started from the bearer-authenticated settings screen', async () => {
   const source = await readFile(`${process.cwd()}/app.js`, 'utf8');
   expect(source).toContain("apiFetch('/admin/oauth/cafe24/url')");
-  expect(source).toMatch(/window\.location\.assign\(.*authorizationUrl/);
+  expect(source).toContain("window.open('about:blank', '_blank')");
+  expect(source).toMatch(/portalWindow\.location\.replace\(authorizationUrl\.href\)/);
+  expect(source).not.toMatch(/window\.location\.assign\(.*authorizationUrl/);
   expect(source).toContain('카페24 로그인 연결');
 });
