@@ -566,6 +566,8 @@ test('the operations assignee can read the sales and ads update instruction insi
 
   expect(document.getElementById('manualViewer').textContent).toContain('매출·광고 연동정보 업무지시서');
   expect(document.getElementById('manualViewer').textContent).toContain('OneBoard → 설정 → 판매·광고 연동 설정');
+  expect(document.getElementById('manualViewer').textContent).toContain('엑셀 사용 판정: 조건부 사용 가능');
+  expect(document.getElementById('manualViewer').textContent).toContain('쿠팡 계정이 2세트');
   expect(apiFetch).not.toHaveBeenCalled();
 });
 
