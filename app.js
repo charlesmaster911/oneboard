@@ -685,7 +685,7 @@ async function fetchTeamRoster() {
 }
 
 async function createTask(payload) {
-  if (!isWorkspaceManager()) throw new Error('TASK_MUTATION_FORBIDDEN');
+  if (!currentUser()) throw new Error('TASK_MUTATION_FORBIDDEN');
   const data = await apiFetch('/team/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -888,7 +888,7 @@ function renderIntegratedCalendar(tasks) {
       cell.appendChild(item);
     });
     if (dayTasks.length > 4) cell.appendChild(createElement('div', 'cal-month-more', `+${dayTasks.length - 4}개 더`));
-    if (isWorkspaceManager()) {
+    if (currentUser()) { // 팀원도 본인 업무를 올릴 수 있다 (서버가 담당자를 본인으로 고정)
       const add = createElement('button', 'cal-month-add', '+');
       add.type = 'button';
       add.dataset.addTaskDate = dateKey;
@@ -981,14 +981,16 @@ function closeTaskModal() {
 function openTaskModal(task = null) {
   const user = currentUser();
   const manager = isWorkspaceManager(user);
-  if (!task && !manager) return;
+  if (!user) return;
   if (task && !manager && !isOwnTask(task, user)) return;
-
+  // 팀원의 새 업무는 담당자가 본인으로 고정된다 (서버도 같은 규칙)
+  const selfEntry = !task && !manager;
+  if (selfEntry) ensureAssigneeOption(user.displayName || '');
   editingTaskId = task?.id == null ? null : String(task.id);
   const values = {
     taskDate: task?.date ? String(task.date).slice(0, 10) : new Date().toISOString().slice(0, 10),
-    taskAssignee: task?.assignee || task?.who || '',
-    taskAssignedUserId: task?.assigned_user_id || task?.assignedUserId || '',
+    taskAssignee: selfEntry ? (user.displayName || '') : (task?.assignee || task?.who || ''),
+    taskAssignedUserId: selfEntry ? String(user.id || '') : (task?.assigned_user_id || task?.assignedUserId || ''),
     taskContent: task?.task || '',
     taskStatus: task?.status || '예정',
     taskPriority: task?.priority || '보통',
@@ -998,9 +1000,10 @@ function openTaskModal(task = null) {
     const field = taskField(id);
     if (field) field.value = value;
   }
+  const editableByMember = new Set(['taskDate', 'taskContent', 'taskPriority']);
   for (const id of ['taskDate', 'taskAssignee', 'taskAssignedUserId', 'taskContent', 'taskPriority']) {
     const field = taskField(id);
-    if (field) field.disabled = !manager;
+    if (field) field.disabled = !manager && !(selfEntry && editableByMember.has(id));
   }
   const remove = taskField('deleteTask');
   if (remove) remove.hidden = !manager || !task;
@@ -1011,11 +1014,23 @@ function openTaskModal(task = null) {
   taskField(manager ? 'taskDate' : 'taskStatus')?.focus?.();
 }
 
+function ensureAssigneeOption(name) {
+  const field = taskField('taskAssignee');
+  if (!field || field.tagName !== 'SELECT' || !name) return;
+  if (![...field.options].some((option) => option.value === name)) {
+    const option = createElement('option', '', name);
+    option.value = name;
+    field.appendChild(option);
+  }
+}
+
 function taskFormPayload() {
+  const user = currentUser();
+  const selfEntry = !editingTaskId && !isWorkspaceManager(user);
   return {
     date: taskField('taskDate')?.value || '',
-    who: taskField('taskAssignee')?.value?.trim() || '',
-    assignedUserId: taskField('taskAssignedUserId')?.value?.trim() || null,
+    who: selfEntry ? (user?.displayName || '') : (taskField('taskAssignee')?.value?.trim() || ''),
+    assignedUserId: selfEntry ? (user?.id || null) : (taskField('taskAssignedUserId')?.value?.trim() || null),
     task: taskField('taskContent')?.value?.trim() || '',
     status: taskField('taskStatus')?.value || '예정',
     priority: taskField('taskPriority')?.value || '보통',
@@ -1026,7 +1041,7 @@ function taskFormPayload() {
 async function saveTaskFromModal() {
   const payload = taskFormPayload();
   const manager = isWorkspaceManager();
-  if (manager && (!payload.date || !payload.who || !payload.task)) {
+  if ((manager || !editingTaskId) && (!payload.date || !payload.who || !payload.task)) {
     setText('taskMutationStatus', '날짜, 담당자, 업무 내용을 입력해 주세요.');
     return;
   }
@@ -1743,13 +1758,16 @@ function bindEvents() {
       if (task) openTaskModal(task);
       return;
     }
+    // + 버튼이든 날짜 칸 빈자리든 클릭하면 그 날짜로 업무 추가 (구글 캘린더식)
     const add = event.target.closest?.('[data-add-task-date]');
-    if (!add || !isWorkspaceManager()) return;
+    const cell = event.target.closest?.('[data-date]');
+    const dateKey = add?.dataset.addTaskDate || cell?.dataset.date;
+    if (!dateKey || !currentUser()) return;
     openTaskModal();
     const dateField = taskField('taskDate');
     const assigneeField = taskField('taskAssignee');
-    if (dateField) dateField.value = add.dataset.addTaskDate;
-    if (assigneeField && selectedTeamAssignee !== '통합') assigneeField.value = selectedTeamAssignee;
+    if (dateField) dateField.value = dateKey;
+    if (assigneeField && isWorkspaceManager() && selectedTeamAssignee !== '통합') assigneeField.value = selectedTeamAssignee;
   });
   bindDragAndDrop(document.getElementById('intCalGrid'), {
     itemSelector: '[data-task-id]',

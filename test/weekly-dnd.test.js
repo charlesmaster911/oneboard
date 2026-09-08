@@ -124,3 +124,38 @@ test('weekly section renders six slots per member and moves an item between slot
   expect(document.querySelector('.weekly-col[data-slot="2주차"] [data-weekly-id="w1"]')).not.toBeNull();
   expect(document.querySelector('.weekly-col[data-slot="1주차"] [data-weekly-id]')).toBeNull();
 });
+
+test('a member clicks an empty calendar day and files a task for themselves on that date', async () => {
+  const calls = [];
+  const fetchImpl = vi.fn(async (path, options = {}) => {
+    calls.push([path, options.method || 'GET', options.body ? JSON.parse(options.body) : null]);
+    if (path.startsWith('/team/weekly')) return jsonResponse({ rows: [] });
+    return jsonResponse({ task: { id: 't9', date: `${YM}-12`, assignee: '권나경', assigned_user_id: 'member-1', task: '블로그 발행' } });
+  });
+  document.body.innerHTML = '';
+  const board = await loadBoard({ role: 'member', fetchImpl });
+  window.ONEBOARD_CURRENT_USER = { id: 'member-1', role: 'member', displayName: '권나경' };
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="taskModal" style="display:none"></div><div id="taskModalTitle"></div><div id="taskMutationStatus"></div>
+    <input id="taskDate"><select id="taskAssignee"></select><input id="taskAssignedUserId">
+    <input id="taskContent"><select id="taskStatus"><option value="예정">예정</option></select>
+    <select id="taskPriority"><option value="보통">보통</option></select><input id="taskMemo">
+    <button id="saveTask"></button><button id="deleteTask"></button>`);
+  board.setRoster(['권나경']);
+  board.setMonth(new Date(`${YM}-01T00:00:00`));
+  board.renderIntegratedCalendar([]);
+  board.bindEvents();
+
+  document.querySelector(`[data-date="${YM}-12"] .cal-month-day-num`).click();
+  expect(document.getElementById('taskModal').style.display).toBe('flex');
+  expect(document.getElementById('taskDate').value).toBe(`${YM}-12`);
+  expect(document.getElementById('taskAssignee').value).toBe('권나경');
+  expect(document.getElementById('taskAssignee').disabled).toBe(true);
+  expect(document.getElementById('taskContent').disabled).toBe(false);
+
+  document.getElementById('taskContent').value = '블로그 발행';
+  document.getElementById('saveTask').click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(calls).toContainEqual(['/team/tasks', 'POST', expect.objectContaining({ date: `${YM}-12`, assignee: '권나경', assigned_user_id: 'member-1', task: '블로그 발행' })]);
+});
