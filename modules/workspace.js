@@ -83,7 +83,12 @@ export function platformStatePresentation(state = {}) {
         : status
           ? `HTTP ${status} · 공급자 응답 오류입니다. 잠시 후 수동 갱신을 다시 실행하세요.`
           : '연결 권한과 토큰을 확인하세요.';
-    return { tone: 'danger', label: status ? `수집 실패 · HTTP ${status}` : '수집 실패', action };
+    const detail = String(state.errorDetail || '').trim();
+    return {
+      tone: 'danger',
+      label: status ? `수집 실패 · HTTP ${status}` : '수집 실패',
+      action: detail ? `${action} 공급자 응답: ${detail}` : action,
+    };
   }
   if (state.syncState === 'success') {
     const count = Number(state.recordsSynced || 0);

@@ -74,7 +74,7 @@ describe('Render public configuration boundary', () => {
   it('cache-busts the deploy-sensitive application and stylesheet assets', () => {
     const page = readFileSync(join(projectRoot, 'index.html'), 'utf8');
 
-    expect(page).toContain('href="style.css?v=20260908-5"');
-    expect(page).toContain('src="app.js?v=20260908-5"');
+    expect(page).toContain('href="style.css?v=20260908-6"');
+    expect(page).toContain('src="app.js?v=20260908-6"');
   });
 });

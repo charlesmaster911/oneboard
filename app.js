@@ -336,6 +336,7 @@ function mergePlatformStates(platforms, syncRows) {
     ...(byPlatform.get(definition.id) || { connectionState: 'disconnected' }),
     syncState: bySync.get(definition.id)?.status,
     errorCode: bySync.get(definition.id)?.error_code,
+    errorDetail: bySync.get(definition.id)?.error_detail,
     recordsSynced: bySync.get(definition.id)?.records_synced,
     completedAt: bySync.get(definition.id)?.completed_at,
   }));
