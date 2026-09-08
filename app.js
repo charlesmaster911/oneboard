@@ -374,13 +374,20 @@ function renderSettingsCards(states, overviewPlatforms = []) {
     }
     const form = createElement('form', 'platform-credential-form');
     form.dataset.platformForm = state.id;
+    form.autocomplete = 'off';
     state.fields.forEach(([name, label]) => {
       const field = createElement('label', 'platform-field');
       field.appendChild(createElement('span', '', label));
       const input = createElement('input', 'form-input');
       input.name = name;
-      input.type = /secret|token|key/i.test(name) ? 'password' : 'text';
-      input.autocomplete = 'off';
+      const secret = /secret|token|key/i.test(name);
+      input.type = secret ? 'password' : 'text';
+      // 크롬은 password 칸의 autocomplete=off를 무시하고 저장된 아이디·비번을 모든 카드에 채운다.
+      // new-password + 포커스 전 readonly로 자동완성을 막는다 (2026-09-08 설정 카드 오염 실측).
+      input.autocomplete = secret ? 'new-password' : 'off';
+      input.setAttribute('data-lpignore', 'true');
+      input.readOnly = true;
+      input.addEventListener('focus', () => { input.readOnly = false; });
       input.placeholder = state.connectionState === 'connected' ? '변경할 때만 입력' : `${label} 입력`;
       field.appendChild(input);
       form.appendChild(field);
