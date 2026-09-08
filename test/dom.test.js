@@ -187,6 +187,7 @@ test('the retained page exposes only wired buttons and explicit non-loading stat
     'logout-button', 'notifBell', 'notifReadAll', 'refreshTeamBtn', 'addTaskBtn',
     'closeTaskModal', 'cancelTask', 'saveTask', 'deleteTask',
     'intCalPrev', 'intCalNext', 'intCalToday',
+    'weeklyPrev', 'weeklyNext', 'weeklyImportSheetBtn',
     'addMinutesBtn', 'closeMinutesModal', 'cancelMinutes', 'saveMinutes', 'deleteMinutes',
     'refreshKpiBtn', 'refreshManualBtn', 'refreshSettingsBtn', 'runAllSyncBtn',
   ]);

@@ -2745,3 +2745,18 @@ button.manual-item.active { color: #1D4ED8; background: #EFF6FF; border-left-col
   .sync-schedule-note { align-items: flex-start; flex-direction: column; gap: 4px; }
   .platform-credential-form { grid-template-columns: 1fr; }
 }
+
+/* 2026-09-08 #OB-WK-RESTORE-001 — 주간업무 섹션 복구 + 주차 간 드래그 이동 */
+#weeklyBlock { margin-top: 16px; }
+.weekly-hint { margin: -4px 0 12px; font-size: 12px; color: var(--muted); }
+.weekly-members { display: flex; flex-direction: column; gap: 16px; }
+.weekly-member-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
+.weekly-member-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.weekly-item[draggable="true"] { cursor: grab; }
+.weekly-item.cal-dragging { opacity: .4; }
+.weekly-col.cal-drop-over { background: #DBEAFE; outline: 2px dashed var(--primary); outline-offset: -2px; }
+.weekly-import-btn { font-size: 11px; padding: 4px 10px; margin-left: 6px; }
+.weekly-empty { padding: 12px; font-size: 12px; color: var(--muted); }
+.cal-month-task[draggable="true"] { cursor: grab; }
+button.weekly-item-del { border: 0; background: transparent; font-family: inherit; }
+.weekly-item-text[contenteditable="true"] { cursor: text; }

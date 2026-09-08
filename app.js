@@ -792,6 +792,7 @@ function renderTeamMemberTabs() {
       selectedTeamAssignee = name;
       renderTeamMemberTabs();
       renderIntegratedTeamView();
+      void renderWeeklyPanel();
     });
     fragment.appendChild(button);
   }
@@ -883,6 +884,7 @@ function renderIntegratedCalendar(tasks) {
       item.style.background = style.background;
       item.style.borderLeftColor = style.color;
       item.style.color = style.color;
+      if (isWorkspaceManager()) item.draggable = true; // 날짜 칸으로 끌어서 이동 (구글 캘린더식)
       cell.appendChild(item);
     });
     if (dayTasks.length > 4) cell.appendChild(createElement('div', 'cal-month-more', `+${dayTasks.length - 4}개 더`));
@@ -1064,6 +1066,288 @@ async function deleteTaskFromModal() {
   }
 }
 
+// ── 캘린더 일정 드래그&드롭 (2026-09-08 #OB-WK-RESTORE-001, 원안 #OB-CAL-DND-001) ──
+function dragPayload(event) {
+  return String(event.dataTransfer?.getData?.('text/plain') || '');
+}
+
+function clearDropHighlight(root) {
+  root?.querySelectorAll?.('.cal-drop-over').forEach((element) => element.classList.remove('cal-drop-over'));
+}
+
+function bindDragAndDrop(root, { itemSelector, targetSelector, onDrop }) {
+  if (!root) return;
+  root.addEventListener('dragstart', (event) => {
+    const item = event.target.closest?.(itemSelector);
+    if (!item || !item.draggable) return;
+    event.dataTransfer?.setData?.('text/plain', item.dataset.taskId || item.dataset.weeklyId || '');
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+    item.classList.add('cal-dragging');
+  });
+  root.addEventListener('dragend', (event) => {
+    event.target.closest?.(itemSelector)?.classList.remove('cal-dragging');
+    clearDropHighlight(root);
+  });
+  root.addEventListener('dragover', (event) => {
+    const target = event.target.closest?.(targetSelector);
+    if (!target) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    if (!target.classList.contains('cal-drop-over')) {
+      clearDropHighlight(root);
+      target.classList.add('cal-drop-over');
+    }
+  });
+  root.addEventListener('dragleave', (event) => {
+    const target = event.target.closest?.(targetSelector);
+    if (target && !target.contains(event.relatedTarget)) target.classList.remove('cal-drop-over');
+  });
+  root.addEventListener('drop', (event) => {
+    const target = event.target.closest?.(targetSelector);
+    if (!target) return;
+    event.preventDefault();
+    clearDropHighlight(root);
+    void onDrop(dragPayload(event), target);
+  });
+}
+
+async function moveTaskToDate(taskId, dateKey) {
+  const task = teamTasks.find((candidate) => String(candidate.id) === String(taskId));
+  if (!task || !dateKey || String(task.date || '').slice(0, 10) === dateKey) return;
+  try {
+    await updateTask(task.id, { date: dateKey });
+    task.date = dateKey;
+    renderIntegratedTeamView();
+  } catch (error) {
+    if (isSessionExpired(error)) throw error;
+    setText('dataStatusBadge', '일정 이동 실패');
+  }
+}
+
+// ── 주간업무 (1주차~5주차 + 상시) — 서버 /team/weekly 단일 출처 ──
+const WEEK_SLOTS = ['1주차', '2주차', '3주차', '4주차', '5주차', '상시'];
+const WEEKLY_VISIBLE = 5;
+let weeklyViewYM = ymKey(new Date());
+let weeklyRows = [];
+let weeklyRenderGeneration = 0;
+
+function ymKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function shiftYM(ym, delta) {
+  const [year, month] = ym.split('-').map(Number);
+  return ymKey(new Date(year, month - 1 + delta, 1));
+}
+
+function weeklyJson(method, path, body) {
+  return apiFetch(path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+async function fetchWeekly(ym) {
+  const members = selectedTeamAssignee === '통합' ? taskAssignees() : [selectedTeamAssignee];
+  // 매니저는 팀원별 조회, 팀원은 서버가 본인 항목만 돌려준다 (member_id 무시)
+  const paths = isWorkspaceManager()
+    ? members.map((member) => `/team/weekly?member_id=${encodeURIComponent(member)}&ym=${ym}`)
+    : [`/team/weekly?ym=${ym}`];
+  const results = await Promise.all(paths.map(async (path) => {
+    try {
+      return (await apiFetch(path))?.rows || [];
+    } catch (error) {
+      if (isSessionExpired(error)) throw error;
+      return [];
+    }
+  }));
+  return results.flat();
+}
+
+async function renderWeeklyPanel() {
+  const grid = document.getElementById('weeklyGrid');
+  if (!grid) return;
+  setText('weeklyMonthLabel', weeklyViewYM);
+  const generation = ++weeklyRenderGeneration;
+  grid.replaceChildren(createElement('div', 'weekly-empty', '주간업무를 불러오는 중입니다'));
+  let rows = await fetchWeekly(weeklyViewYM);
+  if (generation !== weeklyRenderGeneration) return;
+  if (selectedTeamAssignee !== '통합') rows = rows.filter((row) => row.member_id === selectedTeamAssignee);
+  weeklyRows = rows;
+  const members = selectedTeamAssignee !== '통합'
+    ? [selectedTeamAssignee]
+    : isWorkspaceManager() ? taskAssignees() : [...new Set(rows.map((row) => row.member_id))];
+  const fragment = document.createDocumentFragment();
+  if (!members.length) fragment.appendChild(createElement('div', 'weekly-empty', '표시할 주간업무가 없습니다.'));
+  members.forEach((member) => fragment.appendChild(renderWeeklyMember(member, rows.filter((row) => row.member_id === member))));
+  grid.replaceChildren(fragment);
+}
+
+function renderWeeklyMember(member, rows) {
+  const manager = isWorkspaceManager();
+  const wrap = createElement('div', 'weekly-member');
+  wrap.dataset.member = member;
+  const head = createElement('div', 'weekly-member-head');
+  const dot = createElement('span', 'weekly-member-dot');
+  dot.style.background = memberStyle(member).color;
+  head.append(dot, createElement('span', '', member));
+  wrap.appendChild(head);
+  const grid = createElement('div', 'weekly-grid');
+  WEEK_SLOTS.forEach((slot) => {
+    const col = createElement('div', 'weekly-col');
+    col.dataset.member = member;
+    col.dataset.slot = slot;
+    col.appendChild(createElement('div', 'weekly-col-head', slot));
+    const body = createElement('div', 'weekly-col-body');
+    const items = rows.filter((row) => row.slot === slot).sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0));
+    items.forEach((row, index) => {
+      const item = createElement('div', `weekly-item${row.done ? ' done' : ''}${index >= WEEKLY_VISIBLE ? ' weekly-hidden' : ''}`);
+      item.dataset.weeklyId = String(row.id);
+      if (manager) item.draggable = true;
+      const check = createElement('input');
+      check.type = 'checkbox';
+      check.checked = Boolean(row.done);
+      check.dataset.weeklyAction = 'done';
+      check.setAttribute('aria-label', '완료');
+      const text = createElement('span', 'weekly-item-text', row.text || '');
+      if (manager) {
+        text.contentEditable = 'true';
+        text.dataset.weeklyAction = 'text';
+      }
+      item.append(check, text);
+      if (manager) {
+        const del = createElement('button', 'weekly-item-del', '✕');
+        del.type = 'button';
+        del.title = '삭제';
+        del.dataset.weeklyAction = 'delete';
+        item.appendChild(del);
+      }
+      body.appendChild(item);
+    });
+    if (items.length > WEEKLY_VISIBLE) {
+      const more = createElement('button', 'weekly-more', `▾ 더보기 (${items.length - WEEKLY_VISIBLE}개)`);
+      more.type = 'button';
+      more.dataset.weeklyAction = 'more';
+      more.dataset.hiddenCount = String(items.length - WEEKLY_VISIBLE);
+      body.appendChild(more);
+    }
+    col.appendChild(body);
+    if (manager) {
+      const add = createElement('button', 'weekly-add', '+ 항목');
+      add.type = 'button';
+      add.dataset.weeklyAction = 'add';
+      col.appendChild(add);
+    }
+    grid.appendChild(col);
+  });
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+async function runWeeklyMutation(work) {
+  try {
+    await work();
+  } catch (error) {
+    if (isSessionExpired(error)) throw error;
+    setText('dataStatusBadge', '주간업무 저장 실패');
+  }
+}
+
+async function moveWeeklyToSlot(weeklyId, col) {
+  const row = weeklyRows.find((candidate) => String(candidate.id) === String(weeklyId));
+  const slot = col?.dataset?.slot;
+  if (!row || !slot || row.member_id !== col.dataset.member || row.slot === slot) return;
+  await runWeeklyMutation(async () => {
+    const sortOrder = weeklyRows.filter((candidate) => candidate.member_id === row.member_id && candidate.slot === slot).length;
+    await weeklyJson('PATCH', `/team/weekly/${encodeURIComponent(row.id)}`, { slot, sort_order: sortOrder });
+    row.slot = slot;
+    row.sort_order = sortOrder;
+    await renderWeeklyPanel();
+  });
+}
+
+function bindWeeklyEvents() {
+  const grid = document.getElementById('weeklyGrid');
+  if (!grid) return;
+  bindDragAndDrop(grid, { itemSelector: '[data-weekly-id]', targetSelector: '.weekly-col', onDrop: moveWeeklyToSlot });
+  grid.addEventListener('click', (event) => {
+    const control = event.target.closest?.('[data-weekly-action]');
+    if (!control) return;
+    const action = control.dataset.weeklyAction;
+    const col = control.closest('.weekly-col');
+    const item = control.closest('[data-weekly-id]');
+    if (action === 'add' && col) {
+      void runWeeklyMutation(async () => {
+        const sortOrder = weeklyRows.filter((row) => row.member_id === col.dataset.member && row.slot === col.dataset.slot).length;
+        await weeklyJson('POST', '/team/weekly', {
+          member_id: col.dataset.member, ym: weeklyViewYM, slot: col.dataset.slot, text: '새 항목', sort_order: sortOrder,
+        });
+        await renderWeeklyPanel();
+      });
+    } else if (action === 'delete' && item) {
+      if (!window.confirm('이 주간업무 항목을 삭제할까요?')) return;
+      void runWeeklyMutation(async () => {
+        await apiFetch(`/team/weekly/${encodeURIComponent(item.dataset.weeklyId)}`, { method: 'DELETE' });
+        await renderWeeklyPanel();
+      });
+    } else if (action === 'more') {
+      const expanded = control.dataset.expanded === '1';
+      control.dataset.expanded = expanded ? '0' : '1';
+      control.parentElement.querySelectorAll('.weekly-hidden').forEach((hidden) => hidden.classList.toggle('weekly-show', !expanded));
+      control.textContent = expanded ? `▾ 더보기 (${control.dataset.hiddenCount}개)` : '▴ 접기';
+    }
+  });
+  grid.addEventListener('change', (event) => {
+    const check = event.target.closest?.('[data-weekly-action="done"]');
+    const item = check?.closest('[data-weekly-id]');
+    if (!check || !item) return;
+    void runWeeklyMutation(async () => {
+      await weeklyJson('PATCH', `/team/weekly/${encodeURIComponent(item.dataset.weeklyId)}`, { done: check.checked });
+      item.classList.toggle('done', check.checked);
+      const row = weeklyRows.find((candidate) => String(candidate.id) === item.dataset.weeklyId);
+      if (row) row.done = check.checked;
+    });
+  });
+  grid.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && event.target.closest?.('[data-weekly-action="text"]')) {
+      event.preventDefault();
+      event.target.blur();
+    }
+  });
+  grid.addEventListener('focusout', (event) => {
+    const text = event.target.closest?.('[data-weekly-action="text"]');
+    const item = text?.closest('[data-weekly-id]');
+    if (!text || !item) return;
+    const row = weeklyRows.find((candidate) => String(candidate.id) === item.dataset.weeklyId);
+    const value = text.textContent.trim();
+    if (!row || value === (row.text || '')) return;
+    void runWeeklyMutation(async () => {
+      await weeklyJson('PATCH', `/team/weekly/${encodeURIComponent(row.id)}`, { text: value });
+      row.text = value;
+    });
+  });
+  document.getElementById('weeklyPrev')?.addEventListener('click', () => {
+    weeklyViewYM = shiftYM(weeklyViewYM, -1);
+    void renderWeeklyPanel();
+  });
+  document.getElementById('weeklyNext')?.addEventListener('click', () => {
+    weeklyViewYM = shiftYM(weeklyViewYM, 1);
+    void renderWeeklyPanel();
+  });
+  document.getElementById('weeklyImportSheetBtn')?.addEventListener('click', (event) => {
+    if (!isWorkspaceManager()) return;
+    if (!window.confirm('구 구글시트 weekly_tasks를 서버로 가져올까요? 이미 있는 항목은 건너뜁니다.')) return;
+    const button = event.currentTarget;
+    button.disabled = true;
+    void runWeeklyMutation(async () => {
+      const result = await apiFetch('/team/weekly/import-sheet', { method: 'POST' });
+      setText('dataStatusBadge', `시트 가져오기 완료: ${result?.imported ?? 0}건 추가 · ${result?.skipped ?? 0}건 건너뜀`);
+      await renderWeeklyPanel();
+    }).finally(() => { button.disabled = false; });
+  });
+}
+
 async function renderTeamSection() {
   setText('dataStatusBadge', '업무를 불러오는 중입니다');
   const [tasks, minutes, roster] = await Promise.all([
@@ -1080,6 +1364,9 @@ async function renderTeamSection() {
   setText('dataStatusBadge', teamTasks.length ? '인증된 API' : '빈 상태');
   const add = document.getElementById('addTaskBtn');
   if (add) add.hidden = !isWorkspaceManager();
+  const importButton = document.getElementById('weeklyImportSheetBtn');
+  if (importButton) importButton.hidden = !isWorkspaceManager();
+  await renderWeeklyPanel();
 }
 
 async function fetchMinutes() {
@@ -1464,6 +1751,12 @@ function bindEvents() {
     if (dateField) dateField.value = add.dataset.addTaskDate;
     if (assigneeField && selectedTeamAssignee !== '통합') assigneeField.value = selectedTeamAssignee;
   });
+  bindDragAndDrop(document.getElementById('intCalGrid'), {
+    itemSelector: '[data-task-id]',
+    targetSelector: '[data-date]',
+    onDrop: (taskId, cell) => moveTaskToDate(taskId, cell.dataset.date),
+  });
+  bindWeeklyEvents();
   document.getElementById('intMinutes')?.addEventListener('click', (event) => {
     const card = event.target.closest?.('[data-open-minutes-id]');
     if (!card) return;
