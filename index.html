@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script id="google-identity-script" src="https://accounts.google.com/gsi/client" async defer></script>
-  <link rel="stylesheet" href="style.css?v=20260908-1">
+  <link rel="stylesheet" href="style.css?v=20260908-2">
 </head>
 <body>
 <section class="login-screen" id="login-screen" aria-labelledby="login-title">
@@ -122,6 +122,19 @@
         </div>
 
         <div id="integratedView">
+          <section class="tier-block" id="weeklyBlock" aria-label="주간업무">
+            <div class="tier-header">
+              <div class="tier-title">🗓 주간업무 <span class="tier-sub" id="weeklyMonthLabel">—</span></div>
+              <div class="tier-nav">
+                <button class="tier-nav-btn" id="weeklyPrev" type="button" aria-label="이전 달">‹</button>
+                <button class="tier-nav-btn" id="weeklyNext" type="button" aria-label="다음 달">›</button>
+                <button class="btn-secondary weekly-import-btn" id="weeklyImportSheetBtn" type="button" data-roles="owner,ops" title="구 구글시트 weekly_tasks를 서버로 1회 가져옵니다 (중복은 건너뜀)">📥 시트 가져오기</button>
+              </div>
+            </div>
+            <p class="weekly-hint">항목을 다른 주차로 끌어다 놓으면 이동됩니다. 캘린더 일정도 날짜 칸으로 끌어서 옮길 수 있습니다.</p>
+            <div id="weeklyGrid" class="weekly-members"></div>
+          </section>
+
           <div class="int3-grid">
             <aside class="int3-left">
               <div class="int3-section-head">
@@ -153,19 +166,6 @@
               <div id="intAlerts" class="int3-priority-list"><div class="int3-empty">지연 항목이 없습니다.</div></div>
             </aside>
           </div>
-
-          <section class="tier-block" id="weeklyBlock" aria-label="주간업무">
-            <div class="tier-header">
-              <div class="tier-title">🗓 주간업무 <span class="tier-sub" id="weeklyMonthLabel">—</span></div>
-              <div class="tier-nav">
-                <button class="tier-nav-btn" id="weeklyPrev" type="button" aria-label="이전 달">‹</button>
-                <button class="tier-nav-btn" id="weeklyNext" type="button" aria-label="다음 달">›</button>
-                <button class="btn-secondary weekly-import-btn" id="weeklyImportSheetBtn" type="button" data-roles="owner,ops" title="구 구글시트 weekly_tasks를 서버로 1회 가져옵니다 (중복은 건너뜀)">📥 시트 가져오기</button>
-              </div>
-            </div>
-            <p class="weekly-hint">항목을 다른 주차로 끌어다 놓으면 이동됩니다. 캘린더 일정도 날짜 칸으로 끌어서 옮길 수 있습니다.</p>
-            <div id="weeklyGrid" class="weekly-members"></div>
-          </section>
         </div>
 
         <div class="modal-overlay" id="taskModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
@@ -306,6 +306,6 @@
   </div>
 </div>
 <script type="module" src="modules/main.js"></script>
-<script src="app.js?v=20260908-1"></script>
+<script src="app.js?v=20260908-2"></script>
 </body>
 </html>
