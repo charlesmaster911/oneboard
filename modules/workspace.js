@@ -74,7 +74,16 @@ export function platformStatePresentation(state = {}) {
     return { tone: 'warning', label: '연결정보 필요', action: '설정에서 연결정보를 입력하세요.' };
   }
   if (state.syncState === 'error' || state.syncState === 'failed') {
-    return { tone: 'danger', label: '수집 실패', action: '연결 권한과 토큰을 확인하세요.' };
+    const http = /^SYNC_FAILED_HTTP_(\d{3})$/.exec(String(state.errorCode || ''));
+    const status = http ? Number(http[1]) : null;
+    const action = status === 401 || status === 403
+      ? `HTTP ${status} · 토큰이 만료됐거나 권한(스코프)이 없습니다. 연결정보를 다시 저장하고 로그인 연결을 실행하세요.`
+      : status === 422 || status === 400
+        ? `HTTP ${status} · 요청 형식을 공급자가 거부했습니다. 수집 코드 점검이 필요합니다.`
+        : status
+          ? `HTTP ${status} · 공급자 응답 오류입니다. 잠시 후 수동 갱신을 다시 실행하세요.`
+          : '연결 권한과 토큰을 확인하세요.';
+    return { tone: 'danger', label: status ? `수집 실패 · HTTP ${status}` : '수집 실패', action };
   }
   if (state.syncState === 'success') {
     const count = Number(state.recordsSynced || 0);

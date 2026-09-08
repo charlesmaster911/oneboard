@@ -54,6 +54,7 @@ describe('restored workspace sections', () => {
   test.each([
     [{ connectionState: 'disconnected' }, { tone: 'warning', label: '연결정보 필요', action: '설정에서 연결정보를 입력하세요.' }],
     [{ connectionState: 'connected', syncState: 'error' }, { tone: 'danger', label: '수집 실패', action: '연결 권한과 토큰을 확인하세요.' }],
+    [{ connectionState: 'connected', syncState: 'error', errorCode: 'SYNC_FAILED_HTTP_422' }, { tone: 'danger', label: '수집 실패 · HTTP 422', action: 'HTTP 422 · 요청 형식을 공급자가 거부했습니다. 수집 코드 점검이 필요합니다.' }],
     [{ connectionState: 'connected', syncState: 'success', recordsSynced: 0 }, { tone: 'success', label: '정상 · 0건', action: '선택 기간에 발생한 데이터가 없습니다.' }],
     [{ connectionState: 'connected', syncState: 'success', recordsSynced: 4 }, { tone: 'success', label: '수집 완료', action: '실제 API 데이터 4건을 반영했습니다.' }],
     [{ connectionState: 'connected' }, { tone: 'neutral', label: '아직 미수집', action: '수동 갱신하거나 다음 자동 갱신을 기다리세요.' }],
