@@ -507,13 +507,15 @@ async function savePlatformSettings(form) {
 }
 
 async function requestFullSync() {
-  setText('settingsStatus', '오늘의 매출·광고 데이터 수집을 요청하고 있습니다.');
+  setText('settingsStatus', '최근 7일 매출·광고 데이터 수집을 요청하고 있습니다.');
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    // 오늘 하루만 보내면 어제 부분 집계가 영영 안 고쳐진다 (2026-09-09 실측) → 서울 기준 최근 7일
+    const seoul = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const now = Date.now();
     await apiFetch('/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date_from: today, date_to: today }),
+      body: JSON.stringify({ date_from: seoul.format(now - 6 * 86400000), date_to: seoul.format(now) }),
     });
     setText('settingsStatus', '수집 요청을 접수했습니다. 완료 후 연결 상태 갱신을 눌러 결과를 확인하세요.');
   } catch (error) {
