@@ -536,7 +536,7 @@ async function fetchAPIDailyData(days = 30) {
     return {
       date: String(row.date || '').slice(0, 10),
       totalSales: sales,
-      totalTraffic: Number(row.total_traffic || 0),
+      totalTraffic: Number(row.clicks || 0),
       convSales: conversionSales,
       totalAdSpend: adSpend,
       totalROAS: adSpend > 0 ? Math.round(sales / adSpend * 100) : 0,
@@ -556,7 +556,7 @@ async function fetchPermittedSummary(days = 30) {
 
 function renderSummary(totals, { partial = false } = {}) {
   setText('val-sales', formatWon(totals?.total_sales || 0));
-  setText('val-traffic', formatNumber(totals?.total_traffic || 0));
+  setText('val-traffic', formatNumber(totals?.clicks ?? totals?.total_traffic ?? 0));
   setText('val-adspend', formatWon(totals?.ad_spend || 0));
   setText('val-roas', totals?.roas == null ? '—' : `${Number(totals.roas).toLocaleString('ko-KR')}%`);
   setText('dataSource', partial ? '권한에 맞는 요약 데이터' : '인증된 API');
@@ -581,7 +581,7 @@ function renderDailyTable(rows) {
         formatNumber(row.totalTraffic),
         formatWon(row.convSales),
         formatWon(row.totalAdSpend),
-        `${row.totalROAS}%`,
+        `${row.convROAS}%`,
         `${row.adRatio}%`,
       ].forEach((value) => tr.appendChild(createElement('td', '', value)));
       fragment.appendChild(tr);
@@ -1672,6 +1672,7 @@ function bindEvents() {
       const target = document.getElementById(`section-${button.dataset.section}`);
       if (target) target.style.display = '';
       document.querySelectorAll('.section-btn').forEach((item) => item.classList.toggle('active', item === button));
+      if (button.dataset.section === 'sales') void init();
       if (button.dataset.section === 'team') void renderTeamSection();
       if (button.dataset.section === 'minutes') void renderMinutesSection();
       if (button.dataset.section === 'kpi') void renderKpiSection();
@@ -1844,10 +1845,11 @@ async function init() {
     if (allData.length) {
       const totals = allData.reduce((sum, row) => ({
         total_sales: sum.total_sales + row.totalSales,
+        conversion_sales: sum.conversion_sales + row.convSales,
         total_traffic: sum.total_traffic + row.totalTraffic,
         ad_spend: sum.ad_spend + row.totalAdSpend,
-      }), { total_sales: 0, total_traffic: 0, ad_spend: 0 });
-      totals.roas = totals.ad_spend > 0 ? totals.total_sales / totals.ad_spend * 100 : 0;
+      }), { total_sales: 0, conversion_sales: 0, total_traffic: 0, ad_spend: 0 });
+      totals.roas = totals.ad_spend > 0 ? totals.conversion_sales / totals.ad_spend * 100 : 0;
       renderSummary(totals);
       renderDailyTable(allData);
     } else {
