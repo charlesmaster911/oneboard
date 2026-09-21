@@ -511,8 +511,8 @@ async function savePlatformSettings(form) {
   }
 }
 
-async function requestFullSync() {
-  setText('settingsStatus', '최근 7일 매출·광고 데이터 수집을 요청하고 있습니다.');
+async function requestFullSync(days = 7) {
+  setText('settingsStatus', `최근 ${days}일 매출·광고 데이터 수집을 요청하고 있습니다.`);
   try {
     // 오늘 하루만 보내면 어제 부분 집계가 영영 안 고쳐진다 (2026-09-09 실측) → 서울 기준 최근 7일
     const seoul = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -520,7 +520,7 @@ async function requestFullSync() {
     await apiFetch('/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date_from: seoul.format(now - 6 * 86400000), date_to: seoul.format(now) }),
+      body: JSON.stringify({ date_from: seoul.format(now - (days - 1) * 86400000), date_to: seoul.format(now) }),
     });
     setText('settingsStatus', '수집 요청을 접수했습니다. 완료 후 연결 상태 갱신을 눌러 결과를 확인하세요.');
   } catch (error) {
@@ -1723,6 +1723,7 @@ function bindEvents() {
   document.getElementById('runAllSyncBtn')?.addEventListener('click', () => {
     void requestFullSync();
   });
+  document.getElementById('backfillSyncBtn')?.addEventListener('click', () => requestFullSync(30));
   document.getElementById('platformSettingsGrid')?.addEventListener('submit', (event) => {
     const form = event.target.closest?.('[data-platform-form]');
     if (!form) return;
