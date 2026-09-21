@@ -37,3 +37,19 @@ test('manual backfill requests thirty Seoul dates without changing the daily sch
   const range=JSON.parse(calls[0].options.body);
   expect((Date.parse(range.date_to)-Date.parse(range.date_from))/86400000).toBe(29);
 });
+
+ test('Kakao manual form submits only the selected channel and explicit daily values', async () => {
+  const calls=[];
+  const windowStub={addEventListener(){},ONEBOARD_WORKSPACE:workspaceHelpers,ONEBOARD_CURRENT_USER:{role:'owner'},ONEBOARD_API:{fetch:async(path,options)=>{
+    calls.push({path,options});return {ok:true,status:200,json:async()=>({rows:[],platforms:[]})};
+  }}};
+  const context=vm.createContext({window:windowStub,document,console,Intl,Date,setInterval,clearInterval,AbortController});
+  vm.runInContext(await readFile('app.js','utf8'),context);
+  const form=context.manualMetricForm('kakao','카카오모먼트'); document.body.replaceChildren(form);
+  const values={date:'2026-09-20',ad_spend:'1000',clicks:'2',conversion_sales:'2500'};
+  for(const [name,value] of Object.entries(values))form.elements.namedItem(name).value=value;
+  form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+  await new Promise(resolve=>setTimeout(resolve,0));
+  expect(calls[0].path).toBe('/manual-metrics');
+  expect(JSON.parse(calls[0].options.body)).toEqual({platform:'kakao',date:'2026-09-20',ad_spend:1000,clicks:2,conversion_sales:2500});
+ });
