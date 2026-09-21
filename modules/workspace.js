@@ -73,7 +73,13 @@ export function platformStatePresentation(state = {}) {
   if (state.connectionState !== 'connected') {
     return { tone: 'warning', label: '연결정보 필요', action: '설정에서 연결정보를 입력하세요.' };
   }
+  if (state.syncState === 'running') {
+    return { tone: 'neutral', label: '수집 중', action: '수집을 진행하고 있습니다. 잠시 후 연결 상태를 갱신하세요.' };
+  }
   if (state.syncState === 'error' || state.syncState === 'failed') {
+    if (String(state.errorDetail || '').includes('GW.IP_NOT_ALLOWED')) {
+      return { tone: 'danger', label: '서버 IP 등록 필요', action: '네이버 커머스API센터에 수집 서버의 고정 발신 IP를 등록해야 합니다. 현재 서버 IP가 허용되지 않았습니다.' };
+    }
     const http = /^SYNC_FAILED_HTTP_(\d{3})$/.exec(String(state.errorCode || ''));
     const status = http ? Number(http[1]) : null;
     const action = status === 401 || status === 403

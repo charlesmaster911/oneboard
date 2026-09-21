@@ -10,6 +10,12 @@ import {
 } from '../modules/workspace.js';
 
 describe('restored workspace sections', () => {
+  test('running collection and a Naver IP denial have actionable distinct states', () => {
+    expect(platformStatePresentation({ connectionState: 'connected', syncState: 'running' }).label).toBe('수집 중');
+    const denied = platformStatePresentation({ connectionState: 'connected', syncState: 'error', errorCode: 'SYNC_FAILED_HTTP_403', errorDetail: 'GW.IP_NOT_ALLOWED' });
+    expect(denied.label).toBe('서버 IP 등록 필요');
+    expect(denied.action).not.toContain('토큰');
+  });
   test.each([
     ['owner', ['sales', 'team', 'minutes', 'kpi', 'manual', 'settings']],
     ['ops', ['sales', 'team', 'minutes', 'kpi', 'manual']],

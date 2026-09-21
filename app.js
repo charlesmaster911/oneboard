@@ -409,7 +409,7 @@ function renderSettingsCards(states, overviewPlatforms = []) {
   const drive = createElement('article', 'platform-setting-card state-neutral drive-import-card');
   const driveHead = createElement('div', 'platform-setting-head');
   const driveTitle = createElement('div');
-  driveTitle.append(createElement('span', 'platform-kind', '매출 · 무료 자동수집'), createElement('h3', '', '카카오 톡스토어 · 선물하기'));
+  driveTitle.append(createElement('span', 'platform-kind', '매출 · 판매자료 가져오기'), createElement('h3', '', '카카오 톡스토어 · 선물하기'));
   driveHead.appendChild(driveTitle);
   const driveStatus = createElement('div', 'drive-channel-states');
   [
@@ -428,7 +428,7 @@ function renderSettingsCards(states, overviewPlatforms = []) {
   );
   drive.append(
     driveHead,
-    createElement('p', 'platform-state-action', 'Google Drive 판매자료에서 매일 오전 9시에 자동으로 합칩니다.'),
+    createElement('p', 'platform-state-action', 'Drive 연결 후 업로드된 판매 CSV를 매일 오전 9시에 합산합니다. 판매자센터에서 파일을 자동으로 내려받는 기능은 아직 연결되지 않았습니다.'),
     driveStatus,
     fileGuide,
   );
