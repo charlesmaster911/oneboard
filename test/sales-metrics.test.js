@@ -53,3 +53,33 @@ test('manual backfill requests thirty Seoul dates without changing the daily sch
   expect(calls[0].path).toBe('/manual-metrics');
   expect(JSON.parse(calls[0].options.body)).toEqual({platform:'kakao',date:'2026-09-20',ad_spend:1000,clicks:2,conversion_sales:2500});
  });
+
+test('Coupang manual mode renders daily sales fields instead of API credentials and saves the selected channel', async () => {
+  const calls = [];
+  document.body.innerHTML = '<div id="platformSettingsGrid"></div>';
+  const windowStub = {
+    addEventListener() {},
+    ONEBOARD_WORKSPACE: workspaceHelpers,
+    ONEBOARD_CURRENT_USER: { role: 'owner' },
+    ONEBOARD_API: { fetch: async (path, options) => {
+      calls.push({ path, options });
+      return { ok: true, status: 200, json: async () => ({ rows: [], platforms: [] }) };
+    } },
+  };
+  const context = vm.createContext({ window: windowStub, document, console, Intl, Date, setInterval, clearInterval, AbortController });
+  vm.runInContext(await readFile('app.js', 'utf8'), context);
+  context.renderSettingsCards([{ id: 'coupang', label: '쿠팡 한반도', kind: '매출', fields: [['vendor_id', 'Vendor ID']] }],
+    [{ id: 'coupang', source: 'manual' }]);
+  const card = document.querySelector('[data-platform="coupang"]');
+  expect(card.textContent).toContain('수동 관리');
+  expect(card.querySelector('[name="vendor_id"]')).toBeNull();
+  const form = card.querySelector('form');
+  expect(form.elements.namedItem('date').required).toBe(true);
+  expect(form.elements.namedItem('total_sales').value).toBe('');
+  form.elements.namedItem('date').value = '2026-09-20';
+  form.elements.namedItem('total_sales').value = '17000';
+  form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(calls[0].path).toBe('/manual-metrics');
+  expect(JSON.parse(calls[0].options.body)).toEqual({ platform: 'coupang', date: '2026-09-20', total_sales: 17000 });
+});
