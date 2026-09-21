@@ -342,6 +342,37 @@ function mergePlatformStates(platforms, syncRows) {
   }));
 }
 
+function manualMetricForm(platform, label) {
+  const form = createElement('form', 'platform-credential-form');
+  form.dataset.manualMetrics = platform;
+  const fields = platform === 'kakao'
+    ? [['date','날짜','date'],['ad_spend','광고비 (원)','number'],['clicks','광고 클릭','number'],['conversion_sales','구매 전환매출 (원)','number']]
+    : [['date','날짜','date'],['total_sales',`${label} 매출 (원)`,'number']];
+  for (const [name,text,type] of fields) {
+    const field=createElement('label','platform-field');
+    field.appendChild(createElement('span','',text));
+    const input=createElement('input','form-input'); input.name=name; input.type=type; input.required=true;
+    if(type==='number') {input.min='0';input.step='1';input.placeholder='확인한 금액·수량 입력';}
+    else {input.max=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date());}
+    field.appendChild(input); form.appendChild(field);
+  }
+  const submit=createElement('button','btn-primary',`${label} 저장`); submit.type='submit';form.appendChild(submit);
+  const status=createElement('p','platform-state-action','같은 날짜를 다시 저장하면 기존 값을 교체합니다. 확인한 값이 0일 때만 0을 입력하세요.');
+  status.setAttribute('role','status');form.appendChild(status);
+  form.addEventListener('submit',async(event)=>{
+    event.preventDefault(); submit.disabled=true;
+    const body={platform};
+    fields.forEach(([name,,type])=>{const value=form.elements.namedItem(name).value;body[name]=type==='number'?Number(value):value;});
+    try {
+      await apiFetch('/manual-metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      status.textContent=`${body.date} ${label} 저장 완료. 매출 화면에 반영됩니다.`;
+      await init();
+    } catch {status.textContent='저장하지 못했습니다. 날짜·입력값과 로그인 상태를 확인하세요.';}
+    finally {submit.disabled=false;}
+  });
+  return form;
+}
+
 function renderSettingsCards(states, overviewPlatforms = []) {
   const target = document.getElementById('platformSettingsGrid');
   if (!target) return;
@@ -359,6 +390,9 @@ function renderSettingsCards(states, overviewPlatforms = []) {
     card.append(head, createElement('p', 'platform-state-action', presentation.action));
     if (state.source === 'office_pc') {
       card.appendChild(createElement('p', 'platform-state-action', '사무실 PC: Windows 로그인 시와 이후 1시간마다 수집합니다. PC가 꺼져 있으면 다음 로그인 때 누락 기간을 보충합니다. 웹의 수동 갱신은 PC 수집을 시작하지 않습니다.'));
+    }
+    if (state.source === 'manual') {
+      card.appendChild(manualMetricForm(state.id,state.label)); fragment.appendChild(card); continue;
     }
     if (state.lastSyncAt || state.completedAt) card.appendChild(createElement('p', 'platform-last-sync', `최근 갱신 ${new Date(state.lastSyncAt || state.completedAt).toLocaleString('ko-KR')}`));
     const identifiers = createElement('div', 'platform-identifiers');
@@ -412,6 +446,12 @@ function renderSettingsCards(states, overviewPlatforms = []) {
     fragment.appendChild(card);
   }
   const drive = createElement('article', 'platform-setting-card state-neutral drive-import-card');
+  if (overviewPlatforms.some(row => row.id === 'kakao_talk_store' && row.source === 'manual')) {
+    drive.append(createElement('h3','','카카오 톡스토어 · 선물하기 수동 매출'),
+      createElement('p','platform-state-action','카카오 자동 수집은 사용하지 않습니다. 각 판매자센터에서 확인한 일별 매출을 입력하세요.'),
+      manualMetricForm('kakao_talk_store','톡스토어'),manualMetricForm('kakao_gift','선물하기'));
+    fragment.appendChild(drive); target.replaceChildren(fragment); return;
+  }
   const driveHead = createElement('div', 'platform-setting-head');
   const driveTitle = createElement('div');
   driveTitle.append(createElement('span', 'platform-kind', '매출 · 판매자료 가져오기'), createElement('h3', '', '카카오 톡스토어 · 선물하기'));

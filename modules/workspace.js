@@ -70,6 +70,7 @@ export function markdownBlocks(markdown = '') {
 }
 
 export function platformStatePresentation(state = {}) {
+  if (state.source === 'manual') return { tone: 'neutral', label: '수동 관리', action: '자동 수집 대상에서 제외되어 있습니다. 판매자·광고 관리자에서 확인한 날짜별 금액을 직접 입력하세요.' };
   if (state.source === 'office_pc' && state.syncState === 'success') {
     const last = Date.parse(state.completedAt || state.lastSyncAt || '');
     if (!Number.isFinite(last) || Date.now() - last > 36 * 3600000) {
