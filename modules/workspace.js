@@ -136,3 +136,86 @@ export function renderPlatformStatusStrip(target, states = []) {
   target.replaceChildren(fragment);
   return target;
 }
+
+export const SALES_PLATFORMS = Object.freeze([
+  { id: 'cafe24', label: '카페24' },
+  { id: 'naver_store', label: '스마트스토어' },
+  { id: 'coupang', label: '쿠팡 한반도' },
+  { id: 'kakao_talk_store', label: '카카오 톡스토어' },
+  { id: 'kakao_gift', label: '카카오 선물하기' },
+].map(Object.freeze));
+
+export const AD_PLATFORMS = Object.freeze([
+  { id: 'meta', label: '메타 광고' },
+  { id: 'naver_ads', label: '네이버 검색광고' },
+  { id: 'kakao', label: '카카오모먼트' },
+].map(Object.freeze));
+
+const SALES_DAY_MS = 86400000;
+
+function salesDateTimestamp(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const timestamp = Date.parse(`${value}T00:00:00.000Z`);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString().slice(0, 10) !== value) return null;
+  return timestamp;
+}
+
+export function validateSalesDateRange(from, to, today) {
+  const first = salesDateTimestamp(from);
+  const last = salesDateTimestamp(to);
+  const current = salesDateTimestamp(today);
+  if (first === null || last === null) return '시작일과 종료일을 올바른 날짜로 입력하세요.';
+  if (current === null) return '오늘 날짜를 확인할 수 없습니다. 화면을 새로고침하세요.';
+  if (first > last) return '시작일은 종료일보다 늦을 수 없습니다.';
+  if (last > current) return '미래 날짜는 조회할 수 없습니다.';
+  if ((last - first) / SALES_DAY_MS + 1 > 366) return '한 번에 최대 366일까지 조회할 수 있습니다.';
+  return '';
+}
+
+export function salesDatePreset(preset, today) {
+  const current = salesDateTimestamp(today);
+  if (current === null) throw new RangeError('오늘 날짜가 올바르지 않습니다.');
+  const dateBefore = (days) => new Date(current - days * SALES_DAY_MS).toISOString().slice(0, 10);
+  switch (preset) {
+    case 'today': return { from: today, to: today };
+    case 'yesterday': return { from: dateBefore(1), to: dateBefore(1) };
+    case '7days': return { from: dateBefore(6), to: today };
+    case '30days': return { from: dateBefore(29), to: today };
+    case 'month': return { from: `${today.slice(0, 7)}-01`, to: today };
+    default: throw new RangeError('지원하지 않는 조회 기간입니다.');
+  }
+}
+
+export function buildPlatformMatrix(rawRows = [], platforms = [], metric, { from, to } = {}) {
+  const rangeError = validateSalesDateRange(from, to, to);
+  if (rangeError) throw new RangeError(rangeError);
+  const platformIds = platforms.map((platform) => platform.id);
+  const allowedPlatforms = new Set(platformIds);
+  const emptyValues = () => Object.fromEntries(platformIds.map((id) => [id, null]));
+  const rows = [];
+  const byDate = new Map();
+  const totals = emptyValues();
+  let grandTotal = null;
+  const first = salesDateTimestamp(from);
+  for (let timestamp = salesDateTimestamp(to); timestamp >= first; timestamp -= SALES_DAY_MS) {
+    const row = { date: new Date(timestamp).toISOString().slice(0, 10), values: emptyValues(), total: null };
+    rows.push(row);
+    byDate.set(row.date, row);
+  }
+  for (const raw of rawRows) {
+    if (!raw || typeof raw !== 'object') continue;
+    const platform = raw.platform ?? raw.platform_raw;
+    const row = byDate.get(raw.date);
+    const value = raw[metric];
+    if (!row || !allowedPlatforms.has(platform) || value === null || value === undefined) continue;
+    if (typeof value !== 'number' && typeof value !== 'string') continue;
+    if (typeof value === 'string' && !value.trim()) continue;
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) continue;
+    row.values[platform] = (row.values[platform] ?? 0) + amount;
+    row.total = (row.total ?? 0) + amount;
+    totals[platform] = (totals[platform] ?? 0) + amount;
+    grandTotal = (grandTotal ?? 0) + amount;
+  }
+  return { rows, totals, grandTotal };
+}

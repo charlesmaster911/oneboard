@@ -564,11 +564,11 @@ test('the operations assignee can read the sales and ads update instruction insi
 
   await hooks.openManualDocument('kwon-suji-sales-ads-update.md');
 
-  expect(document.getElementById('manualViewer').textContent).toContain('매출·광고 연동정보 업무지시서');
-  expect(document.getElementById('manualViewer').textContent).toContain('OneBoard → 설정 → 판매·광고 연동 설정');
-  expect(document.getElementById('manualViewer').textContent).toContain('엑셀 사용 판정: 조건부 사용 가능');
-  expect(document.getElementById('manualViewer').textContent).toContain('쿠팡 계정이 2세트');
-  expect(document.getElementById('manualViewer').textContent).toContain('외부 창에서 입력해도 OneBoard의 다른 입력칸은 바뀌지 않습니다.');
+  expect(document.getElementById('manualViewer').textContent).toContain('매출 조회와 수동 입력 안내');
+  expect(document.getElementById('manualViewer').textContent).toContain('대표 관리자(OWNER)');
+  expect(document.getElementById('manualViewer').textContent).toContain('같은 날짜·플랫폼을 다시 저장하면 기존 금액이 교체됩니다.');
+  expect(document.getElementById('manualViewer').textContent).toContain('월 누적액을 매일 입력하지 마세요.');
+  expect(document.getElementById('manualViewer').textContent).toContain('엑셀이나 외부 시트에 적기만 하면 이 수동 입력 경로에는 반영되지 않습니다.');
   expect(apiFetch).not.toHaveBeenCalled();
 });
 

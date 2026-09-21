@@ -189,10 +189,10 @@ test('the retained page exposes only wired buttons and explicit non-loading stat
     'intCalPrev', 'intCalNext', 'intCalToday',
     'weeklyPrev', 'weeklyNext', 'weeklyImportSheetBtn',
     'addMinutesBtn', 'closeMinutesModal', 'cancelMinutes', 'saveMinutes', 'deleteMinutes',
-    'refreshKpiBtn', 'refreshManualBtn', 'refreshSettingsBtn', 'runAllSyncBtn', 'backfillSyncBtn',
+    'refreshKpiBtn', 'refreshManualBtn', 'refreshSettingsBtn', 'runAllSyncBtn', 'backfillSyncBtn', 'salesDateApply',
   ]);
   const unaccounted = [...page.querySelectorAll('button')].filter((button) => (
-    !button.dataset.section && !allowedButtonIds.has(button.id)
+    !button.dataset.section && !button.dataset.salesPreset && !button.dataset.manualEntry && !allowedButtonIds.has(button.id)
   ));
 
   expect(unaccounted.map((button) => button.outerHTML)).toEqual([]);

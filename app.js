@@ -73,10 +73,49 @@ function formatNumber(value) {
 }
 
 function dateRange(days = 30) {
-  const to = new Date().toISOString().slice(0, 10);
+  if (days && typeof days === 'object') return days;
+  const to = seoulToday();
   const safeDays = Number.isInteger(days) && days > 0 ? days : 30;
-  const from = new Date(Date.now() - (safeDays - 1) * 86400000).toISOString().slice(0, 10);
+  const from = new Date(Date.parse(`${to}T00:00:00Z`) - (safeDays - 1) * 86400000).toISOString().slice(0, 10);
   return { from, to };
+}
+
+function seoulToday() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+}
+
+let selectedSalesRange = null;
+let salesRequestGeneration = 0;
+let pendingManualEntry = null;
+
+function salesRange() {
+  if (!selectedSalesRange) selectedSalesRange = dateRange(30);
+  return { ...selectedSalesRange };
+}
+
+function showSalesRange(range) {
+  for (const [id, value] of [['salesDateFrom', range.from], ['salesDateTo', range.to]]) {
+    const input = document.getElementById(id);
+    if (input) { input.value = value; input.max = seoulToday(); }
+  }
+  setText('salesPeriodLabel', `${range.from} ~ ${range.to} · 선택 기간 합계`);
+  document.querySelectorAll('[data-sales-preset]').forEach(button => {
+    const preset = workspaceHelpers().salesDatePreset(button.dataset.salesPreset, seoulToday());
+    button.setAttribute('aria-pressed', String(preset.from === range.from && preset.to === range.to));
+  });
+}
+
+async function applySalesRange(from, to) {
+  const error = workspaceHelpers().validateSalesDateRange(from, to, seoulToday());
+  if (error) { setText('salesDateStatus', error); return; }
+  selectedSalesRange = { from, to };
+  await init();
+}
+
+function openManualEntry(platform) {
+  if (currentUser()?.role !== 'owner') return;
+  pendingManualEntry = platform;
+  document.querySelector('[data-section="settings"]')?.click();
 }
 
 let legacyLifecycleController = null;
@@ -97,31 +136,26 @@ let selectedManualFile = null;
 const LOCAL_MANUAL_DOCUMENTS = Object.freeze([Object.freeze({
   file: 'kwon-suji-sales-ads-update.md',
   category: '🏢 팀 매뉴얼',
-  title: '매출·광고 연동정보 업무지시서',
-  summary: '연동정보 입력과 확인에 필요한 핵심 순서',
+  title: '매출 조회와 수동 입력 안내',
+  summary: '기간별 조회, 쿠팡·카카오 일별 실적 입력과 수정 방법',
   hot: true,
   content: [
-    '# 매출·광고 연동정보 업무지시서',
-    '## 꼭 알아둘 점',
-    '- 발급·관리 링크는 모두 별도 창으로 열립니다.',
-    '- 외부 창에서 입력해도 OneBoard의 다른 입력칸은 바뀌지 않습니다.',
-    '- OneBoard 입력값은 채널별로 따로 저장됩니다.',
-    '- API Secret·Token은 팀 업무·회의록·메신저에 적지 않습니다.',
-    '## 작업 순서',
-    '1. OneBoard → 설정 → 판매·광고 연동 설정을 엽니다. 설정은 OWNER 계정에서만 보입니다.',
-    '2. 해당 채널의 발급·관리 페이지 열기를 눌러 별도 창에서 정보를 확인합니다.',
-    '3. OneBoard 해당 채널 카드에 값 입력 → 연결정보 저장 → 전체 수동 갱신 순서로 실행합니다.',
-    '4. OneBoard → 매출에서 연결 상태와 최근 갱신 시각을 확인합니다.',
-    '## 엑셀 사용',
-    '엑셀 사용 판정: 조건부 사용 가능. 파일을 업로드하지 말고 채널별 값을 입력칸에 한 번씩 옮깁니다.',
-    '- 카페24·스마트스토어·네이버 검색광고: 항목명대로 입력합니다.',
-    '- META: EAA 형식 값은 Access Token인지 원 플랫폼에서 확인합니다.',
-    '- 쿠팡: 엑셀에 쿠팡 계정이 2세트 있으므로 한반도 Vendor ID와 일치하는 한 세트만 입력합니다.',
-    '- 카카오: access_token이 Business Token인지 확인합니다.',
-    '## 매일 확인',
-    '- 09:15: 매출과 오전 광고 갱신 확인',
-    '- 16:15: 광고 재갱신 확인',
-    '- 오류 보고: 채널명·마지막 성공 시각·오류 문구만 기록',
+    '# 매출 조회와 수동 입력 안내',
+    '## 날짜별 매출 보기',
+    '매출 화면에서 시작일·종료일을 선택하고 조회를 누릅니다. 하루만 보려면 두 날짜를 같게 설정하세요.',
+    '플랫폼은 가로 열, 날짜는 세로 행입니다. 아래 기간 합계와 위 요약 금액은 선택한 기간 기준입니다.',
+    '—는 미입력 또는 미수집이며, ₩0은 확인된 0원입니다. 일부 플랫폼이 비어 있으면 합계도 입력·수집된 금액만 포함합니다.',
+    '## 매일 수동 입력할 곳',
+    '1. 대표 관리자(OWNER)로 로그인합니다. 매출 화면의 입력 버튼 또는 설정 메뉴를 엽니다.',
+    '2. 쿠팡 한반도·카카오 톡스토어·카카오 선물하기: 해당 판매자센터에서 확인한 날짜와 그날 매출 합계를 입력합니다.',
+    '3. 카카오모먼트: 광고 관리자에서 확인한 날짜·광고비·광고 클릭·구매 전환매출을 입력합니다.',
+    '4. 해당 채널 저장 버튼을 누릅니다. 저장 완료가 표시되면 매출 화면에서 해당 날짜를 조회합니다.',
+    '원보드에 날짜별로 저장되어 기간 합계에 누적됩니다. 다른 날짜는 보존되며 같은 날짜·플랫폼을 다시 저장하면 기존 금액이 교체됩니다.',
+    '월 누적액을 매일 입력하지 마세요. 하루 합계를 입력하고, 확인한 값이 0일 때만 0을 입력하세요.',
+    '엑셀이나 외부 시트에 적기만 하면 이 수동 입력 경로에는 반영되지 않습니다. 확인한 일별 합계를 원보드 설정에 저장하세요.',
+    '## 자동 연동 채널',
+    '카페24·스마트스토어 매출과 메타·네이버 검색광고는 연결 상태를 확인합니다. 스마트스토어는 연결된 사무실 PC가 켜져 있어야 수집됩니다.',
+    '연동정보를 변경할 때만 해당 채널 카드에 값을 저장하세요. API Secret·Token은 팀 업무·회의록·메신저에 적지 않습니다.',
   ].join('\n'),
 })]);
 let integratedCalendarMonth = (() => {
@@ -357,7 +391,7 @@ function manualMetricForm(platform, label) {
     field.appendChild(input); form.appendChild(field);
   }
   const submit=createElement('button','btn-primary',`${label} 저장`); submit.type='submit';form.appendChild(submit);
-  const status=createElement('p','platform-state-action','같은 날짜를 다시 저장하면 기존 값을 교체합니다. 확인한 값이 0일 때만 0을 입력하세요.');
+  const status=createElement('p','platform-state-action','해당 날짜의 하루 합계를 입력하세요. 저장하면 매출 화면에 누적되며, 같은 날짜를 다시 저장하면 기존 값을 교체합니다. 확인한 값이 0일 때만 0을 입력하세요.');
   status.setAttribute('role','status');form.appendChild(status);
   form.addEventListener('submit',async(event)=>{
     event.preventDefault(); submit.disabled=true;
@@ -494,7 +528,19 @@ async function renderSettingsSection() {
       mergePlatformStates(platformPayload?.data?.platforms, syncRows),
       overview?.platforms || []
     );
-    setText('settingsStatus', '비밀값은 표시되지 않습니다. 변경할 항목만 입력해 저장하세요.');
+    setText('settingsStatus', '수동 관리 채널은 날짜별 실적을 입력해 저장하세요. 자동 연동 채널은 변경할 연결정보만 입력하세요.');
+    if (pendingManualEntry) {
+      const form = [...document.querySelectorAll('[data-manual-metrics]')]
+        .find(item => item.dataset.manualMetrics === pendingManualEntry);
+      if (form) {
+        const dateInput = form.elements.namedItem('date');
+        const range = salesRange();
+        if (range.from === range.to) dateInput.value = range.from;
+        form.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+        dateInput?.focus({ preventScroll: true });
+      }
+      pendingManualEntry = null;
+    }
   } catch (error) {
     if (isSessionExpired(error)) return;
     setText('settingsStatus', '연결 상태를 불러오지 못했습니다. 잠시 후 다시 시도하세요.');
@@ -572,7 +618,8 @@ async function requestFullSync(days = 7) {
 async function fetchAPIDailyData(days = 30) {
   const { from, to } = dateRange(days);
   const response = await authenticatedResponse(`/data/daily?from=${from}&to=${to}`);
-  if (response.status === 403 || !response.ok) return [];
+  if (response.status === 403) return [];
+  if (!response.ok) throw new Error('SALES_DATA_UNAVAILABLE');
   const payload = await response.json().catch(() => null);
   return (payload?.rows || []).map((row) => {
     const sales = Number(row.total_sales || 0);
@@ -594,9 +641,10 @@ async function fetchAPIDailyData(days = 30) {
 async function fetchPermittedSummary(days = 30) {
   const { from, to } = dateRange(days);
   const response = await authenticatedResponse(`/data/summary?from=${from}&to=${to}`);
-  if (!response.ok) return null;
+  if (!response.ok) throw new Error('SALES_SUMMARY_UNAVAILABLE');
   const payload = await response.json().catch(() => null);
-  return payload?.totals || null;
+  if (!payload?.totals) throw new Error('SALES_SUMMARY_UNAVAILABLE');
+  return payload.totals;
 }
 
 function renderSummary(totals, { partial = false } = {}) {
@@ -639,7 +687,7 @@ async function fetchChannelMatrix(days = 30) {
   if (!mayViewDetail()) return [];
   const { from, to } = dateRange(days);
   const response = await authenticatedResponse(`/data/daily-by-platform?from=${from}&to=${to}`);
-  if (!response.ok) return [];
+  if (!response.ok) throw new Error('PLATFORM_DATA_UNAVAILABLE');
   const payload = await response.json().catch(() => null);
   return payload?.rows || [];
 }
@@ -657,29 +705,49 @@ async function renderSalesPlatformStatus() {
   }
 }
 
-function renderChannelMatrix(rows) {
-  const head = document.getElementById('channelMatrixHead');
-  const body = document.getElementById('channelMatrixBody');
+function renderPlatformMatrix(prefix, matrix, platforms) {
+  const head = document.getElementById(`${prefix}Head`);
+  const body = document.getElementById(`${prefix}Body`);
+  const foot = document.getElementById(`${prefix}Foot`);
   if (!head || !body) return;
   const headRow = createElement('tr');
-  ['날짜', '플랫폼', '매출', '광고비'].forEach((label) => headRow.appendChild(createElement('th', '', label)));
+  ['날짜', ...platforms.map(platform => platform.label), '합계'].forEach(label => {
+    const th = createElement('th', '', label); th.scope = 'col'; headRow.appendChild(th);
+  });
   head.replaceChildren(headRow);
   const fragment = document.createDocumentFragment();
-  for (const row of rows) {
+  const amountCell = value => {
+    const cell = createElement('td', value == null ? 'matrix-missing' : '', value == null ? '—' : formatWon(value));
+    if (value == null) cell.title = '미입력 또는 미수집';
+    return cell;
+  };
+  for (const row of matrix.rows) {
     const tr = createElement('tr');
-    const rawPlatform = String(row.platform_raw || row.platform || '');
-    [String(row.date || '').slice(0, 10), rawPlatform, formatWon(row.total_sales), formatWon(row.ad_spend)]
-      .forEach((value) => tr.appendChild(createElement('td', '', value)));
+    const date = createElement('th', '', row.date); date.scope = 'row'; tr.appendChild(date);
+    platforms.forEach(platform => tr.appendChild(amountCell(row.values[platform.id])));
+    tr.appendChild(amountCell(row.total));
     fragment.appendChild(tr);
   }
-  if (!rows.length) {
+  if (!matrix.rows.length) {
     const tr = createElement('tr');
-    const td = createElement('td', 'loading-row', '표시할 상세 채널 데이터가 없습니다.');
-    td.colSpan = 4;
+    const td = createElement('td', 'loading-row', '표시할 채널 데이터가 없습니다.');
+    td.colSpan = platforms.length + 2;
     tr.appendChild(td);
     fragment.appendChild(tr);
   }
   body.replaceChildren(fragment);
+  if (foot) {
+    const tr = createElement('tr');
+    const label = createElement('th', '', '기간 합계'); label.scope = 'row'; tr.appendChild(label);
+    platforms.forEach(platform => tr.appendChild(amountCell(matrix.totals[platform.id])));
+    tr.appendChild(amountCell(matrix.grandTotal)); foot.replaceChildren(tr);
+  }
+}
+
+function renderChannelMatrix(rows, range = salesRange()) {
+  const helpers = workspaceHelpers();
+  renderPlatformMatrix('channelMatrix', helpers.buildPlatformMatrix(rows, helpers.SALES_PLATFORMS, 'total_sales', range), helpers.SALES_PLATFORMS);
+  renderPlatformMatrix('adMatrix', helpers.buildPlatformMatrix(rows, helpers.AD_PLATFORMS, 'ad_spend', range), helpers.AD_PLATFORMS);
   setText('matrixSource', rows.length ? '인증된 API' : '빈 상태');
 }
 
@@ -1710,6 +1778,19 @@ function stopNotificationPolling() {
 }
 
 function bindEvents() {
+  document.getElementById('salesDateForm')?.addEventListener('submit', event => {
+    event.preventDefault();
+    void applySalesRange(document.getElementById('salesDateFrom').value, document.getElementById('salesDateTo').value);
+  });
+  document.querySelectorAll('[data-sales-preset]').forEach(button => {
+    button.addEventListener('click', () => {
+      const range = workspaceHelpers().salesDatePreset(button.dataset.salesPreset, seoulToday());
+      void applySalesRange(range.from, range.to);
+    });
+  });
+  document.querySelectorAll('[data-manual-entry]').forEach(button => {
+    button.addEventListener('click', () => openManualEntry(button.dataset.manualEntry));
+  });
   document.querySelectorAll('.section-btn').forEach((button) => {
     button.addEventListener('click', () => {
       if (button.hidden) return;
@@ -1885,9 +1966,16 @@ function bindHandlersOnce() {
 
 async function init() {
   const signal = legacyLifecycleController?.signal;
+  const generation = ++salesRequestGeneration;
+  const stale = () => signal?.aborted || generation !== salesRequestGeneration;
+  const range = salesRange();
+  showSalesRange(range);
+  setText('salesDateStatus', '선택한 기간을 조회하고 있습니다.');
+  document.getElementById('section-sales')?.setAttribute('aria-busy', 'true');
   try {
-    allData = await fetchAPIDailyData(30);
-    if (signal?.aborted) return;
+    const [dailyRows, matrixRows] = await Promise.all([fetchAPIDailyData(range), fetchChannelMatrix(range)]);
+    if (stale()) return;
+    allData = dailyRows.sort((a, b) => b.date.localeCompare(a.date));
     if (allData.length) {
       const totals = allData.reduce((sum, row) => ({
         total_sales: sum.total_sales + row.totalSales,
@@ -1899,20 +1987,25 @@ async function init() {
       renderSummary(totals);
       renderDailyTable(allData);
     } else {
-      const summary = await fetchPermittedSummary(30);
-      if (signal?.aborted) return;
+      const summary = await fetchPermittedSummary(range);
+      if (stale()) return;
       renderSummary(summary || {}, { partial: true });
       renderDailyTable([]);
     }
-    const matrixRows = await fetchChannelMatrix(30);
-    if (!signal?.aborted) renderChannelMatrix(matrixRows);
-    if (!signal?.aborted) await renderSalesPlatformStatus();
+    renderChannelMatrix(matrixRows, range);
+    setText('salesDateStatus', '조회 완료 · 합계는 입력·수집된 금액 기준입니다. 오늘 데이터는 수집 시점까지 반영됩니다.');
+    await renderSalesPlatformStatus();
   } catch (error) {
-    if (isSessionExpired(error) || signal?.aborted) return;
+    if (isSessionExpired(error) || stale()) return;
     allData = [];
     renderSummary({}, { partial: true });
     renderDailyTable([]);
     renderChannelMatrix([]);
+    ['val-sales', 'val-traffic', 'val-adspend', 'val-roas'].forEach(id => setText(id, '—'));
+    setText('matrixSource', '조회 실패');
+    setText('salesDateStatus', '데이터를 불러오지 못했습니다. 잠시 후 조회를 다시 눌러주세요.');
+  } finally {
+    if (!stale()) document.getElementById('section-sales')?.setAttribute('aria-busy', 'false');
   }
 }
 
