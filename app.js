@@ -347,6 +347,8 @@ function renderSettingsCards(states, overviewPlatforms = []) {
   if (!target) return;
   const fragment = document.createDocumentFragment();
   for (const state of states) {
+    const source = overviewPlatforms.find(row => row.id === state.id)?.source;
+    if (source) state.source = source;
     const presentation = workspaceHelpers().platformStatePresentation(state);
     const card = createElement('article', `platform-setting-card state-${presentation.tone}`);
     card.dataset.platform = state.id;
@@ -355,6 +357,9 @@ function renderSettingsCards(states, overviewPlatforms = []) {
     title.append(createElement('span', 'platform-kind', state.kind), createElement('h3', '', state.label));
     head.append(title, createElement('span', `platform-state-badge tone-${presentation.tone}`, presentation.label));
     card.append(head, createElement('p', 'platform-state-action', presentation.action));
+    if (state.source === 'office_pc') {
+      card.appendChild(createElement('p', 'platform-state-action', '사무실 PC: Windows 로그인 시와 이후 1시간마다 수집합니다. PC가 꺼져 있으면 다음 로그인 때 누락 기간을 보충합니다. 웹의 수동 갱신은 PC 수집을 시작하지 않습니다.'));
+    }
     if (state.lastSyncAt || state.completedAt) card.appendChild(createElement('p', 'platform-last-sync', `최근 갱신 ${new Date(state.lastSyncAt || state.completedAt).toLocaleString('ko-KR')}`));
     const identifiers = createElement('div', 'platform-identifiers');
     (state.accountIdentifiers || []).forEach((identifier) => identifiers.appendChild(createElement('span', '', `${identifier.name} ····${identifier.lastFour}`)));

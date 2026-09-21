@@ -70,6 +70,12 @@ export function markdownBlocks(markdown = '') {
 }
 
 export function platformStatePresentation(state = {}) {
+  if (state.source === 'office_pc' && state.syncState === 'success') {
+    const last = Date.parse(state.completedAt || state.lastSyncAt || '');
+    if (!Number.isFinite(last) || Date.now() - last > 36 * 3600000) {
+      return { tone: 'warning', label: 'PC 갱신 지연', action: '36시간 이상 새 수집이 없습니다. 사무실 PC의 전원·로그인·인터넷과 네이버 허용 IP를 확인하세요.' };
+    }
+  }
   if (state.connectionState !== 'connected') {
     return { tone: 'warning', label: '연결정보 필요', action: '설정에서 연결정보를 입력하세요.' };
   }
