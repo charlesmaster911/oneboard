@@ -24,3 +24,16 @@ test('sales dashboard uses attributed revenue for ROAS and clicks rather than si
   expect(document.querySelector('#val-traffic').textContent).toBe('20');
   expect(document.querySelectorAll('#tableBody td')[5].textContent).toBe('200%');
 });
+
+test('manual backfill requests thirty Seoul dates without changing the daily schedule', async () => {
+  const calls=[];
+  const windowStub={addEventListener(){},ONEBOARD_CURRENT_USER:{role:'owner'},ONEBOARD_API:{fetch:async(path, options)=>{
+    calls.push({path,options}); return {ok:true,status:202,json:async()=>({})};
+  }}};
+  const context=vm.createContext({window:windowStub,document,console,Intl,Date,setInterval,clearInterval,AbortController});
+  vm.runInContext(await readFile('app.js','utf8'),context);
+  await context.requestFullSync(30);
+  expect(calls[0].path).toBe('/sync');
+  const range=JSON.parse(calls[0].options.body);
+  expect((Date.parse(range.date_to)-Date.parse(range.date_from))/86400000).toBe(29);
+});

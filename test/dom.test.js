@@ -189,7 +189,7 @@ test('the retained page exposes only wired buttons and explicit non-loading stat
     'intCalPrev', 'intCalNext', 'intCalToday',
     'weeklyPrev', 'weeklyNext', 'weeklyImportSheetBtn',
     'addMinutesBtn', 'closeMinutesModal', 'cancelMinutes', 'saveMinutes', 'deleteMinutes',
-    'refreshKpiBtn', 'refreshManualBtn', 'refreshSettingsBtn', 'runAllSyncBtn',
+    'refreshKpiBtn', 'refreshManualBtn', 'refreshSettingsBtn', 'runAllSyncBtn', 'backfillSyncBtn',
   ]);
   const unaccounted = [...page.querySelectorAll('button')].filter((button) => (
     !button.dataset.section && !allowedButtonIds.has(button.id)
