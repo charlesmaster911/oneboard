@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { apiFetch, refreshSession, setAccessToken } from '../modules/api.js';
+import { apiFetch, authRequest, refreshSession, setAccessToken } from '../modules/api.js';
 import { getCurrentUser, initAuth, onAuthChanged, signOut } from '../modules/auth.js';
 import { announceAuthTransition, createAuthenticatedSessionGate } from '../modules/main.js';
 
@@ -35,6 +35,43 @@ beforeEach(() => {
   delete window.google;
   delete window.ONEBOARD_API;
   document.body.innerHTML = '<div id="google-signin"></div>';
+});
+
+afterEach(() => vi.useRealTimers());
+
+test('a stalled initial refresh releases login, reports service failure, and ignores a late success', async () => {
+  vi.useFakeTimers();
+  let release;
+  const fakeFetch = vi.fn(() => new Promise(resolve => { release = resolve; }));
+  vi.stubGlobal('fetch', fakeFetch);
+  const provider = { initialize: vi.fn(), renderButton: vi.fn() };
+  const onError = vi.fn();
+  window.addEventListener('oneboard:auth-error', onError);
+  try {
+    const initialization = initAuth({ googleClientId: 'test', google: { accounts: { id: provider } } });
+    await vi.advanceTimersByTimeAsync(20000);
+    expect(await initialization).toBeNull();
+    expect(fakeFetch.mock.calls[0][1].signal.aborted).toBe(true);
+    expect(provider.renderButton).toHaveBeenCalledOnce();
+    expect(onError.mock.calls[0][0].detail.code).toBe('AUTH_SERVICE_UNAVAILABLE');
+    release(jsonResponse(200, sessionPayload('late-token')));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sessionStorage.getItem('oneboard_access_token')).toBeNull();
+    expect(getCurrentUser()).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    window.removeEventListener('oneboard:auth-error', onError);
+  }
+});
+
+test('the auth deadline also covers a response body that never arrives', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status: 200, json: () => new Promise(() => {}) }));
+  const result = authRequest('/auth/google', { method: 'POST' });
+  const rejected = expect(result).rejects.toMatchObject({ code: 'AUTH_SERVICE_TIMEOUT' });
+  await vi.advanceTimersByTimeAsync(20000);
+  await rejected;
+  expect(vi.getTimerCount()).toBe(0);
 });
 
 describe('API session lifecycle', () => {

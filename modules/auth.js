@@ -1,5 +1,5 @@
 import {
-  apiFetch,
+  authRequest,
   beginSessionFamily,
   clearAccessToken,
   refreshSession,
@@ -19,13 +19,14 @@ function publishSanitizedAuthError(code) {
   globalThis.dispatchEvent?.(new CustomEvent('oneboard:auth-error', {
     detail: {
       code,
-      message: '로그인을 완료하지 못했습니다. 승인된 계정인지 확인한 뒤 다시 시도해 주세요.',
+      message: code === 'AUTH_SERVICE_UNAVAILABLE'
+        ? '서버에 연결하지 못했습니다. 잠시 후 페이지를 새로고침해 주세요.'
+        : '로그인을 완료하지 못했습니다. 승인된 계정인지 확인한 뒤 다시 시도해 주세요.',
     },
   }));
 }
 
-async function readAuthResponse(response, epoch) {
-  const payload = await response.json().catch(() => null);
+async function readAuthResponse({ response, payload }, epoch) {
   if (!response.ok || !payload?.data?.accessToken || !payload?.data?.user) {
     const error = new Error(payload?.error?.message || `Authentication failed (${response.status})`);
     error.status = response.status;
@@ -37,11 +38,10 @@ async function readAuthResponse(response, epoch) {
 
 async function acceptGoogleCredential(credential) {
   const epoch = beginSessionFamily();
-  const response = await apiFetch('/auth/google', {
+  const response = await authRequest('/auth/google', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ credential }),
-    authRetry: false,
   });
   const user = await readAuthResponse(response, epoch);
   publish(user);
@@ -64,8 +64,9 @@ function mountGoogleButton({ googleClientId, google }) {
     client_id: googleClientId,
     callback: ({ credential } = {}) => {
       if (!credential) return;
-      acceptGoogleCredential(credential).catch(() => {
-        publishSanitizedAuthError('GOOGLE_LOGIN_FAILED');
+      acceptGoogleCredential(credential).catch((error) => {
+        publishSanitizedAuthError(!error.status || error.status >= 500
+          ? 'AUTH_SERVICE_UNAVAILABLE' : 'GOOGLE_LOGIN_FAILED');
         publish(null, 'login-failed');
       });
     },
@@ -89,8 +90,9 @@ export async function initAuth({
   try {
     const session = await refreshSession();
     publish(session.user, 'signed-in');
-  } catch {
+  } catch (error) {
     publish(null, 'initial-unauthenticated');
+    if (!error.status || error.status >= 500) publishSanitizedAuthError('AUTH_SERVICE_UNAVAILABLE');
   }
   mountGoogleButton({ googleClientId, google: google || globalThis.google });
   return currentUser;
@@ -104,7 +106,7 @@ export async function signOut() {
   beginSessionFamily();
   let response;
   try {
-    response = await apiFetch('/auth/logout', { method: 'POST', authRetry: false });
+    ({ response } = await authRequest('/auth/logout', { method: 'POST' }));
   } catch {
     const error = new Error('로그아웃을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     error.code = 'LOGOUT_UNRESOLVED';

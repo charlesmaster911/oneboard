@@ -1,6 +1,36 @@
 const ACCESS_TOKEN_KEY = 'oneboard_access_token';
 let refreshRecord = null;
 let sessionEpoch = 0;
+const AUTH_TIMEOUT_MS = 20000;
+
+// Bound both the response headers and body. A stalled backend must not keep the
+// login shell blank indefinitely, and a late response must never restore auth.
+export async function authRequest(path, options = {}) {
+  const controller = new AbortController();
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error('Authentication service did not respond in time');
+      error.code = 'AUTH_SERVICE_TIMEOUT';
+      reject(error);
+      controller.abort();
+    }, AUTH_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([
+      (async () => {
+        const response = await fetch(apiUrl(path), {
+          ...options, credentials: 'include', signal: controller.signal,
+        });
+        const payload = await responsePayload(response);
+        return { response, payload };
+      })(),
+      timeout,
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function apiBase() {
   return globalThis.ONEBOARD_CONFIG?.apiBase
@@ -71,17 +101,14 @@ async function responsePayload(response) {
 
 async function performRefresh(epoch) {
   let response;
+  let payload;
   try {
-    response = await fetch(apiUrl('/auth/refresh'), {
-      method: 'POST',
-      credentials: 'include',
-    });
+    ({ response, payload } = await authRequest('/auth/refresh', { method: 'POST' }));
   } catch (error) {
     if (epoch !== sessionEpoch) throw new SessionSupersededError();
     clearSession();
     throw error;
   }
-  const payload = await responsePayload(response);
   if (epoch !== sessionEpoch) throw new SessionSupersededError();
   if (!response.ok || !payload?.data?.accessToken || !payload?.data?.user) {
     clearSession();
