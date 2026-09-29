@@ -75,6 +75,6 @@ describe('Render public configuration boundary', () => {
     const page = readFileSync(join(projectRoot, 'index.html'), 'utf8');
 
     expect(page).toContain('href="style.css?v=20260921-2"');
-    expect(page).toContain('src="app.js?v=20260929-2"');
+    expect(page).toContain('src="app.js?v=20260929-3"');
   });
 });

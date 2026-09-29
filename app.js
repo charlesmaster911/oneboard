@@ -329,6 +329,7 @@ function renderManualContent(documentData) {
 }
 
 function renderManualNavigation(query = '') {
+  setText('manualDocumentCount', `${manualDocuments.length} DOCUMENTS`);
   const target = document.getElementById('manualNav');
   if (!target) return;
   const filtered = workspaceHelpers().filterManualDocuments(manualDocuments, query);
