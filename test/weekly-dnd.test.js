@@ -27,7 +27,7 @@ async function loadBoard({ role = 'owner', fetchImpl }) {
   const storage = { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() };
   return Function('window', 'document', 'localStorage', 'sessionStorage', `${script}
     return {
-      bindEvents, renderIntegratedCalendar, renderWeeklyPanel,
+      bindEvents, renderIntegratedCalendar, renderWeeklyPanel, renderTeamSection, renderMinutesSection,
       setTasks: (tasks) => { teamTasks = tasks; },
       setRoster: (roster) => { teamRoster = roster; },
       setMonth: (date) => { integratedCalendarMonth = date; },
@@ -50,6 +50,24 @@ function dragFrom(item) {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+});
+
+test('team loads four resources concurrently and switching to minutes reuses the response', async () => {
+  const releases = [];
+  const fetchImpl = vi.fn((path) => new Promise(resolve => {
+    releases.push(() => resolve(jsonResponse(path.includes('/roster')
+      ? { members: ['권나경'] } : { tasks: [], minutes: [], rows: [] })));
+  }));
+  const board = await loadBoard({ fetchImpl });
+  document.body.insertAdjacentHTML('beforeend', '<div id="minutesList"></div>');
+  const pending = board.renderTeamSection();
+  expect(fetchImpl).toHaveBeenCalledTimes(4);
+  expect(fetchImpl.mock.calls.map(call => call[0])).toContain(`/team/weekly?ym=${YM}`);
+  releases.forEach(release => release());
+  await pending;
+  await board.renderMinutesSection();
+  await board.renderTeamSection();
+  expect(fetchImpl).toHaveBeenCalledTimes(4);
 });
 
 test('dragging a calendar task onto another day patches its date and re-renders it there', async () => {
@@ -109,7 +127,7 @@ test('weekly section renders six slots per member and moves an item between slot
   await board.renderWeeklyPanel();
 
   expect(document.getElementById('weeklyMonthLabel').textContent).toBe(YM);
-  expect(calls[0][0]).toBe(`/team/weekly?member_id=${encodeURIComponent('권나경')}&ym=${YM}`);
+  expect(calls[0][0]).toBe(`/team/weekly?ym=${YM}`);
   expect([...document.querySelectorAll('.weekly-col-head')].map((head) => head.textContent))
     .toEqual(['1주차', '2주차', '3주차', '4주차', '5주차', '상시']);
   expect(document.querySelector('[data-weekly-id="w2"]').classList.contains('done')).toBe(true);

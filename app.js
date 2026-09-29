@@ -35,7 +35,62 @@ async function authenticatedResponse(path, options = {}) {
   return adapter(path, signal ? { ...options, signal } : options);
 }
 
+const teamReadCache = new Map();
+let teamCacheRevision = 0;
+let teamSessionRevision = 0;
+
+function clearTeamReadCache() {
+  teamCacheRevision += 1;
+  teamReadCache.clear();
+}
+
 async function apiFetch(path, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  const cachedRead = method === 'GET' && /^\/team\/(tasks|minutes|roster|weekly)(\?|$)/.test(path);
+  const teamWrite = method !== 'GET' && path.startsWith('/team/');
+  const user = currentUser();
+  const scope = JSON.stringify([user?.id, user?.role, user?.workspaceId, user?.workspace_id]);
+  const key = `${scope}:${path}`;
+  const session = teamSessionRevision;
+  if (teamWrite) clearTeamReadCache();
+  if (cachedRead) {
+    const existing = teamReadCache.get(key);
+    if (existing && existing.expires > Date.now()) return structuredClone(await existing.promise);
+  }
+  const revision = teamCacheRevision;
+  const entry = { expires: Infinity, promise: null };
+  const request = (async () => {
+    const payload = await requestApiPayload(path, options);
+    if (cachedRead && (session !== teamSessionRevision || scope !== JSON.stringify([
+      currentUser()?.id, currentUser()?.role, currentUser()?.workspaceId, currentUser()?.workspace_id,
+    ]))) {
+      const error = new Error('SESSION_CHANGED');
+      error.code = 'SESSION_EXPIRED';
+      throw error;
+    }
+    // A refresh or write may have completed while this read was in flight.
+    if (cachedRead && revision !== teamCacheRevision) return apiFetch(path, options);
+    if (teamWrite) clearTeamReadCache();
+    if (cachedRead && revision === teamCacheRevision) entry.expires = Date.now() + 30_000;
+    return payload;
+  })();
+  entry.promise = request;
+  if (cachedRead) {
+    for (const [oldKey, oldEntry] of teamReadCache) {
+      if (oldEntry.expires <= Date.now()) teamReadCache.delete(oldKey);
+    }
+    teamReadCache.set(key, entry);
+  }
+  try {
+    const payload = await request;
+    return cachedRead ? structuredClone(payload) : payload;
+  } catch (error) {
+    if (teamReadCache.get(key) === entry) teamReadCache.delete(key);
+    throw error;
+  }
+}
+
+async function requestApiPayload(path, options = {}) {
   const response = await authenticatedResponse(path, options);
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -1289,29 +1344,22 @@ function weeklyJson(method, path, body) {
 }
 
 async function fetchWeekly(ym) {
-  const members = selectedTeamAssignee === '통합' ? taskAssignees() : [selectedTeamAssignee];
-  // 매니저는 팀원별 조회, 팀원은 서버가 본인 항목만 돌려준다 (member_id 무시)
-  const paths = isWorkspaceManager()
-    ? members.map((member) => `/team/weekly?member_id=${encodeURIComponent(member)}&ym=${ym}`)
-    : [`/team/weekly?ym=${ym}`];
-  const results = await Promise.all(paths.map(async (path) => {
-    try {
-      return (await apiFetch(path))?.rows || [];
-    } catch (error) {
-      if (isSessionExpired(error)) throw error;
-      return [];
-    }
-  }));
-  return results.flat();
+  // 서버가 권한에 따라 전체 팀 또는 본인 항목만 한 번에 반환한다.
+  try {
+    return (await apiFetch(`/team/weekly?ym=${encodeURIComponent(ym)}`))?.rows || [];
+  } catch (error) {
+    if (isSessionExpired(error)) throw error;
+    return [];
+  }
 }
 
-async function renderWeeklyPanel() {
+async function renderWeeklyPanel(prefetchedRows) {
   const grid = document.getElementById('weeklyGrid');
   if (!grid) return;
   setText('weeklyMonthLabel', weeklyViewYM);
   const generation = ++weeklyRenderGeneration;
   grid.replaceChildren(createElement('div', 'weekly-empty', '주간업무를 불러오는 중입니다'));
-  let rows = await fetchWeekly(weeklyViewYM);
+  let rows = prefetchedRows || await fetchWeekly(weeklyViewYM);
   if (generation !== weeklyRenderGeneration) return;
   if (selectedTeamAssignee !== '통합') rows = rows.filter((row) => row.member_id === selectedTeamAssignee);
   weeklyRows = rows;
@@ -1490,10 +1538,12 @@ function bindWeeklyEvents() {
 
 async function renderTeamSection() {
   setText('dataStatusBadge', '업무를 불러오는 중입니다');
-  const [tasks, minutes, roster] = await Promise.all([
+  const month = weeklyViewYM;
+  const [tasks, minutes, roster, weekly] = await Promise.all([
     fetchTeamTasks(),
     isWorkspaceManager() ? fetchMinutes() : Promise.resolve([]),
     fetchTeamRoster(),
+    fetchWeekly(month),
   ]);
   teamRoster = roster;
   teamTasks = roster.length
@@ -1506,7 +1556,7 @@ async function renderTeamSection() {
   if (add) add.hidden = !isWorkspaceManager();
   const importButton = document.getElementById('weeklyImportSheetBtn');
   if (importButton) importButton.hidden = !isWorkspaceManager();
-  await renderWeeklyPanel();
+  await renderWeeklyPanel(month === weeklyViewYM ? weekly : undefined);
 }
 
 async function fetchMinutes() {
@@ -1835,6 +1885,7 @@ function bindEvents() {
     if (event.target.id === 'dayDetailModal') closeDayDetailModal();
   });
   document.getElementById('refreshTeamBtn')?.addEventListener('click', () => {
+    clearTeamReadCache();
     void renderTeamSection();
   });
   document.getElementById('refreshKpiBtn')?.addEventListener('click', () => {
@@ -2032,6 +2083,12 @@ async function startAuthenticatedLifecycle() {
 }
 
 function stopAuthenticatedLifecycle() {
+  teamSessionRevision += 1;
+  clearTeamReadCache();
+  teamTasks = [];
+  teamRoster = [];
+  meetingMinutes = [];
+  weeklyRows = [];
   legacyLifecycleActive = false;
   legacyLifecycleController?.abort();
   legacyLifecycleController = null;
