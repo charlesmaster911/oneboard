@@ -764,8 +764,47 @@ test('notification polling stops on logout and restarts once after later login',
     hooks.startNotificationPolling();
     await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
     expect(window.ONEBOARD_API.fetch).toHaveBeenCalledTimes(4);
+    hooks.stopNotificationPolling();
   } finally {
     vi.useRealTimers();
+  }
+});
+
+test('hidden tabs stop database polling and resume once when visible without overlapping requests', async () => {
+  vi.useFakeTimers();
+  let hidden = true;
+  vi.spyOn(document, 'hidden', 'get').mockImplementation(() => hidden);
+  let release;
+  const fetch = vi.fn(() => new Promise(resolve => {
+    release = () => resolve(jsonResponse(200, { notifications: [] }));
+  }));
+  window.ONEBOARD_API = Object.freeze({ fetch });
+  const hooks = await loadLegacyHooks();
+  try {
+    hooks.startNotificationPolling();
+    await vi.advanceTimersByTimeAsync(30 * 60 * 1000);
+    expect(fetch).not.toHaveBeenCalled();
+    hidden = false;
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    expect(fetch).toHaveBeenCalledOnce();
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    hidden = true;
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(30 * 60 * 1000);
+    expect(fetch).toHaveBeenCalledOnce();
+    hidden = false;
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(fetch).toHaveBeenCalledTimes(2);
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    hooks.stopNotificationPolling();
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    hooks.stopNotificationPolling();
   }
 });
 

@@ -127,6 +127,7 @@ let teamRoster = [];
 let meetingMinutes = [];
 let notificationPollTimer = null;
 let notificationPollGeneration = 0;
+let notificationVisibilityHandler = null;
 let editingTaskId = null;
 let editingMinutesId = null;
 let selectedMinutesId = null;
@@ -1759,14 +1760,22 @@ function renderNotifications(notifications) {
 function startNotificationPolling() {
   if (notificationPollTimer !== null) return;
   const generation = ++notificationPollGeneration;
+  let inFlight = false;
   const poll = async () => {
+    // Background tabs must not keep the metered database awake all day.
+    if (document.hidden || inFlight) return;
+    inFlight = true;
     try {
       const notifications = await fetchNotifications();
       if (notificationPollTimer !== null && generation === notificationPollGeneration) {
         renderNotifications(notifications);
       }
-    } catch {}
+    } catch {} finally { inFlight = false; }
   };
+  notificationVisibilityHandler = () => {
+    if (!document.hidden) void poll();
+  };
+  document.addEventListener('visibilitychange', notificationVisibilityHandler);
   notificationPollTimer = setInterval(poll, 5 * 60 * 1000);
   void poll();
 }
@@ -1775,6 +1784,10 @@ function stopNotificationPolling() {
   notificationPollGeneration += 1;
   if (notificationPollTimer !== null) clearInterval(notificationPollTimer);
   notificationPollTimer = null;
+  if (notificationVisibilityHandler) {
+    document.removeEventListener('visibilitychange', notificationVisibilityHandler);
+    notificationVisibilityHandler = null;
+  }
 }
 
 function bindEvents() {
