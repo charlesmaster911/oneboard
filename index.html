@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script id="google-identity-script" src="https://accounts.google.com/gsi/client" async defer></script>
-  <link rel="stylesheet" href="style.css?v=20260921-2">
+  <link rel="stylesheet" href="style.css?v=20261007-1">
 </head>
 <body>
 <section class="login-screen" id="login-screen" aria-labelledby="login-title">
@@ -166,7 +166,12 @@
         </div>
 
         <div id="integratedView">
-          <section class="tier-block" id="weeklyBlock" aria-label="주간업무">
+          <details class="tier-block" id="weeklyBlock" aria-label="주간업무">
+            <summary class="weekly-summary">
+              <span class="tier-title">🗓 주간업무 <span class="tier-sub" id="weeklySummaryLabel">월간 계획</span></span>
+              <span class="weekly-summary-action"><span class="when-closed">펼치기</span><span class="when-open">접기</span></span>
+            </summary>
+            <div class="weekly-details">
             <div class="tier-header">
               <div class="tier-title">🗓 주간업무 <span class="tier-sub" id="weeklyMonthLabel">—</span></div>
               <div class="tier-nav">
@@ -175,21 +180,13 @@
                 <button class="btn-secondary weekly-import-btn" id="weeklyImportSheetBtn" type="button" data-roles="owner,ops" title="구 구글시트 weekly_tasks를 서버로 1회 가져옵니다 (중복은 건너뜀)">📥 시트 가져오기</button>
               </div>
             </div>
-            <p class="weekly-hint">항목을 다른 주차로 끌어다 놓으면 이동됩니다. 캘린더 일정도 날짜 칸으로 끌어서 옮길 수 있습니다.</p>
+            <p class="weekly-hint">주차별 업무는 더 보기로 펼칠 수 있습니다. 항목을 다른 주차로 끌어서 옮길 수 있습니다.</p>
             <div id="weeklyGrid" class="weekly-members"></div>
-          </section>
+            </div>
+          </details>
 
           <div class="int3-grid">
-            <aside class="int3-left">
-              <div class="int3-section-head">
-                <span class="int3-title">🚨 우선순위 · 미완료</span>
-                <label class="int3-archive-toggle"><input type="checkbox" id="intShowArchive"> <span>완료 포함</span></label>
-              </div>
-              <div class="int3-month-label" id="intPriorityMonth">이번 달 기준</div>
-              <div id="intBlockers" class="int3-priority-list"><div class="int3-empty">표시할 업무가 없습니다.</div></div>
-            </aside>
-
-            <section class="int3-center">
+            <section class="int3-center" aria-label="팀 통합 캘린더">
               <div class="int3-section-head">
                 <span class="int3-title">📅 팀 통합 캘린더</span>
                 <div class="int3-cal-nav">
@@ -199,14 +196,21 @@
                   <button class="cal-today-btn" id="intCalToday" type="button">오늘</button>
                 </div>
               </div>
-              <div class="int3-cal-wrap"><div class="cal-grid" id="intCalGrid"></div></div>
+              <p class="calendar-hint">날짜 또는 더 보기를 누르면 하루 업무를 펼칩니다. 업무를 누르면 상세를 확인하고, + 버튼으로 추가합니다.</p>
+              <div class="int3-cal-wrap" tabindex="0" role="region" aria-label="월간 업무 캘린더. 좁은 화면에서는 좌우로 스크롤할 수 있습니다."><div class="cal-grid" id="intCalGrid"></div></div>
               <div class="int3-cal-legend" id="intCalLegend"></div>
             </section>
 
-            <aside class="int3-right">
-              <div class="int3-section-head"><span class="int3-title">📋 최근 회의록</span></div>
-              <div id="intMinutes" class="int3-minutes-list"><div class="int3-empty">회의록이 없습니다.</div></div>
-              <div class="int3-section-head collaboration-alert-head"><span class="int3-title">🤝 협업 필요</span></div>
+            <aside class="int3-left" aria-label="우선순위와 미완료 업무">
+              <div class="int3-section-head">
+                <span class="int3-title">🚨 우선순위 · 미완료</span>
+                <label class="int3-archive-toggle"><input type="checkbox" id="intShowArchive"> <span>완료 포함</span></label>
+              </div>
+              <div class="int3-month-label" id="intPriorityMonth">이번 달 기준</div>
+              <div id="intBlockers" class="int3-priority-list"><div class="int3-empty">표시할 업무가 없습니다.</div></div>
+            </aside>
+            <aside class="int3-right" aria-label="협업 필요 업무">
+              <div class="int3-section-head"><span class="int3-title">🤝 협업 필요</span></div>
               <div id="intAlerts" class="int3-priority-list"><div class="int3-empty">지연 항목이 없습니다.</div></div>
             </aside>
           </div>
@@ -351,6 +355,6 @@
   </div>
 </div>
 <script type="module" src="modules/main.js"></script>
-  <script src="app.js?v=20260929-3"></script>
+  <script src="app.js?v=20261007-1"></script>
 </body>
 </html>

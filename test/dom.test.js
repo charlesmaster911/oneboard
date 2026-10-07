@@ -210,7 +210,10 @@ test('team work restores the original integrated calendar and minutes restore de
   expect(page.querySelector('#integratedView')).not.toBeNull();
   expect(page.querySelector('#intBlockers')).not.toBeNull();
   expect(page.querySelector('#intCalGrid')).not.toBeNull();
-  expect(page.querySelector('#intMinutes')).not.toBeNull();
+  expect(page.querySelector('#intMinutes')).toBeNull();
+  expect(page.querySelector('#weeklyBlock')?.tagName).toBe('DETAILS');
+  expect(page.querySelector('#weeklyBlock')?.hasAttribute('open')).toBe(false);
+  expect(page.querySelector('.int3-grid')?.firstElementChild?.classList.contains('int3-center')).toBe(true);
   expect(page.querySelector('#intAlerts')).not.toBeNull();
   expect(page.querySelector('#minutesSearch')).not.toBeNull();
   expect(page.querySelector('#minutesViewer')).not.toBeNull();

@@ -2803,3 +2803,86 @@ button.manual-item.active { color: #1D4ED8; background: #EFF6FF; border-left-col
 .cal-month-task[draggable="true"] { cursor: grab; }
 button.weekly-item-del { border: 0; background: transparent; font-family: inherit; }
 .weekly-item-text[contenteditable="true"] { cursor: text; }
+
+/* Calendar-first team workspace: full-width dates, progressive disclosure. */
+.main.team-workspace { max-width: none; }
+#section-team .member-tabs { margin-bottom: 16px; }
+#section-team .int3-grid { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); }
+#section-team .int3-center { grid-column: 1 / -1; padding: 20px; }
+#section-team .int3-title { font-size: 16px; }
+#section-team .int3-cal-label { font-size: 16px; min-width: 132px; }
+#section-team .int3-cal-nav { gap: 8px; }
+#section-team .cal-nav-btn, #section-team .cal-today-btn { min-height: 36px; min-width: 36px; }
+#section-team .calendar-hint { font-size: 13px; color: #475569; margin: 0 0 14px; }
+#section-team .int3-cal-wrap { overflow-x: auto; }
+#section-team #intCalGrid { min-width: 980px; }
+#section-team .int3-cal-cell { min-height: 180px; padding: 10px 8px 44px; cursor: default; }
+#section-team .cal-day-name { font-size: 14px; }
+#section-team .cal-month-day-num {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; margin-bottom: 8px;
+  border: 0; border-radius: 50%; background: transparent; color: #334155;
+  font: inherit; font-weight: 600; line-height: 1;
+}
+#section-team button.cal-month-day-num { cursor: pointer; }
+#section-team button.cal-month-day-num:hover { background: #DBEAFE; color: #1E40AF; }
+#section-team .today .cal-month-day-num { background: #2563EB; color: #fff; }
+#section-team .other-month .cal-month-day-num { color: #64748B; }
+#section-team .cal-month-task {
+  display: flex; align-items: baseline; gap: 6px; min-height: 32px;
+  padding: 6px; margin-bottom: 4px; font-size: 14px; line-height: 1.45;
+  color: #0F172A; border-left-width: 3px; opacity: 1;
+}
+#section-team .cal-task-assignee { flex: 0 0 auto; font-size: 12px; font-weight: 600; color: #334155; }
+#section-team .cal-task-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#section-team .cal-month-task.done { opacity: 1; text-decoration: none; }
+#section-team .cal-month-task.done .cal-task-title { color: #475569; text-decoration: line-through; }
+#section-team .cal-month-task:hover { filter: brightness(.96); }
+#section-team .day-expanded .cal-month-task { align-items: flex-start; }
+#section-team .day-expanded .cal-task-title { white-space: normal; overflow-wrap: anywhere; }
+#section-team .cal-month-more {
+  display: block; min-height: 32px; padding: 6px 8px; border: 0;
+  background: transparent; color: #1D4ED8; font: inherit; font-size: 13px; font-weight: 600;
+}
+#section-team .cal-month-add { opacity: 1; width: 32px; height: 32px; right: 8px; bottom: 8px; color: #475569; background: #F1F5F9; }
+#section-team .int3-cal-legend { font-size: 13px; color: #334155; background: transparent; }
+#section-team .int3-priority-list { max-height: 420px; }
+#section-team #intBlockers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; }
+#section-team .int3-pri-item { padding: 12px; }
+#section-team .int3-pt { font-size: 14px; line-height: 1.5; }
+#section-team .int3-mb, #section-team .int3-st, #section-team .int3-dt { font-size: 12px; }
+#section-team .int3-archive-toggle, #section-team .int3-month-label, #section-team .int3-empty { font-size: 13px; color: #475569; }
+#weeklyBlock { padding: 0; }
+#weeklyBlock .weekly-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; cursor: pointer; list-style: none; }
+#weeklyBlock .weekly-summary::-webkit-details-marker { display: none; }
+#weeklyBlock .weekly-summary .tier-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; font-size: 16px; }
+#weeklyBlock .weekly-summary .tier-sub { font-size: 13px; color: #475569; }
+#weeklyBlock .weekly-summary-action { flex-shrink: 0; color: #1D4ED8; font-size: 14px; font-weight: 600; }
+#weeklyBlock:not([open]) .when-open, #weeklyBlock[open] .when-closed { display: none; }
+#weeklyBlock .weekly-details { padding: 16px 20px 20px; border-top: 1px solid var(--border); }
+#weeklyBlock .weekly-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+#weeklyBlock .weekly-item { font-size: 14px; }
+#weeklyBlock .weekly-item-text { min-width: 0; overflow-wrap: anywhere; word-break: normal; }
+#weeklyBlock .weekly-item.done .weekly-item-text { color: #475569; }
+#weeklyBlock .weekly-member-head { font-size: 15px; }
+#weeklyBlock .weekly-col-head { font-size: 14px; color: #334155; }
+#weeklyBlock .weekly-more, #weeklyBlock .weekly-add { min-height: 32px; font-size: 13px; color: #1D4ED8; }
+#weeklyBlock .weekly-item-del { color: #64748B; }
+#weeklyBlock .weekly-item:focus-within .weekly-item-del { opacity: 1; }
+#section-team button:focus-visible, #section-team summary:focus-visible, #section-team .int3-cal-wrap:focus-visible { outline: 2px solid #2563EB; outline-offset: 2px; }
+@media (max-width: 1100px) {
+  #weeklyBlock .weekly-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .main.team-workspace { padding: 12px; }
+  #section-team .int3-grid { grid-template-columns: minmax(0, 1fr); }
+  #section-team .int3-center { padding: 14px 10px; }
+  #section-team .int3-center > .int3-section-head { flex-wrap: wrap; }
+  #section-team #intBlockers { grid-template-columns: minmax(0, 1fr); }
+  #weeklyBlock .weekly-summary { padding: 14px; }
+  #weeklyBlock .weekly-details { padding: 14px; }
+  #weeklyBlock .weekly-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #section-team *, #section-team *::before, #section-team *::after { transition: none !important; animation: none !important; }
+}

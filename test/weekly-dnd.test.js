@@ -52,6 +52,71 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
+test('daily disclosure exposes all tasks without mutations or opening the add dialog and survives rerender', async () => {
+  const fetchImpl = vi.fn();
+  const board = await loadBoard({ fetchImpl });
+  document.body.insertAdjacentHTML('beforeend', '<div id="taskModal" style="display:none"></div>');
+  const tasks = Array.from({ length: 7 }, (_, i) => ({
+    id: `t${i}`, date: `${YM}-03`, assignee: '권나경', task: `긴 업무 제목 ${i}`, status: '완료',
+  }));
+  board.setTasks(tasks);
+  board.setMonth(new Date(`${YM}-01T00:00:00`));
+  board.renderIntegratedCalendar(tasks);
+  board.bindEvents();
+  let cell = document.querySelector(`[data-date="${YM}-03"]`);
+  expect(cell.querySelectorAll('[data-task-id]:not([hidden])')).toHaveLength(4);
+  const more = cell.querySelector('.cal-month-more');
+  more.focus();
+  more.click();
+  expect(document.activeElement).toBe(more);
+  expect(cell.querySelectorAll('[data-task-id]:not([hidden])')).toHaveLength(7);
+  expect(more.getAttribute('aria-expanded')).toBe('true');
+  expect(cell.querySelector('.cal-month-day-num').getAttribute('aria-expanded')).toBe('true');
+  expect(document.getElementById('taskModal').style.display).toBe('none');
+  expect(fetchImpl).not.toHaveBeenCalled();
+  expect(tasks.every(task => task.status === '완료')).toBe(true);
+  board.renderIntegratedCalendar(tasks);
+  cell = document.querySelector(`[data-date="${YM}-03"]`);
+  expect(cell.querySelectorAll('[data-task-id]:not([hidden])')).toHaveLength(7);
+  cell.querySelector('.cal-month-day-num').click();
+  expect(cell.querySelectorAll('[data-task-id]:not([hidden])')).toHaveLength(4);
+  expect(cell.querySelector('.cal-month-more').textContent).toBe('+3개 더 보기');
+});
+
+test('opening a calendar task shows its full content and preserves status without saving', async () => {
+  const fetchImpl = vi.fn();
+  const board = await loadBoard({ fetchImpl });
+  document.body.insertAdjacentHTML('beforeend', '<div id="taskModal" style="display:none"></div><input id="taskContent"><select id="taskStatus"><option>완료</option></select>');
+  const tasks = [{ id: 'detail', date: `${YM}-03`, assignee: '권나경', task: '말줄임 없이 확인해야 하는 아주 긴 업무 내용', status: '완료' }];
+  board.setTasks(tasks);
+  board.setMonth(new Date(`${YM}-01T00:00:00`));
+  board.renderIntegratedCalendar(tasks);
+  board.bindEvents();
+  document.querySelector('[data-task-id="detail"]').click();
+  expect(document.getElementById('taskModal').style.display).toBe('flex');
+  expect(document.getElementById('taskContent').value).toBe(tasks[0].task);
+  expect(document.getElementById('taskStatus').value).toBe('완료');
+  expect(fetchImpl).not.toHaveBeenCalled();
+});
+
+test('weekly disclosure is read-only, per-slot, and retained after refreshing the panel', async () => {
+  const rows = Array.from({ length: 6 }, (_, i) => ({ id: `w${i}`, member_id: '권나경', ym: YM, slot: '1주차', text: `주간 ${i}`, done: false, sort_order: i }));
+  const fetchImpl = vi.fn(async () => jsonResponse({ rows }));
+  const board = await loadBoard({ fetchImpl });
+  board.setRoster(['권나경']);
+  board.bindEvents();
+  await board.renderWeeklyPanel(rows);
+  expect(document.querySelectorAll('.weekly-item:not([hidden])')).toHaveLength(3);
+  document.querySelector('.weekly-more').click();
+  expect(document.querySelectorAll('.weekly-item:not([hidden])')).toHaveLength(6);
+  await board.renderWeeklyPanel(rows);
+  expect(document.querySelector('.weekly-more').getAttribute('aria-expanded')).toBe('true');
+  expect(document.querySelectorAll('.weekly-item:not([hidden])')).toHaveLength(6);
+  document.querySelector('.weekly-more').click();
+  expect(document.querySelectorAll('.weekly-item:not([hidden])')).toHaveLength(3);
+  expect(fetchImpl).not.toHaveBeenCalled();
+});
+
 test('team loads four resources concurrently and switching to minutes reuses the response', async () => {
   const releases = [];
   const fetchImpl = vi.fn((path) => new Promise(resolve => {
@@ -143,7 +208,7 @@ test('weekly section renders six slots per member and moves an item between slot
   expect(document.querySelector('.weekly-col[data-slot="1주차"] [data-weekly-id]')).toBeNull();
 });
 
-test('a member clicks an empty calendar day and files a task for themselves on that date', async () => {
+test('a member uses the explicit add button to file a task for themselves on that date', async () => {
   const calls = [];
   const fetchImpl = vi.fn(async (path, options = {}) => {
     calls.push([path, options.method || 'GET', options.body ? JSON.parse(options.body) : null]);
@@ -164,7 +229,7 @@ test('a member clicks an empty calendar day and files a task for themselves on t
   board.renderIntegratedCalendar([]);
   board.bindEvents();
 
-  document.querySelector(`[data-date="${YM}-12"] .cal-month-day-num`).click();
+  document.querySelector(`[data-date="${YM}-12"] .cal-month-add`).click();
   expect(document.getElementById('taskModal').style.display).toBe('flex');
   expect(document.getElementById('taskDate').value).toBe(`${YM}-12`);
   expect(document.getElementById('taskAssignee').value).toBe('권나경');

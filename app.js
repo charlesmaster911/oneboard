@@ -219,6 +219,9 @@ let integratedCalendarMonth = (() => {
   return new Date(today.getFullYear(), today.getMonth(), 1);
 })();
 let integratedShowArchive = false;
+const expandedCalendarDays = new Set();
+const expandedWeeklySlots = new Set();
+const DAILY_VISIBLE = 4;
 
 function collaborationHelpers() {
   const helpers = window.ONEBOARD_COLLABORATION;
@@ -989,7 +992,6 @@ function renderIntegratedTeamView() {
   const tasks = activeTeamTasks();
   renderPriorityPanel(tasks);
   renderIntegratedCalendar(tasks);
-  renderRecentMinutesPanel();
   renderCollaborationAlerts(tasks);
   renderIntegratedLegend(tasks);
 }
@@ -1054,21 +1056,47 @@ function renderIntegratedCalendar(tasks) {
     const dayTasks = tasks.filter((task) => String(task.date || '').slice(0, 10) === dateKey);
     const cell = createElement('div', `cal-month-cell int3-cal-cell${dateKey === todayKey ? ' today' : ''}${inMonth ? '' : ' other-month'}${date.getDay() === 0 ? ' sun' : date.getDay() === 6 ? ' sat' : ''}`);
     cell.dataset.date = dateKey;
-    cell.appendChild(createElement('div', 'cal-month-day-num', date.getDate()));
-    dayTasks.slice(0, 4).forEach((task) => {
+    const expanded = expandedCalendarDays.has(dateKey);
+    cell.classList.toggle('day-expanded', expanded);
+    const dayNumber = createElement(dayTasks.length ? 'button' : 'div', 'cal-month-day-num', date.getDate());
+    const listId = `day-tasks-${dateKey}`;
+    if (dayTasks.length) {
+      dayNumber.type = 'button';
+      dayNumber.dataset.toggleDay = dateKey;
+      dayNumber.setAttribute('aria-expanded', String(expanded));
+      dayNumber.setAttribute('aria-controls', listId);
+      dayNumber.setAttribute('aria-label', `${dateKey} 업무 ${dayTasks.length}개 ${expanded ? '접기' : '펼치기'}`);
+    }
+    cell.appendChild(dayNumber);
+    const list = createElement('div', 'cal-day-tasks');
+    list.id = listId;
+    dayTasks.forEach((task, index) => {
       const assignee = task.assignee || task.who || '미지정';
       const style = memberStyle(assignee);
-      const item = createElement('button', `cal-month-task${helpers.normalizeTaskStatus(task.status) === '완료' ? ' done' : ''}`, `${assignee.slice(0, 2)} ${task.task || ''}`);
+      const status = helpers.normalizeTaskStatus(task.status);
+      const item = createElement('button', `cal-month-task${status === '완료' ? ' done' : ''}`);
+      item.append(createElement('span', 'cal-task-assignee', assignee), createElement('span', 'cal-task-title', task.task || '업무 내용 없음'));
       item.type = 'button';
       item.dataset.taskId = String(task.id);
+      if (index >= DAILY_VISIBLE) item.dataset.dayOverflow = 'true';
+      item.hidden = index >= DAILY_VISIBLE && !expanded;
       item.title = `${assignee}: ${task.task || ''} (${helpers.normalizeTaskStatus(task.status)})`;
+      item.setAttribute('aria-label', item.title);
       item.style.background = style.background;
       item.style.borderLeftColor = style.color;
-      item.style.color = style.color;
       if (isWorkspaceManager()) item.draggable = true; // 날짜 칸으로 끌어서 이동 (구글 캘린더식)
-      cell.appendChild(item);
+      list.appendChild(item);
     });
-    if (dayTasks.length > 4) cell.appendChild(createElement('div', 'cal-month-more', `+${dayTasks.length - 4}개 더`));
+    cell.appendChild(list);
+    if (dayTasks.length > DAILY_VISIBLE) {
+      const more = createElement('button', 'cal-month-more', expanded ? '접기' : `+${dayTasks.length - DAILY_VISIBLE}개 더 보기`);
+      more.type = 'button';
+      more.dataset.toggleDay = dateKey;
+      more.dataset.hiddenCount = String(dayTasks.length - DAILY_VISIBLE);
+      more.setAttribute('aria-expanded', String(expanded));
+      more.setAttribute('aria-controls', listId);
+      cell.appendChild(more);
+    }
     if (currentUser()) { // 팀원도 본인 업무를 올릴 수 있다 (서버가 담당자를 본인으로 고정)
       const add = createElement('button', 'cal-month-add', '+');
       add.type = 'button';
@@ -1083,27 +1111,23 @@ function renderIntegratedCalendar(tasks) {
   setText('intCalLabel', `${integratedCalendarMonth.getFullYear()}년 ${integratedCalendarMonth.getMonth() + 1}월`);
 }
 
-function renderRecentMinutesPanel() {
-  const target = document.getElementById('intMinutes');
-  if (!target) return;
-  const fragment = document.createDocumentFragment();
-  collaborationHelpers().filterMinutes(meetingMinutes).slice(0, 5).forEach((minute) => {
-    const card = createElement('button', 'int3-min-card');
-    card.type = 'button';
-    card.dataset.openMinutesId = String(minute.id);
-    const head = createElement('span', 'int3-min-head');
-    const minuteStatus = collaborationHelpers().normalizeTaskStatus(minute.status || '진행');
-    head.append(
-      createElement('span', 'int3-min-date', String(minute.date || '').slice(0, 10)),
-      createElement('span', `status-chip status-${minuteStatus === '완료' ? 'done' : minuteStatus === '예정' ? 'todo' : 'progress'}`, minuteStatus),
-    );
-    card.append(head, createElement('span', 'int3-min-title', minute.title || '제목 없는 회의록'));
-    const directiveCount = collaborationHelpers().splitTextLines(minute.directives).length;
-    if (directiveCount) card.appendChild(createElement('span', 'int3-min-counter', `지시 ${directiveCount}건`));
-    fragment.appendChild(card);
+function toggleCalendarDay(control) {
+  const dateKey = control.dataset.toggleDay;
+  const cell = control.closest('.int3-cal-cell');
+  if (!cell) return;
+  const expanded = !expandedCalendarDays.has(dateKey);
+  if (expanded) expandedCalendarDays.add(dateKey);
+  else expandedCalendarDays.delete(dateKey);
+  cell.classList.toggle('day-expanded', expanded);
+  cell.querySelectorAll('[data-day-overflow]').forEach((item) => { item.hidden = !expanded; });
+  cell.querySelectorAll('[data-toggle-day]').forEach((button) => {
+    button.setAttribute('aria-expanded', String(expanded));
+    if (button.classList.contains('cal-month-more')) {
+      button.textContent = expanded ? '접기' : `+${button.dataset.hiddenCount}개 더 보기`;
+    } else {
+      button.setAttribute('aria-label', `${dateKey} 업무 ${cell.querySelectorAll('[data-task-id]').length}개 ${expanded ? '접기' : '펼치기'}`);
+    }
   });
-  if (!meetingMinutes.length) fragment.appendChild(createElement('div', 'int3-empty', '회의록이 없습니다.'));
-  target.replaceChildren(fragment);
 }
 
 function renderCollaborationAlerts(tasks) {
@@ -1322,7 +1346,7 @@ async function moveTaskToDate(taskId, dateKey) {
 
 // ── 주간업무 (1주차~5주차 + 상시) — 서버 /team/weekly 단일 출처 ──
 const WEEK_SLOTS = ['1주차', '2주차', '3주차', '4주차', '5주차', '상시'];
-const WEEKLY_VISIBLE = 5;
+const WEEKLY_VISIBLE = 3;
 let weeklyViewYM = ymKey(new Date());
 let weeklyRows = [];
 let weeklyRenderGeneration = 0;
@@ -1364,6 +1388,7 @@ async function renderWeeklyPanel(prefetchedRows) {
   if (generation !== weeklyRenderGeneration) return;
   if (selectedTeamAssignee !== '통합') rows = rows.filter((row) => row.member_id === selectedTeamAssignee);
   weeklyRows = rows;
+  renderWeeklySummary();
   const members = selectedTeamAssignee !== '통합'
     ? [selectedTeamAssignee]
     : isWorkspaceManager() ? taskAssignees() : [...new Set(rows.map((row) => row.member_id))];
@@ -1371,6 +1396,10 @@ async function renderWeeklyPanel(prefetchedRows) {
   if (!members.length) fragment.appendChild(createElement('div', 'weekly-empty', '표시할 주간업무가 없습니다.'));
   members.forEach((member) => fragment.appendChild(renderWeeklyMember(member, rows.filter((row) => row.member_id === member))));
   grid.replaceChildren(fragment);
+}
+
+function renderWeeklySummary() {
+  setText('weeklySummaryLabel', `${weeklyViewYM.replace('-', '년 ')}월 · ${weeklyRows.length}개 업무 · 미완료 ${weeklyRows.filter((row) => !row.done).length}개`);
 }
 
 function renderWeeklyMember(member, rows) {
@@ -1387,11 +1416,14 @@ function renderWeeklyMember(member, rows) {
     const col = createElement('div', 'weekly-col');
     col.dataset.member = member;
     col.dataset.slot = slot;
+    const slotKey = JSON.stringify([weeklyViewYM, member, slot]);
+    const expanded = expandedWeeklySlots.has(slotKey);
     col.appendChild(createElement('div', 'weekly-col-head', slot));
     const body = createElement('div', 'weekly-col-body');
     const items = rows.filter((row) => row.slot === slot).sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0));
     items.forEach((row, index) => {
-      const item = createElement('div', `weekly-item${row.done ? ' done' : ''}${index >= WEEKLY_VISIBLE ? ' weekly-hidden' : ''}`);
+      const item = createElement('div', `weekly-item${row.done ? ' done' : ''}${index >= WEEKLY_VISIBLE ? ' weekly-hidden' : ''}${expanded ? ' weekly-show' : ''}`);
+      item.hidden = index >= WEEKLY_VISIBLE && !expanded;
       item.dataset.weeklyId = String(row.id);
       if (manager) item.draggable = true;
       const check = createElement('input');
@@ -1415,9 +1447,13 @@ function renderWeeklyMember(member, rows) {
       body.appendChild(item);
     });
     if (items.length > WEEKLY_VISIBLE) {
-      const more = createElement('button', 'weekly-more', `▾ 더보기 (${items.length - WEEKLY_VISIBLE}개)`);
+      const more = createElement('button', 'weekly-more', expanded ? '▴ 접기' : `▾ 더보기 (${items.length - WEEKLY_VISIBLE}개)`);
       more.type = 'button';
       more.dataset.weeklyAction = 'more';
+      more.dataset.slotKey = slotKey;
+      more.dataset.expanded = expanded ? '1' : '0';
+      more.setAttribute('aria-expanded', String(expanded));
+      more.setAttribute('aria-label', `${member} ${slot} 추가 업무`);
       more.dataset.hiddenCount = String(items.length - WEEKLY_VISIBLE);
       body.appendChild(more);
     }
@@ -1483,7 +1519,13 @@ function bindWeeklyEvents() {
     } else if (action === 'more') {
       const expanded = control.dataset.expanded === '1';
       control.dataset.expanded = expanded ? '0' : '1';
-      control.parentElement.querySelectorAll('.weekly-hidden').forEach((hidden) => hidden.classList.toggle('weekly-show', !expanded));
+      control.setAttribute('aria-expanded', String(!expanded));
+      if (expanded) expandedWeeklySlots.delete(control.dataset.slotKey);
+      else expandedWeeklySlots.add(control.dataset.slotKey);
+      control.parentElement.querySelectorAll('.weekly-hidden').forEach((hidden) => {
+        hidden.classList.toggle('weekly-show', !expanded);
+        hidden.hidden = expanded;
+      });
       control.textContent = expanded ? `▾ 더보기 (${control.dataset.hiddenCount}개)` : '▴ 접기';
     }
   });
@@ -1496,6 +1538,7 @@ function bindWeeklyEvents() {
       item.classList.toggle('done', check.checked);
       const row = weeklyRows.find((candidate) => String(candidate.id) === item.dataset.weeklyId);
       if (row) row.done = check.checked;
+      renderWeeklySummary();
     });
   });
   grid.addEventListener('keydown', (event) => {
@@ -1861,6 +1904,7 @@ function bindEvents() {
       document.querySelectorAll('.section-content').forEach((section) => { section.style.display = 'none'; });
       const target = document.getElementById(`section-${button.dataset.section}`);
       if (target) target.style.display = '';
+      document.querySelector('.main')?.classList.toggle('team-workspace', button.dataset.section === 'team');
       document.querySelectorAll('.section-btn').forEach((item) => item.classList.toggle('active', item === button));
       if (button.dataset.section === 'sales') void init();
       if (button.dataset.section === 'team') void renderTeamSection();
@@ -1956,16 +2000,20 @@ function bindEvents() {
     if (task) openTaskModal(task);
   });
   document.getElementById('intCalGrid')?.addEventListener('click', (event) => {
+    const toggle = event.target.closest?.('[data-toggle-day]');
+    if (toggle) {
+      toggleCalendarDay(toggle);
+      return;
+    }
     const taskItem = event.target.closest?.('[data-task-id]');
     if (taskItem) {
       const task = teamTasks.find((candidate) => String(candidate.id) === String(taskItem.dataset.taskId));
       if (task) openTaskModal(task);
       return;
     }
-    // + 버튼이든 날짜 칸 빈자리든 클릭하면 그 날짜로 업무 추가 (구글 캘린더식)
+    // 열람과 생성은 분리한다. 날짜/더보기는 펼침, + 버튼만 업무 추가.
     const add = event.target.closest?.('[data-add-task-date]');
-    const cell = event.target.closest?.('[data-date]');
-    const dateKey = add?.dataset.addTaskDate || cell?.dataset.date;
+    const dateKey = add?.dataset.addTaskDate;
     if (!dateKey || !currentUser()) return;
     openTaskModal();
     const dateField = taskField('taskDate');
@@ -1979,12 +2027,6 @@ function bindEvents() {
     onDrop: (taskId, cell) => moveTaskToDate(taskId, cell.dataset.date),
   });
   bindWeeklyEvents();
-  document.getElementById('intMinutes')?.addEventListener('click', (event) => {
-    const card = event.target.closest?.('[data-open-minutes-id]');
-    if (!card) return;
-    selectedMinutesId = card.dataset.openMinutesId;
-    document.querySelector('[data-section="minutes"]')?.click();
-  });
   document.getElementById('closeTaskModal')?.addEventListener('click', closeTaskModal);
   document.getElementById('cancelTask')?.addEventListener('click', closeTaskModal);
   document.getElementById('saveTask')?.addEventListener('click', () => { void saveTaskFromModal(); });
@@ -2090,6 +2132,8 @@ function stopAuthenticatedLifecycle() {
   teamRoster = [];
   meetingMinutes = [];
   weeklyRows = [];
+  expandedCalendarDays.clear();
+  expandedWeeklySlots.clear();
   legacyLifecycleActive = false;
   legacyLifecycleController?.abort();
   legacyLifecycleController = null;

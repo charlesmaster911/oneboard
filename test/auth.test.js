@@ -622,7 +622,7 @@ test('retained task controls invoke authenticated create, update, and delete API
   `;
   window.ONEBOARD_CURRENT_USER = { id: 'ops-1', role: 'ops' };
   const task = {
-    id: 'task-1', date: '2026-09-03', assignee: 'Assigned user', assigned_user_id: 'user-2',
+    id: 'task-1', date: new Date().toISOString().slice(0, 8) + '03', assignee: 'Assigned user', assigned_user_id: 'user-2',
     task: 'Initial task', status: '예정', priority: '보통', memo: '',
   };
   window.ONEBOARD_API = Object.freeze({
@@ -681,7 +681,7 @@ test('assigned members receive progress-only task controls and payloads', async 
   `;
   window.ONEBOARD_CURRENT_USER = { id: 'member-1', role: 'member' };
   const task = {
-    id: 'own-task', date: '2026-09-03', assignee: 'Current user', assigned_user_id: 'member-1',
+    id: 'own-task', date: new Date().toISOString().slice(0, 8) + '03', assignee: 'Current user', assigned_user_id: 'member-1',
     task: 'Assigned task', status: '예정', priority: '보통', memo: '',
   };
   window.ONEBOARD_API = Object.freeze({
