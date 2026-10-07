@@ -97,6 +97,7 @@ async function requestApiPayload(path, options = {}) {
     const error = new Error('ONEBOARD_API_REQUEST_FAILED');
     error.status = response.status;
     error.code = payload?.error?.code || 'API_REQUEST_FAILED';
+    error.userMessage = payload?.error?.message;
     throw error;
   }
   return payload;
@@ -179,6 +180,9 @@ let legacyDomReady = document.readyState !== 'loading';
 let allData = [];
 let teamTasks = [];
 let teamRoster = [];
+let teamMemberRecords = [];
+let showRetiredMembers = false;
+let editingMemberId = null;
 let meetingMinutes = [];
 let notificationPollTimer = null;
 let notificationPollGeneration = 0;
@@ -859,6 +863,7 @@ async function fetchTeamTasks(from, to) {
 async function fetchTeamRoster() {
   try {
     const payload = await apiFetch('/team/roster');
+    teamMemberRecords = Array.isArray(payload?.records) ? payload.records : [];
     return Array.isArray(payload?.members)
       ? payload.members.map((name) => String(name || '').trim()).filter(Boolean)
       : [];
@@ -927,7 +932,93 @@ const TEAM_COLOR_PALETTE = [
   { color: '#0891B2', background: '#ECFEFF' },
 ];
 
+const EMPLOYMENT_LABELS = { active: '재직', upcoming: '입사 예정', retired: '퇴사' };
+let settingsMembers = [];
+function updateMemberEndDate() {
+  const retired = document.getElementById('memberEmploymentStatus').value === 'retired';
+  const field = document.getElementById('memberEndDate');
+  field.disabled = !retired;
+  field.required = retired;
+  if (!retired) field.value = '';
+}
+function resetMemberForm() {
+  editingMemberId = null;
+  document.getElementById('memberSettingsForm')?.reset();
+  document.getElementById('memberName').readOnly = false;
+  document.getElementById('cancelMemberEdit').hidden = true;
+  setText('memberFormHeading', '팀원 추가');
+  setText('saveMember', '팀원 추가');
+  updateMemberEndDate();
+}
+async function loadMemberSettings() {
+  if (currentUser()?.role !== 'owner') return;
+  setText('memberSettingsStatus', '팀원 목록을 불러오는 중입니다.');
+  try {
+    const payload = await apiFetch('/team/members');
+    if (!Array.isArray(payload.records)) throw new Error('팀원 목록 형식을 확인할 수 없습니다.');
+    settingsMembers = payload.records;
+    const list = document.getElementById('memberSettingsList');
+    const fragment = document.createDocumentFragment();
+    settingsMembers.forEach(row => {
+      const item = createElement('div', 'member-settings-row');
+      const info = createElement('div');
+      info.append(createElement('strong', '', `${row.name}${row.title ? ' ' + row.title : ''}`));
+      const date = row.status === 'retired' ? `퇴사일 ${String(row.end_date || '').slice(0,10)}` : row.start_month ? `입사월 ${row.start_month}` : '입사월 미등록';
+      info.append(createElement('span', 'member-employment-detail', `${EMPLOYMENT_LABELS[row.status] || row.status} · ${date}`));
+      const edit = createElement('button', 'btn-secondary', '수정');
+      edit.type = 'button'; edit.dataset.editMember = row.id;
+      edit.setAttribute('aria-label', `${row.name} 팀원 정보 수정`);
+      item.append(info, edit); fragment.append(item);
+    });
+    list.replaceChildren(fragment);
+    setText('memberSettingsStatus', `${settingsMembers.length}명 · 재직 ${settingsMembers.filter(r=>r.status==='active').length} · 입사 예정 ${settingsMembers.filter(r=>r.status==='upcoming').length} · 퇴사 ${settingsMembers.filter(r=>r.status==='retired').length}`);
+  } catch (error) { setText('memberSettingsStatus', error.userMessage || '팀원 목록을 불러오지 못했습니다. 다시 시도하세요.'); }
+}
+function bindMemberSettings() {
+  document.getElementById('taskAssignee')?.addEventListener('change', () => {
+    const linkedUser = document.getElementById('taskAssignedUserId');
+    if (linkedUser) linkedUser.value = '';
+  });
+  document.getElementById('reloadMembers')?.addEventListener('click', () => void loadMemberSettings());
+  document.getElementById('cancelMemberEdit')?.addEventListener('click', resetMemberForm);
+  document.getElementById('memberEmploymentStatus')?.addEventListener('change', updateMemberEndDate);
+  document.getElementById('memberSettingsList')?.addEventListener('click', event => {
+    const control = event.target.closest('[data-edit-member]');
+    const row = settingsMembers.find(r=>r.id===control?.dataset.editMember);
+    if (!row) return;
+    editingMemberId = row.id;
+    for (const [id,value] of Object.entries({memberName:row.name,memberTitle:row.title,memberEmploymentStatus:row.status,memberStartMonth:row.start_month,memberEndDate:String(row.end_date || '').slice(0,10)})) document.getElementById(id).value = value || '';
+    document.getElementById('memberName').readOnly = true;
+    document.getElementById('cancelMemberEdit').hidden = false;
+    setText('memberFormHeading', `${row.name} 정보 수정`); setText('saveMember', '변경 저장');
+    updateMemberEndDate(); document.getElementById('memberTitle').focus();
+  });
+  document.getElementById('memberSettingsForm')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (currentUser()?.role !== 'owner') return;
+    const button = document.getElementById('saveMember');
+    if (button.disabled) return;
+    button.disabled = true;
+    const name = document.getElementById('memberName').value.trim();
+    const payload = {name, title:document.getElementById('memberTitle').value.trim(), status:document.getElementById('memberEmploymentStatus').value, start_month:document.getElementById('memberStartMonth').value || null, end_date:document.getElementById('memberEndDate').value || null};
+    setText('memberSettingsStatus', '저장 중입니다.');
+    try {
+      await apiFetch(editingMemberId ? `/team/members/${encodeURIComponent(editingMemberId)}` : '/team/members', {method:editingMemberId?'PATCH':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+      resetMemberForm();
+      await loadMemberSettings();
+      await renderTeamSection();
+      setText('memberSettingsStatus', payload.status === 'retired' ? `${name} 퇴사 처리 완료 · 기존 기록은 보존됩니다.` : `${name} 저장 완료 · 로그인 계정 없이 업무에 사용할 수 있습니다.`);
+    } catch(error) { setText('memberSettingsStatus', error.userMessage || '저장하지 못했습니다. 다시 시도하세요.'); }
+    finally { button.disabled = false; }
+  });
+  document.getElementById('showRetiredMembers')?.addEventListener('change', event => {
+    showRetiredMembers = event.target.checked;
+    renderTeamMemberTabs(); renderIntegratedTeamView(); void renderWeeklyPanel();
+  });
+}
+
 function taskAssignees() {
+  if (teamMemberRecords.length) return teamMemberRecords.filter(row => row.status !== 'retired').map(row => row.name);
   if (teamRoster.length) return [...teamRoster];
   return [...new Set(teamTasks.map((task) => task.assignee || task.who).filter(Boolean))]
     .sort((left, right) => String(left).localeCompare(String(right), 'ko-KR'));
@@ -956,21 +1047,27 @@ function memberStyle(name) {
   return TEAM_COLOR_PALETTE[index % TEAM_COLOR_PALETTE.length];
 }
 
+function visibleTeamNames() {
+  return showRetiredMembers && teamMemberRecords.length ? teamMemberRecords.map(row => row.name) : taskAssignees();
+}
+
 function activeTeamTasks() {
-  return selectedTeamAssignee === '통합'
-    ? teamTasks
-    : teamTasks.filter((task) => String(task.assignee || task.who) === selectedTeamAssignee);
+  const visible = teamMemberRecords.length ? teamTasks.filter(task => visibleTeamNames().includes(task.assignee || task.who)) : teamTasks;
+  return selectedTeamAssignee === '통합' ? visible : visible.filter(task => String(task.assignee || task.who) === selectedTeamAssignee);
 }
 
 function renderTeamMemberTabs() {
   const target = document.getElementById('memberTabButtons');
   if (!target) return;
-  const assignees = taskAssignees();
+  const assignees = visibleTeamNames();
   if (selectedTeamAssignee !== '통합' && !assignees.includes(selectedTeamAssignee)) selectedTeamAssignee = '통합';
   const fragment = document.createDocumentFragment();
   for (const name of ['통합', ...assignees]) {
     const button = createElement('button', `member-tab-btn${name === selectedTeamAssignee ? ' active' : ''}`, name === '통합' ? '🔗 통합' : name);
     button.type = 'button';
+    const record = teamMemberRecords.find(row => row.name === name);
+    if (record?.status === 'retired') button.textContent += ' · 퇴사';
+    if (record?.status === 'upcoming') button.textContent += ' · 입사 예정';
     button.dataset.member = name;
     button.addEventListener('click', () => {
       selectedTeamAssignee = name;
@@ -1190,6 +1287,8 @@ function openTaskModal(task = null) {
   if (task && !manager && !isOwnTask(task, user)) return;
   // 팀원의 새 업무는 담당자가 본인으로 고정된다 (서버도 같은 규칙)
   const selfEntry = !task && !manager;
+  populateTaskAssigneeOptions();
+  if (task) ensureAssigneeOption(task.assignee || task.who || '');
   if (selfEntry) ensureAssigneeOption(user.displayName || '');
   editingTaskId = task?.id == null ? null : String(task.id);
   const values = {
@@ -1387,11 +1486,12 @@ async function renderWeeklyPanel(prefetchedRows) {
   let rows = prefetchedRows || await fetchWeekly(weeklyViewYM);
   if (generation !== weeklyRenderGeneration) return;
   if (selectedTeamAssignee !== '통합') rows = rows.filter((row) => row.member_id === selectedTeamAssignee);
+  if (teamMemberRecords.length) rows = rows.filter(row => visibleTeamNames().includes(row.member_id));
   weeklyRows = rows;
   renderWeeklySummary();
   const members = selectedTeamAssignee !== '통합'
     ? [selectedTeamAssignee]
-    : isWorkspaceManager() ? taskAssignees() : [...new Set(rows.map((row) => row.member_id))];
+    : isWorkspaceManager() ? visibleTeamNames() : [...new Set(rows.map((row) => row.member_id))];
   const fragment = document.createDocumentFragment();
   if (!members.length) fragment.appendChild(createElement('div', 'weekly-empty', '표시할 주간업무가 없습니다.'));
   members.forEach((member) => fragment.appendChild(renderWeeklyMember(member, rows.filter((row) => row.member_id === member))));
@@ -1458,7 +1558,7 @@ function renderWeeklyMember(member, rows) {
       body.appendChild(more);
     }
     col.appendChild(body);
-    if (manager) {
+    if (manager && taskAssignees().includes(member)) {
       const add = createElement('button', 'weekly-add', '+ 항목');
       add.type = 'button';
       add.dataset.weeklyAction = 'add';
@@ -1590,9 +1690,7 @@ async function renderTeamSection() {
     fetchWeekly(month),
   ]);
   teamRoster = roster;
-  teamTasks = roster.length
-    ? tasks.filter((task) => roster.includes(task.assignee || task.who))
-    : tasks;
+  teamTasks = tasks;
   meetingMinutes = minutes;
   renderTaskList(teamTasks);
   setText('dataStatusBadge', teamTasks.length ? '인증된 API' : '빈 상태');
@@ -1885,6 +1983,7 @@ function stopNotificationPolling() {
 }
 
 function bindEvents() {
+  bindMemberSettings();
   document.getElementById('salesDateForm')?.addEventListener('submit', event => {
     event.preventDefault();
     void applySalesRange(document.getElementById('salesDateFrom').value, document.getElementById('salesDateTo').value);
@@ -1911,6 +2010,7 @@ function bindEvents() {
       if (button.dataset.section === 'minutes') void renderMinutesSection();
       if (button.dataset.section === 'kpi') void renderKpiSection();
       if (button.dataset.section === 'manual') void renderManualSection();
+      if (button.dataset.section === 'settings') void loadMemberSettings();
       if (button.dataset.section === 'settings') void renderSettingsSection();
     });
   });
@@ -2130,6 +2230,9 @@ function stopAuthenticatedLifecycle() {
   clearTeamReadCache();
   teamTasks = [];
   teamRoster = [];
+  teamMemberRecords = [];
+  showRetiredMembers = false;
+  editingMemberId = null;
   meetingMinutes = [];
   weeklyRows = [];
   expandedCalendarDays.clear();

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script id="google-identity-script" src="https://accounts.google.com/gsi/client" async defer></script>
-  <link rel="stylesheet" href="style.css?v=20261007-1">
+  <link rel="stylesheet" href="style.css?v=20261007-2">
 </head>
 <body>
 <section class="login-screen" id="login-screen" aria-labelledby="login-title">
@@ -158,6 +158,7 @@
       <div id="section-team" class="section-content" style="display:none">
         <div class="member-tabs" id="memberTabs">
           <div class="member-tab-buttons" id="memberTabButtons" aria-label="담당자별 업무 보기"></div>
+          <label class="retired-toggle"><input type="checkbox" id="showRetiredMembers"> 퇴사자 포함</label>
           <div class="member-tab-actions">
             <span class="data-source-badge" id="dataStatusBadge">로그인 후 API 조회</span>
             <button class="refresh-btn" id="refreshTeamBtn" type="button">새로고침</button>
@@ -330,6 +331,24 @@
       </div>
 
       <div id="section-settings" class="section-content" style="display:none" data-roles="owner">
+        <section class="team-member-settings" aria-labelledby="teamMemberHeading">
+          <div class="workspace-toolbar"><div><h2 id="teamMemberHeading">팀원 관리</h2><p>로그인 계정 없이 업무 담당자를 관리합니다. 입사 예정자도 업무를 배정할 수 있습니다.</p></div><button type="button" class="refresh-btn" id="reloadMembers">목록 새로고침</button></div>
+          <p id="memberSettingsStatus" role="status" aria-live="polite"></p>
+          <div id="memberSettingsList" class="member-settings-list"></div>
+          <form id="memberSettingsForm">
+            <h3 id="memberFormHeading">팀원 추가</h3>
+            <p>등록 후 이름은 기록 보존을 위해 고정됩니다. 다른 사람은 새 팀원으로 추가하세요.</p>
+            <div class="member-form-grid">
+              <label>이름<input id="memberName" required maxlength="50" autocomplete="off"></label>
+              <label>직책<input id="memberTitle" maxlength="50" placeholder="예: 팀장"></label>
+              <label>상태<select id="memberEmploymentStatus"><option value="active">재직</option><option value="upcoming">입사 예정</option><option value="retired">퇴사</option></select></label>
+              <label>입사월 (선택)<input id="memberStartMonth" type="month"></label>
+              <label>퇴사일<input id="memberEndDate" type="date" disabled></label>
+            </div>
+            <div class="workspace-actions"><button type="submit" id="saveMember" class="btn-primary">팀원 추가</button><button type="button" id="cancelMemberEdit" class="btn-secondary" hidden>수정 취소</button></div>
+          </form>
+          <p class="member-settings-note">퇴사 처리해도 기존 업무·회의록은 보존됩니다. 팀 업무의 ‘퇴사자 포함’으로 과거 기록을 확인하세요. 이 설정은 로그인 권한을 변경하지 않습니다.</p>
+        </section>
         <section class="workspace-toolbar settings-toolbar">
           <div>
             <div class="workspace-eyebrow">OWNER CONTROL</div>
@@ -355,6 +374,6 @@
   </div>
 </div>
 <script type="module" src="modules/main.js"></script>
-  <script src="app.js?v=20261007-1"></script>
+  <script src="app.js?v=20261007-2"></script>
 </body>
 </html>

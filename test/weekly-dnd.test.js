@@ -27,7 +27,8 @@ async function loadBoard({ role = 'owner', fetchImpl }) {
   const storage = { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() };
   return Function('window', 'document', 'localStorage', 'sessionStorage', `${script}
     return {
-      bindEvents, renderIntegratedCalendar, renderWeeklyPanel, renderTeamSection, renderMinutesSection,
+      bindEvents, renderIntegratedCalendar, renderWeeklyPanel, renderTeamSection, renderMinutesSection, loadMemberSettings,
+      setMembers: (rows) => { teamMemberRecords = rows; },
       setTasks: (tasks) => { teamTasks = tasks; },
       setRoster: (roster) => { teamRoster = roster; },
       setMonth: (date) => { integratedCalendarMonth = date; },
@@ -241,4 +242,35 @@ test('a member uses the explicit add button to file a task for themselves on tha
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   expect(calls).toContainEqual(['/team/tasks', 'POST', expect.objectContaining({ date: `${YM}-12`, assignee: '권나경', assigned_user_id: 'member-1', task: '블로그 발행' })]);
+});
+
+test('retired history is opt-in while upcoming members remain assignable without accounts', async () => {
+  const rows=[{name:'신입',status:'upcoming'},{name:'퇴사자',status:'retired'}];
+  const tasks=[{id:'new',assignee:'신입',date:YM+'-03',task:'입사 준비'},{id:'old',assignee:'퇴사자',date:YM+'-03',task:'기존 기록'}];
+  const fetchImpl=vi.fn(async path=>jsonResponse(path.startsWith('/team/roster')?{members:['신입'],records:rows}:path.startsWith('/team/tasks')?{tasks}:path.startsWith('/team/minutes')?{minutes:[]}:{rows:[]}));
+  const board=await loadBoard({fetchImpl});
+  document.body.insertAdjacentHTML('beforeend','<input type="checkbox" id="showRetiredMembers"><select id="taskAssignee"></select>');
+  board.bindEvents();await board.renderTeamSection();
+  expect(document.querySelector('[data-member="신입"]').textContent).toContain('입사 예정');
+  expect(document.querySelector('[data-member="퇴사자"]')).toBeNull();
+  expect(document.querySelector('#intCalGrid [data-task-id="old"]')).toBeNull();
+  document.getElementById('showRetiredMembers').click();
+  expect(document.querySelector('[data-member="퇴사자"]').textContent).toContain('퇴사');
+  expect(document.querySelector('#intCalGrid [data-task-id="old"]')).not.toBeNull();
+  expect([...document.querySelectorAll('#taskAssignee option')].map(x=>x.value)).not.toContain('퇴사자');
+  expect(fetchImpl.mock.calls.every(([,o])=>!o?.method || o.method==='GET')).toBe(true);
+});
+
+test('team member settings submits name and employment state without creating a login account', async()=>{
+  const calls=[];const records=[];
+  const fetchImpl=vi.fn(async(path,options={})=>{calls.push([path,options]);if(path==='/team/members'){if(options.method==='POST')records.push({id:'member1',...JSON.parse(options.body)});return jsonResponse({records});}if(path==='/team/roster')return jsonResponse({members:records.map(r=>r.name),records});return jsonResponse({tasks:[],minutes:[],rows:[]});});
+  const board=await loadBoard({fetchImpl});
+  const html=await readFile(`${process.cwd()}/index.html`,'utf8');
+  document.body.insertAdjacentHTML('beforeend',new DOMParser().parseFromString(html,'text/html').querySelector('.team-member-settings').outerHTML);
+  board.bindEvents();await board.loadMemberSettings();
+  document.getElementById('memberName').value='새 팀장';document.getElementById('memberEmploymentStatus').value='upcoming';document.getElementById('memberStartMonth').value='2026-10';
+  document.getElementById('memberSettingsForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+  await vi.waitFor(()=>expect(document.getElementById('memberSettingsStatus').textContent).toContain('저장 완료'));
+  const writes=calls.filter(([,o])=>o.method==='POST');expect(writes).toHaveLength(1);expect(writes[0][0]).toBe('/team/members');expect(JSON.parse(writes[0][1].body)).toEqual({name:'새 팀장',title:'',status:'upcoming',start_month:'2026-10',end_date:null});
+  expect(document.querySelector('[data-member="새 팀장"]')).not.toBeNull();
 });

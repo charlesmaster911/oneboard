@@ -184,6 +184,7 @@ test('the retained page exposes only wired buttons and explicit non-loading stat
   const source = await readFile(`${process.cwd()}/index.html`, 'utf8');
   const page = new DOMParser().parseFromString(source, 'text/html');
   const allowedButtonIds = new Set([
+    'reloadMembers', 'saveMember', 'cancelMemberEdit',
     'logout-button', 'notifBell', 'notifReadAll', 'refreshTeamBtn', 'addTaskBtn',
     'closeTaskModal', 'cancelTask', 'saveTask', 'deleteTask',
     'intCalPrev', 'intCalNext', 'intCalToday',
