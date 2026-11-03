@@ -184,7 +184,7 @@ test('the retained page exposes only wired buttons and explicit non-loading stat
   const source = await readFile(`${process.cwd()}/index.html`, 'utf8');
   const page = new DOMParser().parseFromString(source, 'text/html');
   const allowedButtonIds = new Set([
-    'reloadMembers', 'saveMember', 'cancelMemberEdit',
+    'reloadMembers', 'saveMember', 'cancelMemberEdit', 'dailySalesApply',
     'logout-button', 'notifBell', 'notifReadAll', 'refreshTeamBtn', 'addTaskBtn',
     'closeTaskModal', 'cancelTask', 'saveTask', 'deleteTask',
     'intCalPrev', 'intCalNext', 'intCalToday',
@@ -193,7 +193,7 @@ test('the retained page exposes only wired buttons and explicit non-loading stat
     'refreshKpiBtn', 'refreshManualBtn', 'refreshSettingsBtn', 'runAllSyncBtn', 'backfillSyncBtn', 'salesDateApply',
   ]);
   const unaccounted = [...page.querySelectorAll('button')].filter((button) => (
-    !button.dataset.section && !button.dataset.salesPreset && !button.dataset.manualEntry && !allowedButtonIds.has(button.id)
+    !button.dataset.section && !button.dataset.salesPreset && !button.dataset.manualEntry && !button.dataset.strategyPeriod && !button.hasAttribute('data-strategy-refresh') && !allowedButtonIds.has(button.id)
   ));
 
   expect(unaccounted.map((button) => button.outerHTML)).toEqual([]);

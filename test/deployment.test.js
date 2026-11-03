@@ -67,14 +67,14 @@ describe('Render public configuration boundary', () => {
 
     expect(render).toMatch(/staticPublishPath:\s*dist/);
     expect(build).toContain("const publicAssets = ['index.html', 'style.css', 'app.js'];");
-    expect(build).toContain("const publicModules = ['api.js', 'auth.js', 'collaboration.js', 'dom.js', 'main.js', 'workspace.js'];");
+    expect(build).toContain("const publicModules = ['api.js', 'auth.js', 'collaboration.js', 'dom.js', 'main.js', 'workspace.js', 'daily-sales.js', 'sales-strategy.js', 'sales-strategy-model.js'];");
     expect(build).not.toMatch(/manuals|oneboard-backup-guide/);
   });
 
   it('cache-busts the deploy-sensitive application and stylesheet assets', () => {
     const page = readFileSync(join(projectRoot, 'index.html'), 'utf8');
 
-    expect(page).toContain('src="app.js?v=20261007-2"');
-    expect(page).toContain('href="style.css?v=20261007-2"');
+    expect(page).toContain('src="app.js?v=20261103-1"');
+    expect(page).toContain('href="style.css?v=20261103-1"');
   });
 });

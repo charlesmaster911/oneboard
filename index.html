@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script id="google-identity-script" src="https://accounts.google.com/gsi/client" async defer></script>
-  <link rel="stylesheet" href="style.css?v=20261007-2">
+  <link rel="stylesheet" href="style.css?v=20261103-2">
 </head>
 <body>
 <section class="login-screen" id="login-screen" aria-labelledby="login-title">
@@ -73,6 +73,21 @@
 
     <main class="main">
       <div id="section-sales" class="section-content">
+        <section id="salesStrategy" class="sales-strategy" hidden data-roles="owner,ops,marketing" aria-labelledby="salesStrategyHeading">
+          <header class="strategy-heading"><div><h2 id="salesStrategyHeading">매출·광고 전략</h2><p>잘 팔리는 채널부터, 다음 행동까지.</p></div><button type="button" data-strategy-refresh class="btn-primary">새로고침</button></header>
+          <div class="strategy-toolbar" role="group" aria-label="전략 조회 기간">
+            <button type="button" data-strategy-period="7d" aria-pressed="true">최근 7일</button><button type="button" data-strategy-period="week" aria-pressed="false">이번 주</button><button type="button" data-strategy-period="weekend" aria-pressed="false">주말 비교</button><button type="button" data-strategy-period="30d" aria-pressed="false">최근 30일</button>
+          </div><p role="status" aria-live="polite"></p><div data-strategy-body></div>
+        </section>
+        <details class="legacy-sales-details" data-roles="owner,ops,marketing"><summary>오전 보고서와 백업</summary>
+        <section id="dailySalesReport" class="daily-report" hidden data-roles="owner,ops,marketing" aria-labelledby="dailySalesHeading">
+          <h2 id="dailySalesHeading">오전 매출보고</h2>
+          <p>매일 09:00 수집 시작 · 09:55까지 확인분 보고 · 이후 확인되는 지표는 보정</p>
+          <form class="daily-report-filter"><label>보고 대상일 <input type="date" required aria-label="오전 보고 대상일"></label><button id="dailySalesApply" type="submit" class="btn-primary">조회</button></form>
+          <p role="status" aria-live="polite"></p><div data-report-body></div>
+        </section>
+        </details>
+        <details class="legacy-sales-details"><summary>기존 수집자료 · 기간별 조회</summary>
         <form id="salesDateForm" class="sales-date-filter" aria-label="매출 조회 기간">
           <div class="sales-date-heading"><strong>매출 · 광고 현황</strong><span id="salesPeriodLabel" aria-live="polite"></span></div>
           <div class="sales-date-controls">
@@ -153,6 +168,7 @@
           </div>
         </section>
 
+        </details>
       </div>
 
       <div id="section-team" class="section-content" style="display:none">
@@ -374,6 +390,6 @@
   </div>
 </div>
 <script type="module" src="modules/main.js"></script>
-  <script src="app.js?v=20261007-2"></script>
+  <script src="app.js?v=20261103-2"></script>
 </body>
 </html>

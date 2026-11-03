@@ -2901,3 +2901,65 @@ button.weekly-item-del { border: 0; background: transparent; font-family: inheri
 .retired-toggle { display:flex; align-items:center; gap:6px; font-size:13px; color:#475569; white-space:nowrap; }
 .team-member-settings button:focus-visible,.team-member-settings input:focus-visible,.team-member-settings select:focus-visible { outline:2px solid #2563EB; outline-offset:2px; }
 @media(max-width:760px) { .team-member-settings {padding:16px;} .member-settings-list,.member-form-grid {grid-template-columns:minmax(0,1fr);} }
+/* The morning report is the primary daily view; legacy aggregates stay separate. */
+.sales-strategy {background:#fff;color:#0f172a;padding:28px;border:1px solid #dbe3ed;border-radius:12px;margin-bottom:24px;font-size:14px;line-height:1.6;}
+.sales-strategy[hidden]{display:none}
+.strategy-heading{display:flex;justify-content:space-between;align-items:center;gap:18px}
+.strategy-heading h2{font-size:26px;margin:0;text-wrap:balance;letter-spacing:-.02em}
+.strategy-heading p{color:#475569;margin:6px 0 0}
+.strategy-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:24px 0 10px}
+.strategy-toolbar button{font:inherit;padding:9px 16px;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:6px;cursor:pointer;min-height:42px;transition:background-color .18s}
+.strategy-toolbar button:hover{background:#f1f5f9}
+.strategy-toolbar button[aria-pressed=true]{background:#1d4ed8;color:#fff;border-color:#1d4ed8;font-weight:600}
+.sales-strategy [role=status]{color:#475569;min-height:22px;font-size:13px}
+.strategy-period{font-size:15px;font-weight:600;margin:14px 0}
+.strategy-summary{display:flex;flex-wrap:wrap;background:#f1f5f9;padding:18px 0;margin:20px 0 30px;border-radius:8px;gap:18px 0}
+.strategy-summary>div{flex:1 1 190px;padding:0 22px}
+.strategy-summary dt{font-size:13px;color:#475569}
+.strategy-summary dd{font-size:24px;font-weight:700;margin:4px 0 0;font-variant-numeric:tabular-nums}
+.strategy-section{padding:24px 0;border-top:1px solid #dbe3ed}
+.strategy-section h3{font-size:19px;margin:0 0 8px}
+.strategy-muted{color:#475569;max-width:90ch;margin:8px 0 14px}
+.strategy-actions{padding-left:24px;margin:16px 0 0}
+.strategy-actions li{padding:8px 0}
+.strategy-actions strong{font-size:15px}
+.strategy-actions p{margin:4px 0;color:#334155;max-width:90ch}
+.strategy-table{overflow:auto;max-width:100%;margin:18px 0;border-radius:4px}
+.strategy-table table{border-collapse:collapse;width:100%;min-width:790px;font-variant-numeric:tabular-nums}
+.strategy-table th,.strategy-table td{padding:14px 12px;text-align:right;border-bottom:1px solid #e2e8f0;vertical-align:top;white-space:nowrap;font-size:14px}
+.strategy-table thead th{background:#f8fafc;color:#475569;font-size:13px;font-weight:600}
+.strategy-table th:first-child{text-align:left;white-space:normal;min-width:170px}
+.strategy-table tbody tr:hover{background:#f8fafc}
+.strategy-table td:last-child{white-space:normal;min-width:100px}
+.strategy-channel small{display:block;font-weight:400;color:#475569;font-size:12px;margin-top:4px}
+.sales-strategy details{margin:14px 0;padding:0 0 8px}
+.sales-strategy summary{cursor:pointer;font-weight:600;min-height:40px;padding:8px 0;color:#334155}
+.strategy-funnel{display:flex;flex-wrap:wrap;list-style:none;padding:0;background:#f8fafc;border-radius:8px;margin:18px 0}
+.strategy-funnel li{flex:1 1 150px;padding:18px;text-align:center}
+.strategy-funnel span{display:block;color:#64748b;font-size:13px;margin-top:6px}
+.sales-strategy :is(button,summary,[tabindex]):focus-visible{outline:3px solid #2563eb;outline-offset:3px}
+@media(max-width:760px){.sales-strategy{padding:18px 14px}.strategy-heading{align-items:start}.strategy-heading h2{font-size:23px}.strategy-summary>div{flex-basis:50%;min-width:0;padding:0 14px}.strategy-summary dd{font-size:21px}.strategy-funnel li{text-align:left;flex-basis:40%}.strategy-toolbar button{flex:1 1 auto;padding:8px 10px}}
+@media(prefers-reduced-motion:reduce){.sales-strategy *{transition:none!important}}
+.daily-report { padding:24px; margin-bottom:24px; background:#fff; color:#183047; border:1px solid #d9e5ed; border-radius:16px; }
+.daily-report[hidden] { display:none; }
+.daily-report h2 { margin:0 0 8px; font-size:26px; }
+.daily-report-filter { display:flex; align-items:end; gap:12px; margin:20px 0; }
+.daily-report input { padding:9px; border:1px solid #a4b6c5; border-radius:6px; font:inherit; }
+.daily-report-status { font-weight:700; }
+.daily-report-kpis { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:20px 0; }
+.daily-report-kpis>div { background:#edf6fa; border-radius:12px; padding:18px; }
+.daily-report-kpis strong { display:block; font-size:28px; margin-top:9px; }
+.daily-report-note { color:#415b6c; line-height:1.7; }
+.daily-report-warning { padding:14px; background:#fff1d8; color:#704500; border-radius:8px; line-height:1.7; }
+.daily-report-table { overflow-x:auto; margin:22px 0; }
+.daily-report table { border-collapse:collapse; width:100%; min-width:500px; }
+.daily-report th,.daily-report td { text-align:left; border-bottom:1px solid #dfE8ed; padding:12px 10px; vertical-align:top; }
+.daily-report td:nth-child(2) { white-space:nowrap; }
+.daily-report details p { max-width:900px; line-height:1.7; }
+.daily-report summary,.legacy-sales-details>summary { cursor:pointer; padding:8px 0; }
+.daily-report-backups { padding:16px; margin:18px 0; background:#f5f7f9; border-radius:8px; }
+.daily-report-backups p { margin:8px 0; }
+.daily-report a { color:#155880; text-decoration:underline; }
+.legacy-sales-details { margin-top:20px; }
+.legacy-sales-details>summary { font-weight:600; margin-bottom:16px; }
+@media(max-width:600px){.daily-report{padding:16px}.daily-report-kpis{grid-template-columns:1fr}.daily-report-kpis strong{font-size:26px}.daily-report-filter{align-items:start;flex-direction:column}}

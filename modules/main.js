@@ -3,6 +3,8 @@ import { apiFetch } from './api.js';
 import { applyUiPolicy, createElement, formatWon, setText } from './dom.js';
 import * as collaboration from './collaboration.js';
 import * as workspace from './workspace.js';
+import { installDailySales } from './daily-sales.js';
+import { installSalesStrategy } from './sales-strategy.js';
 
 globalThis.ONEBOARD_COLLABORATION = Object.freeze({ ...collaboration });
 globalThis.ONEBOARD_WORKSPACE = Object.freeze({ ...workspace });
@@ -71,6 +73,8 @@ export function renderPlatformDetail(target, rows = []) {
 }
 
 export function bootOneBoard() {
+  const dailySales = installDailySales({ fetcher: apiFetch });
+  const salesStrategy = installSalesStrategy({ fetcher: apiFetch });
   const gate = createAuthenticatedSessionGate();
   globalThis.ONEBOARD_SESSION_READY = gate.ready;
   globalThis.ONEBOARD_API = Object.freeze({ fetch: apiFetch });
@@ -79,6 +83,8 @@ export function bootOneBoard() {
   renderAuthShell(null);
   onAuthChanged((user, { reason } = {}) => {
     renderAuthShell(user);
+    dailySales.setUser(user);
+    salesStrategy.setUser(user);
     gate.publish(user);
     announceAuthTransition(user, reason);
     globalThis.dispatchEvent?.(new CustomEvent('oneboard:auth-changed', { detail: { user } }));
@@ -112,6 +118,8 @@ export function bootOneBoard() {
 
   initAuth({ googleClientId }).then((user) => {
     renderAuthShell(user);
+    dailySales.setUser(user);
+    salesStrategy.setUser(user);
     gate.publish(user);
   }).catch(() => {
     renderAuthShell(null);
