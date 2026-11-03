@@ -12,3 +12,11 @@ test('logout during pending fetch clears report and stale fetch cannot restore i
   controller.setUser({role:'ops'});controller.setUser(null);resolve({ok:true,json:async()=>({report})});await new Promise(r=>setTimeout(r,0));
   expect(document.querySelector('#dailySalesReport').hidden).toBe(true);expect(document.querySelector('[data-report-body]').textContent).toBe('');
 });
+test('original sheet links remain visible before first report without claiming backup success',()=>{
+  const target=document.createElement('div');renderDailyReport(target,null);
+  expect([...target.querySelectorAll('a')].map(a=>a.href)).toEqual([
+    'https://docs.google.com/spreadsheets/d/11byYTuUleS-kq3idS4e0Mgt368FssfnrHchyalHPuRI/edit',
+    'https://docs.google.com/spreadsheets/d/1bQXabJqvT6ytJgHZ-CzjGDbGxD2--ZDSJUsZBK3XTbk/edit'
+  ]);
+  expect(target.textContent).toContain('백업 대기');expect(target.textContent).not.toContain('저장·재조회 확인');
+});
